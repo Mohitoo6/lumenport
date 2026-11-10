@@ -1,0 +1,143 @@
+import { MAP, VERTS } from '../../core/constants';
+import type { Rng } from '../../core/rng';
+import { FACING_DX, FACING_DY, Facing, ZoneType, zoneDensity, zoneType } from './zones';
+
+export interface Lot {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  facing: Facing;
+}
+
+export interface LotLayers {
+  zone: Uint8Array;
+  buildingCell: Int32Array;
+  roadCell: Int32Array;
+  heights: Float32Array;
+}
+
+/** Deepest a lot may reach from its road, in cells. */
+export const MAX_DEPTH = 4;
+const MAX_RELIEF = 5;
+const MIN_HEIGHT = 0.5;
+
+/** Lot shapes to try, as [frontage, depth] in cells, most wanted first. */
+function shapes(zone: number): Array<[number, number]> {
+  const t = zoneType(zone);
+  const d = zoneDensity(zone);
+  if (t === ZoneType.Residential) {
+    if (d === 1) return [[2, 3], [2, 2], [3, 3], [3, 2], [2, 4], [1, 2], [1, 3], [1, 1]];
+    if (d === 2) return [[3, 3], [2, 3], [4, 3], [3, 4], [2, 2], [3, 2], [1, 2], [1, 1]];
+    return [[4, 4], [3, 4], [3, 3], [4, 3], [2, 3], [2, 2], [1, 2], [1, 1]];
+  }
+  if (t === ZoneType.Commercial) {
+    if (d === 1) return [[2, 2], [3, 2], [2, 3], [3, 3], [1, 2], [1, 1]];
+    if (d === 2) return [[3, 3], [2, 3], [4, 3], [3, 4], [2, 2], [1, 2], [1, 1]];
+    return [[4, 4], [3, 4], [3, 3], [4, 3], [2, 3], [2, 2], [1, 1]];
+  }
+  if (d === 1) return [[3, 3], [4, 3], [2, 3], [3, 4], [2, 2], [1, 2], [1, 1]];
+  if (d === 2) return [[4, 4], [4, 3], [3, 4], [3, 3], [2, 3], [2, 2], [1, 1]];
+  return [[4, 4], [4, 3], [3, 4], [3, 3], [2, 2], [1, 1]];
+}
+
+function isRoad(l: LotLayers, i: number, j: number): boolean {
+  return i >= 0 && j >= 0 && i < MAP && j < MAP && l.roadCell[j * MAP + i]! >= 0;
+}
+
+/** The side of cell (i, j) that touches a road, or -1. With several, the pick is stable. */
+export function frontageOf(l: LotLayers, i: number, j: number): Facing | -1 {
+  // Prefer the side whose road continues: it is more likely the main frontage.
+  let best: Facing | -1 = -1;
+  let bestScore = 0;
+  for (let f = 0 as Facing; f < 4; f++) {
+    const dx = FACING_DX[f]!;
+    const dy = FACING_DY[f]!;
+    if (!isRoad(l, i + dx, j + dy)) continue;
+    // Count road cells along the frontage on both sides.
+    let score = 1;
+    if (isRoad(l, i + dx - dy, j + dy + dx)) score++;
+    if (isRoad(l, i + dx + dy, j + dy - dx)) score++;
+    if (score > bestScore) {
+      bestScore = score;
+      best = f;
+    }
+  }
+  return best;
+}
+
+function rectFor(i: number, j: number, facing: Facing, front: number, depth: number, offset: number): Lot {
+  switch (facing) {
+    case Facing.North:
+      return { x: i - offset, y: j, w: front, h: depth, facing };
+    case Facing.South:
+      return { x: i - offset, y: j - depth + 1, w: front, h: depth, facing };
+    case Facing.West:
+      return { x: i, y: j - offset, w: depth, h: front, facing };
+    default:
+      return { x: i - depth + 1, y: j - offset, w: depth, h: front, facing };
+  }
+}
+
+function valid(l: LotLayers, lot: Lot, zone: number): boolean {
+  if (lot.x < 1 || lot.y < 1 || lot.x + lot.w > MAP - 1 || lot.y + lot.h > MAP - 1) return false;
+  for (let j = lot.y; j < lot.y + lot.h; j++) {
+    for (let i = lot.x; i < lot.x + lot.w; i++) {
+      const k = j * MAP + i;
+      if (l.zone[k] !== zone || l.buildingCell[k]! >= 0 || l.roadCell[k]! >= 0) return false;
+    }
+  }
+  let lo = Infinity;
+  let hi = -Infinity;
+  for (let j = lot.y; j <= lot.y + lot.h; j++) {
+    for (let i = lot.x; i <= lot.x + lot.w; i++) {
+      const v = l.heights[j * VERTS + i]!;
+      if (v < lo) lo = v;
+      if (v > hi) hi = v;
+    }
+  }
+  if (lo < MIN_HEIGHT || hi - lo > MAX_RELIEF) return false;
+
+  // Most of the front row must actually face road.
+  const dx = FACING_DX[lot.facing]!;
+  const dy = FACING_DY[lot.facing]!;
+  let front = 0;
+  let touching = 0;
+  if (dy !== 0) {
+    const j = dy < 0 ? lot.y : lot.y + lot.h - 1;
+    for (let i = lot.x; i < lot.x + lot.w; i++) {
+      front++;
+      if (isRoad(l, i, j + dy)) touching++;
+    }
+  } else {
+    const i = dx < 0 ? lot.x : lot.x + lot.w - 1;
+    for (let j = lot.y; j < lot.y + lot.h; j++) {
+      front++;
+      if (isRoad(l, i + dx, j)) touching++;
+    }
+  }
+  return touching * 3 >= front * 2;
+}
+
+/**
+ * Finds a lot for the zoned cell (i, j), which must touch a road. Tries the preferred
+ * shapes for the zone, sliding each along the frontage, and returns the first that fits.
+ */
+export function findLot(l: LotLayers, i: number, j: number, rng: Rng): Lot | null {
+  const zone = l.zone[j * MAP + i]!;
+  if (zone === 0 || l.buildingCell[j * MAP + i]! >= 0) return null;
+  const facing = frontageOf(l, i, j);
+  if (facing < 0) return null;
+  const list = shapes(zone);
+  // Usually take the best-fitting preferred shape, sometimes skip ahead for variety.
+  const skip = rng.chance(0.35) ? rng.int(3) : 0;
+  for (let n = 0; n < list.length; n++) {
+    const [front, depth] = list[(n + skip) % list.length]!;
+    const start = rng.int(front);
+    for (let o = 0; o < front; o++) {
+      const lot = rectFor(i, j, facing as Facing, front, depth, (start + o) % front);
+      if (valid(l, lot, zone)) return lot;
+    }
+  }
+  return null;
+}

@@ -396,6 +396,7 @@ interface RoadLayers {
   trees: Uint8Array;
   roadCell: Int32Array;
   roadLock: Uint8Array;
+  buildings?: ReadonlyArray<{ x: number; y: number; w: number; h: number } | null>;
 }
 
 function cellRectOf(x0: number, z0: number, x1: number, z1: number, pad: number): Rect {
@@ -487,7 +488,7 @@ export function demolishEdge(net: RoadNetwork, layers: RoadLayers, edgeId: numbe
   rasterRoads(layers.roadCell, net, cells);
   const verts = emptyRect();
   growRect(verts, cells.x0, cells.y0, cells.x1, cells.y1);
-  relock(layers.roadLock, net, verts);
+  relock(layers.roadLock, net, verts, layers.buildings);
   return change;
 }
 

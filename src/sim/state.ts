@@ -2,8 +2,9 @@ import { DAYS_PER_MONTH, MAP, MONTHS_PER_YEAR, START_YEAR, TICKS_PER_DAY, VERTS 
 import { generateHeights } from './map/terrain';
 import { generateTrees } from './map/trees';
 import { emptyNetwork, type RoadNetwork } from './roads/types';
+import type { Building } from './zoning/zones';
 
-export const STATE_VERSION = 2;
+export const STATE_VERSION = 3;
 
 export type Speed = 0 | 1 | 2 | 3;
 
@@ -26,8 +27,16 @@ export interface GameState {
   roads: RoadNetwork;
   /** Per cell: id of the road edge covering it, or -1. */
   roadCell: Int32Array;
-  /** Per vertex: 1 where a road has graded the terrain, so later roads leave it alone. */
+  /** Per vertex: 1 where a road or building pad fixed the terrain, so later work leaves it alone. */
   roadLock: Uint8Array;
+  /** Per cell: zone code (see zoning/zones.ts), 0 = unzoned. */
+  zone: Uint8Array;
+  /** Ids are array indices; removed entries are null. */
+  buildings: Array<Building | null>;
+  /** Per cell: id of the building whose lot covers it, or -1. */
+  buildingCell: Int32Array;
+  /** Ids of buildings still under construction. */
+  constructing: number[];
 }
 
 export function createState(seed: number, cityName = 'New Haven'): GameState {
@@ -44,6 +53,10 @@ export function createState(seed: number, cityName = 'New Haven'): GameState {
     roads: emptyNetwork(),
     roadCell: new Int32Array(MAP * MAP).fill(-1),
     roadLock: new Uint8Array(VERTS * VERTS),
+    zone: new Uint8Array(MAP * MAP),
+    buildings: [],
+    buildingCell: new Int32Array(MAP * MAP).fill(-1),
+    constructing: [],
   };
 }
 

@@ -6,7 +6,10 @@ export type Command =
   | { type: 'setSpeed'; speed: Speed }
   | { type: 'renameCity'; name: string }
   | ({ type: 'buildRoad' } & RoadRequest)
-  | { type: 'bulldozeRoad'; edge: number };
+  | { type: 'bulldozeRoad'; edge: number }
+  /** Paints a zone code (0 clears) over a rectangle of cells, inclusive. */
+  | { type: 'zoneRect'; x0: number; y0: number; x1: number; y1: number; zone: number }
+  | { type: 'bulldozeBuilding'; id: number };
 
 export interface CommandResult {
   ok: boolean;

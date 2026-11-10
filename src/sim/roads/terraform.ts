@@ -67,13 +67,22 @@ export function levelUnderEdge(heights: Float32Array, lock: Uint8Array, net: Roa
   growRect(out, i0, j0, i1, j1);
 }
 
-/** Rebuilds the lock flags inside a vertex rectangle from the roads that still exist. */
-export function relock(lock: Uint8Array, net: RoadNetwork, r: Rect): void {
+/**
+ * Rebuilds the lock flags inside a vertex rectangle from the roads and building pads that
+ * still exist.
+ */
+export function relock(lock: Uint8Array, net: RoadNetwork, r: Rect, pads: ReadonlyArray<{ x: number; y: number; w: number; h: number } | null> = []): void {
   const i0 = clamp(r.x0, 0, MAP);
   const i1 = clamp(r.x1, 0, MAP);
   const j0 = clamp(r.y0, 0, MAP);
   const j1 = clamp(r.y1, 0, MAP);
   for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) lock[j * VERTS + i] = 0;
+  for (const b of pads) {
+    if (!b || b.x > i1 || b.y > j1 || b.x + b.w < i0 || b.y + b.h < j0) continue;
+    for (let j = Math.max(j0, b.y); j <= Math.min(j1, b.y + b.h); j++) {
+      for (let i = Math.max(i0, b.x); i <= Math.min(i1, b.x + b.w); i++) lock[j * VERTS + i] = 1;
+    }
+  }
   for (const e of net.edges) {
     if (!e) continue;
     const poly = edgePolyline(net, e);
