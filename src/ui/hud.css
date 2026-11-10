@@ -225,6 +225,76 @@ button:focus-visible {
   color: #2b0a06;
 }
 
+/* Zone tools carry their zone colour: a dot when idle, the whole button when active. */
+
+.tool-btn.zone-r {
+  --zone: #4fc25a;
+}
+
+.tool-btn.zone-c {
+  --zone: #5b9bff;
+}
+
+.tool-btn.zone-i {
+  --zone: #f2b33a;
+}
+
+.toolbar .tool-btn[class*='zone-'] {
+  position: relative;
+}
+
+.toolbar .tool-btn[class*='zone-']::after {
+  content: '';
+  position: absolute;
+  top: 6px;
+  right: 9px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--zone);
+}
+
+.tool-btn[class*='zone-'].is-active {
+  background: var(--zone);
+  color: #0d1410;
+}
+
+.tool-btn[class*='zone-'].is-active::after {
+  display: none;
+}
+
+.density-pips {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 14px;
+}
+
+.density-pips i {
+  width: 4px;
+  border-radius: 1px;
+  background: currentColor;
+  opacity: 0.28;
+}
+
+.density-pips i:nth-child(1) {
+  height: 6px;
+}
+
+.density-pips i:nth-child(2) {
+  height: 10px;
+}
+
+.density-pips i:nth-child(3) {
+  height: 14px;
+}
+
+.density-pips.d1 i:nth-child(-n + 1),
+.density-pips.d2 i:nth-child(-n + 2),
+.density-pips.d3 i {
+  opacity: 1;
+}
+
 .toolbar-sep {
   width: 1px;
   margin: 6px 4px;

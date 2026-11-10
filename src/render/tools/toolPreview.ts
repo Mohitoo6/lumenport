@@ -13,6 +13,7 @@ import {
 import { WATER_LEVEL } from '../../core/constants';
 import { heightAt } from '../../sim/map/terrain';
 import { bezPoint, bezTangent, type Pt } from '../../sim/roads/geometry';
+import type { TerrainFx } from '../terrain/terrainMaterial';
 
 const MAX_STATIONS = 160;
 const p: Pt = { x: 0, z: 0 };
@@ -34,8 +35,16 @@ const TONES: Record<PreviewTone, Color> = {
  */
 export class ToolPreview {
   readonly group = new Group();
-  /** Shared with the terrain material: xy centre, z radius, w strength. */
-  readonly grid = { value: new Vector4(0, 0, 150, 0) };
+  /** Uniforms shared with the terrain material: build grid, zone tint, selection rectangle. */
+  readonly fx: TerrainFx = {
+    grid: { value: new Vector4(0, 0, 150, 0) },
+    zoneTex: { value: null },
+    zoneAlpha: { value: 0.16 },
+    sel: { value: new Vector4() },
+    selColor: { value: new Vector4(0, 0, 0, 0) },
+  };
+  readonly grid = this.fx.grid;
+  private zoneTarget = 0.16;
   private readonly ribbon: Mesh;
   private readonly ribbonMat: ShaderMaterial;
   private readonly ring: Mesh;
@@ -172,6 +181,28 @@ export class ToolPreview {
     this.ring.visible = false;
   }
 
+  /** Highlights a rectangle of ground (world metres). */
+  showRect(x0: number, z0: number, x1: number, z1: number, tone: PreviewTone, alpha = 0.5): void {
+    this.fx.sel.value.set(Math.min(x0, x1), Math.min(z0, z1), Math.max(x0, x1), Math.max(z0, z1));
+    const c = TONES[tone];
+    this.fx.selColor.value.set(c.r, c.g, c.b, alpha);
+  }
+
+  /** Highlights a rectangle in an explicit linear colour. */
+  showRectColor(x0: number, z0: number, x1: number, z1: number, r: number, g: number, b: number, alpha = 0.6): void {
+    this.fx.sel.value.set(Math.min(x0, x1), Math.min(z0, z1), Math.max(x0, x1), Math.max(z0, z1));
+    this.fx.selColor.value.set(r, g, b, alpha);
+  }
+
+  hideRect(): void {
+    this.fx.selColor.value.w = 0;
+  }
+
+  /** Zone colours are faint normally and strong while zoning. */
+  setZoneView(strong: boolean): void {
+    this.zoneTarget = strong ? 0.72 : 0.16;
+  }
+
   /** Turns the terrain build grid on or off; it fades rather than popping. */
   setGrid(on: boolean): void {
     this.gridTarget = on ? 1 : 0;
@@ -184,5 +215,7 @@ export class ToolPreview {
     // Hide the grid when zoomed far out, where it would turn to moire.
     g.z = Math.min(170, Math.max(70, viewDistance * 0.4));
     if (viewDistance > 900) g.w = 0;
+    const za = this.fx.zoneAlpha;
+    za.value += (this.zoneTarget - za.value) * (1 - Math.exp(-10 * dt));
   }
 }

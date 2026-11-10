@@ -5,10 +5,14 @@ import { loadPbr, loadTextureArray, loadWarnings } from '../render/assets/loader
 import { makeNoiseTexture, makeWaterNormalTexture } from '../render/assets/procedural';
 import { Atmosphere } from '../render/atmosphere';
 import { RtsCamera, type CameraPose } from '../render/camera/rtsCamera';
+import { BuildingRenderer } from '../render/buildings/buildingRenderer';
+import { createCityMaterial } from '../render/buildings/cityMaterial';
+import { CITY_LAYERS } from '../render/buildings/geo';
 import { Engine } from '../render/engine';
 import { TreeRenderer } from '../render/props/treeRenderer';
 import { createRoadMaterials } from '../render/roads/roadMaterials';
 import { RoadRenderer } from '../render/roads/roadRenderer';
+import { ZoneOverlay } from '../render/overlays/zoneOverlay';
 import { ShadowFitter } from '../render/shadows';
 import { ToolPreview } from '../render/tools/toolPreview';
 import { TERRAIN_LAYERS, createTerrainMaterial } from '../render/terrain/terrainMaterial';
@@ -42,7 +46,9 @@ export class Game {
   water!: WaterRenderer;
   trees!: TreeRenderer;
   roads!: RoadRenderer;
+  buildings!: BuildingRenderer;
   preview!: ToolPreview;
+  zones!: ZoneOverlay;
   tools!: ToolManager;
   input!: CameraInput;
   ready = false;
@@ -92,6 +98,12 @@ export class Game {
       loadPbr('concrete', aniso),
       loadPbr('grass', aniso),
     ]);
+    ui.loading.value = 'Loading building materials';
+    const [cityDiff, cityNor, cityArm] = await Promise.all([
+      loadTextureArray(CITY_LAYERS, 'diff', 512, aniso),
+      loadTextureArray(CITY_LAYERS, 'nor', 512, aniso),
+      loadTextureArray(CITY_LAYERS, 'arm', 512, aniso),
+    ]);
     const noise = makeNoiseTexture();
     const waterNormal = makeWaterNormalTexture();
 
@@ -99,7 +111,9 @@ export class Game {
     await nextFrame();
     this.preview = new ToolPreview(() => sim.state.heights);
     engine.scene.add(this.preview.group);
-    this.terrain = new TerrainRenderer(state.heights, state.seed, createTerrainMaterial({ diff, nor, arm, noise }, this.preview.grid));
+    this.zones = new ZoneOverlay(state.zone);
+    this.preview.fx.zoneTex.value = this.zones.texture;
+    this.terrain = new TerrainRenderer(state.heights, state.seed, createTerrainMaterial({ diff, nor, arm, noise }, this.preview.fx));
     engine.scene.add(this.terrain.group);
     this.water = new WaterRenderer(state.heights, state.seed, waterNormal, noise, atmosphere.uniforms);
     engine.scene.add(this.water.mesh);
@@ -112,6 +126,13 @@ export class Game {
       this.trees.material,
     );
     engine.scene.add(this.roads.group);
+    this.buildings = new BuildingRenderer(
+      state.buildings,
+      createCityMaterial({ diff: cityDiff, nor: cityNor, arm: cityArm }, atmosphere.uniforms, this.preview.fx),
+      this.trees.lodGeometry(TreeSpecies.Oak, 1),
+      this.trees.material,
+    );
+    engine.scene.add(this.buildings.group);
 
     sim.events.on('terrainChanged', (r) => {
       this.terrain.updateRect(r);
@@ -119,14 +140,17 @@ export class Game {
     });
     sim.events.on('treesChanged', (r) => this.trees.updateRect(r));
     sim.events.on('roadsChanged', (c) => this.roads.onChange(c));
+    sim.events.on('buildingsChanged', (c) => this.buildings.onChange(c));
+    sim.events.on('zonesChanged', (r) => this.zones.update(r));
     sim.events.on('speedChanged', (s) => (ui.speed.value = s as 0 | 1 | 2 | 3));
 
     this.input = new CameraInput(this.canvas, this.rig, () => sim.state.heights, { edgeScroll: !this.options.shots });
-    this.tools = new ToolManager(this.canvas, this.rig, sim, this.preview);
+    this.tools = new ToolManager(this.canvas, this.rig, sim, this.preview, (id) => this.buildings.heightOf(id));
     actions.setSpeed = (speed) => void sim.apply({ type: 'setSpeed', speed });
     actions.selectTool = (tool) => this.tools.select(tool);
     actions.setRoadType = (type) => this.tools.setRoadType(type);
     actions.setRoadMode = (mode) => this.tools.setRoadMode(mode);
+    actions.setZone = (type, density) => this.tools.setZone(type as 0 | 1 | 2 | 3, density as 1 | 2 | 3);
     window.addEventListener('keydown', this.onKey);
     window.addEventListener('resize', this.onResize);
 
@@ -233,6 +257,7 @@ export class Game {
     this.shadows.update(cam, this.atmosphere.sunDir, this.rig.focusY, this.rig.pose.dist);
     this.trees?.updateLod(this.camPos);
     this.roads?.update();
+    this.buildings?.update();
     this.engine.render(dt);
     this.frameCount++;
 
@@ -260,6 +285,7 @@ export class Game {
           `draws ${s.drawCalls}  tris ${(s.triangles / 1000).toFixed(0)}k\n` +
           `geo ${s.geometries}  tex ${s.textures}\n` +
           `sim ${this.simMs.toFixed(2)} ms  trees ${this.trees?.count ?? 0}\n` +
+          `buildings ${this.buildings?.buildingCount ?? 0}\n` +
           `shadow texel ${this.shadows.texel.toFixed(2)} m`;
       }
     }

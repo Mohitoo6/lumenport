@@ -17,6 +17,8 @@ export interface GroundPoint {
   x: number;
   y: number;
   z: number;
+  /** Id of the building the cursor is pointing at, when it is over one. */
+  building?: number;
 }
 
 export interface Tool {
@@ -27,6 +29,10 @@ export interface Tool {
   click(ctx: ToolContext, p: GroundPoint): void;
   /** Steps back (for example, drops the start point). Returns false if there was nothing to undo. */
   cancel(ctx: ToolContext): boolean;
+  /** Tools that work by dragging implement these; `click` is then not used. */
+  dragStart?(ctx: ToolContext, p: GroundPoint): void;
+  dragMove?(ctx: ToolContext, p: GroundPoint | null): void;
+  dragEnd?(ctx: ToolContext, p: GroundPoint | null): void;
 }
 
 export function money(n: number): string {

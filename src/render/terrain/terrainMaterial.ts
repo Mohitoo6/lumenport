@@ -17,6 +17,10 @@ const PARS = /* glsl */ `
   uniform sampler2DArray uTerrArm;
   uniform sampler2D uNoise;
   uniform vec4 uGrid; // xy = centre, z = radius, w = strength
+  uniform sampler2D uZoneTex; // one texel per cell: zone colour, alpha 1 where zoned
+  uniform float uZoneAlpha;
+  uniform vec4 uSel; // selection rectangle in world metres: min xz, max xz
+  uniform vec4 uSelColor;
   varying vec3 vWPos;
   varying vec3 vWNormal;
 
@@ -91,6 +95,20 @@ const MAP = /* glsl */ `
   // Damp ground at the waterline, darker still under water.
   tAlb *= mix(0.5, 1.0, smoothstep(-0.6, 0.55, tH));
   tAlb *= mix(1.0, tAo, 0.6);
+  // Zoned land wears its zone colour until something is built on it.
+  vec4 tZone = texture(uZoneTex, tP / 2048.0);
+  if (tZone.a > 0.5) {
+    vec2 tZc = tP / 8.0;
+    vec2 tZl = abs(fract(tZc - 0.5) - 0.5) / (fwidth(tZc) + 1e-5);
+    float tZg = 1.0 - min(min(tZl.x, tZl.y), 1.0);
+    tAlb = mix(tAlb, tZone.rgb * (0.75 + 0.35 * tZg), uZoneAlpha * (0.8 + 0.2 * tZg));
+  }
+  // Drag-selection rectangle.
+  if (uSelColor.a > 0.0 && tP.x > uSel.x && tP.y > uSel.y && tP.x < uSel.z && tP.y < uSel.w) {
+    vec2 tSd = min(tP - uSel.xy, uSel.zw - tP);
+    float tEdge = 1.0 - smoothstep(0.0, 0.5 + fwidth(tP.x) * 1.5, min(tSd.x, tSd.y));
+    tAlb = mix(tAlb, uSelColor.rgb, uSelColor.a * (0.55 + 0.45 * tEdge));
+  }
   // Build grid: faint cell lines around the cursor while a placement tool is active.
   if (uGrid.w > 0.0) {
     vec2 tCell = tP / 8.0;
@@ -120,10 +138,22 @@ const NORMAL = /* glsl */ `
  * slope, height and noise, sampled at two scales. Built on MeshStandardMaterial so it
  * keeps the engine's lighting, shadows, fog and image-based light.
  */
-export function createTerrainMaterial(tex: TerrainTextures, grid: { value: Vector4 }): MeshStandardMaterial {
+export interface TerrainFx {
+  grid: { value: Vector4 };
+  zoneTex: { value: Texture | null };
+  zoneAlpha: { value: number };
+  sel: { value: Vector4 };
+  selColor: { value: Vector4 };
+}
+
+export function createTerrainMaterial(tex: TerrainTextures, fx: TerrainFx): MeshStandardMaterial {
   const mat = new MeshStandardMaterial({ roughness: 1, metalness: 0 });
   mat.onBeforeCompile = (shader) => {
-    shader.uniforms.uGrid = grid;
+    shader.uniforms.uGrid = fx.grid;
+    shader.uniforms.uZoneTex = fx.zoneTex;
+    shader.uniforms.uZoneAlpha = fx.zoneAlpha;
+    shader.uniforms.uSel = fx.sel;
+    shader.uniforms.uSelColor = fx.selColor;
     shader.uniforms.uTerrDiff = { value: tex.diff };
     shader.uniforms.uTerrNor = { value: tex.nor };
     shader.uniforms.uTerrArm = { value: tex.arm };
@@ -137,6 +167,6 @@ export function createTerrainMaterial(tex: TerrainTextures, grid: { value: Vecto
       .replace('#include <roughnessmap_fragment>', 'float roughnessFactor = clamp(tRough, 0.55, 1.0);')
       .replace('#include <normal_fragment_maps>', NORMAL);
   };
-  mat.customProgramCacheKey = () => 'terrain-splat-v4';
+  mat.customProgramCacheKey = () => 'terrain-splat-v5';
   return mat;
 }

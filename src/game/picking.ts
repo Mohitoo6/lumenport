@@ -1,5 +1,6 @@
 import { Vector3, type PerspectiveCamera } from 'three';
-import { WATER_LEVEL } from '../core/constants';
+import { CELL, WATER_LEVEL } from '../core/constants';
+import type { Building } from '../sim/zoning/zones';
 import { heightAt } from '../sim/map/terrain';
 
 const dir = new Vector3();
@@ -52,4 +53,62 @@ export function pickPlane(camera: PerspectiveCamera, ndcX: number, ndcY: number,
   if (t > 12000) return false;
   out.copy(origin).addScaledVector(dir, t);
   return true;
+}
+
+export interface BuildingHit {
+  id: number;
+  /** Distance along the ray. */
+  t: number;
+  x: number;
+  z: number;
+}
+
+/**
+ * Finds the nearest building whose box (lot footprint by current height) the screen ray
+ * enters. Lets the cursor select a tower by pointing at its side, not only at its base.
+ */
+export function pickBuilding(
+  camera: PerspectiveCamera,
+  ndcX: number,
+  ndcY: number,
+  buildings: ReadonlyArray<Building | null>,
+  heightOf: (id: number) => number,
+  maxT: number,
+): BuildingHit | null {
+  origin.copy(camera.position);
+  dir.set(ndcX, ndcY, 0.5).unproject(camera).sub(origin).normalize();
+  let best: BuildingHit | null = null;
+  for (const b of buildings) {
+    if (!b) continue;
+    const h = heightOf(b.id);
+    if (h < 1) continue;
+    // Slab test against the lot box, inset a little so gardens do not count.
+    const x0 = b.x * CELL + 1.5;
+    const x1 = (b.x + b.w) * CELL - 1.5;
+    const z0 = b.y * CELL + 1.5;
+    const z1 = (b.y + b.h) * CELL - 1.5;
+    let tMin = 0;
+    let tMax = best ? best.t : maxT;
+    const axes: Array<[number, number, number, number]> = [
+      [origin.x, dir.x, x0, x1],
+      [origin.y, dir.y, b.baseY, b.baseY + h],
+      [origin.z, dir.z, z0, z1],
+    ];
+    let hit = true;
+    for (const [o, d, lo, hi] of axes) {
+      if (Math.abs(d) < 1e-8) {
+        if (o < lo || o > hi) hit = false;
+      } else {
+        let t0 = (lo - o) / d;
+        let t1 = (hi - o) / d;
+        if (t0 > t1) [t0, t1] = [t1, t0];
+        if (t0 > tMin) tMin = t0;
+        if (t1 < tMax) tMax = t1;
+        if (tMin > tMax) hit = false;
+      }
+      if (!hit) break;
+    }
+    if (hit) best = { id: b.id, t: tMin, x: origin.x + dir.x * tMin, z: origin.z + dir.z * tMin };
+  }
+  return best;
 }

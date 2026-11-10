@@ -88,3 +88,29 @@ export const IconBulldoze = (p: P): JSX.Element => (
     <path d="M4.2 13.6h6.6" stroke-width="2" />
   </Svg>
 );
+
+export const IconHome = (p: P): JSX.Element => (
+  <Svg {...p}>
+    <path d="M2.2 7.6L8 2.6l5.8 5M3.8 6.6v6.6h8.4V6.6" />
+    <path d="M6.8 13.2V9.6h2.4v3.6" />
+  </Svg>
+);
+
+export const IconShop = (p: P): JSX.Element => (
+  <Svg {...p}>
+    <path d="M2.4 6.2l1-3.4h9.2l1 3.4M3.2 6.6v6.6h9.6V6.6" />
+    <path d="M2.4 6.2c0 1 .8 1.6 1.8 1.6S6 7.200 6 6.2c0 1 .9 1.6 2 1.6s2-.6 2-1.600c0 1 .8 1.600 1.800 1.600s1.800-.6 1.800-1.600" />
+  </Svg>
+);
+
+export const IconFactory = (p: P): JSX.Element => (
+  <Svg {...p}>
+    <path d="M2.2 13.4V7.6l3.600 2.200V7.6l3.600 2.200V3h2.600l.6 10.400z" />
+  </Svg>
+);
+
+export const IconErase = (p: P): JSX.Element => (
+  <Svg {...p}>
+    <path d="M6.2 13.200L2.6 9.600l6.600-6.600 4.200 4.200-6 6zM6.200 13.200h7M5.800 6.400l4.200 4.200" />
+  </Svg>
+);

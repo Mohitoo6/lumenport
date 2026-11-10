@@ -1,46 +1,66 @@
+import { CELL, MAP } from '../../core/constants';
 import { edgePolyline } from '../../sim/roads/graph';
 import { edgeAt } from '../../sim/roads/plan';
 import { ROAD_SPECS } from '../../sim/roads/types';
+import { ZONE_NAMES, zoneType } from '../../sim/zoning/zones';
 import type { GroundPoint, Tool, ToolContext } from './tool';
 
-/** Removes whatever is under the cursor. For now that means road segments. */
+/** Removes whatever is under the cursor: a building, or a road segment. */
 export class BulldozeTool implements Tool {
   readonly id = 'bulldoze';
-  private target = -1;
+  private edge = -1;
+  private building = -1;
 
   activate(ctx: ToolContext): void {
-    this.target = -1;
-    ctx.hint('Click a road to remove it');
+    this.edge = -1;
+    this.building = -1;
+    ctx.hint('Click a road or building to remove it');
   }
 
   deactivate(ctx: ToolContext): void {
     ctx.preview.hideRoad();
     ctx.preview.hideCursor();
+    ctx.preview.hideRect();
   }
 
   move(ctx: ToolContext, p: GroundPoint | null): void {
-    const net = ctx.sim.state.roads;
-    this.target = p ? edgeAt(net, p.x, p.z, 2) : -1;
-    const e = this.target >= 0 ? net.edges[this.target] : null;
-    if (!e || !p) {
-      ctx.preview.hideRoad();
-      if (p) ctx.preview.showCursor(p.x, p.z, 4, 'remove');
-      else ctx.preview.hideCursor();
-      ctx.hint('Click a road to remove it');
+    const s = ctx.sim.state;
+    const net = s.roads;
+    this.edge = -1;
+    this.building = -1;
+    ctx.preview.hideRoad();
+    ctx.preview.hideRect();
+    ctx.preview.hideCursor();
+    if (!p) return;
+
+    const i = Math.floor(p.x / CELL);
+    const j = Math.floor(p.z / CELL);
+    const id = p.building ?? (i >= 0 && j >= 0 && i < MAP && j < MAP ? s.buildingCell[j * MAP + i]! : -1);
+    const b = id >= 0 ? s.buildings[id] : null;
+    if (b) {
+      this.building = b.id;
+      ctx.preview.showRect(b.x * CELL, b.y * CELL, (b.x + b.w) * CELL, (b.y + b.h) * CELL, 'remove', 0.55);
+      ctx.hint(`Demolish ${ZONE_NAMES[zoneType(b.zone)].toLowerCase()} building`, 'bad');
+      return;
+    }
+    this.edge = edgeAt(net, p.x, p.z, 2);
+    const e = this.edge >= 0 ? net.edges[this.edge] : null;
+    if (!e) {
+      ctx.preview.showCursor(p.x, p.z, 4, 'remove');
+      ctx.hint('Click a road or building to remove it');
       return;
     }
     const a = net.nodes[e.a]!;
-    const b = net.nodes[e.b]!;
+    const bn = net.nodes[e.b]!;
     const spec = ROAD_SPECS[e.type];
-    ctx.preview.hideCursor();
-    ctx.preview.showRoad(a.x, a.z, e.cx, e.cz, b.x, b.z, spec.width, spec.width - spec.sidewalk * 2, 'remove');
+    ctx.preview.showRoad(a.x, a.z, e.cx, e.cz, bn.x, bn.z, spec.width, spec.width - spec.sidewalk * 2, 'remove');
     ctx.hint(`Remove ${Math.round(edgePolyline(net, e).length)} m of ${spec.name.toLowerCase()}`, 'bad');
   }
 
   click(ctx: ToolContext, p: GroundPoint): void {
-    if (this.target < 0) return;
-    ctx.sim.apply({ type: 'bulldozeRoad', edge: this.target });
-    this.target = -1;
+    if (this.building >= 0) ctx.sim.apply({ type: 'bulldozeBuilding', id: this.building });
+    else if (this.edge >= 0) ctx.sim.apply({ type: 'bulldozeRoad', edge: this.edge });
+    else return;
     this.move(ctx, p);
   }
 

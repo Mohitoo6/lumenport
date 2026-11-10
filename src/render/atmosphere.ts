@@ -230,7 +230,9 @@ export class Atmosphere {
     const zenithLum = key.zenith.r * 0.2126 + key.zenith.g * 0.7152 + key.zenith.b * 0.0722;
     const irradiance = this.sunIntensity * Math.max(this.sunDir.y, 0) + this.skyIntensity * Math.PI * zenithLum;
     const bounce = irradiance / Math.PI / this.skyIntensity;
-    (this.envMat.uniforms.uGround!.value as Color).setRGB(0.17 * bounce, 0.2 * bounce, 0.115 * bounce);
+    // A neutral, slightly warm grey: a mix of grass, paving and asphalt. A greener bounce
+    // tints every shaded wall and window olive.
+    (this.envMat.uniforms.uGround!.value as Color).setRGB(0.16 * bounce, 0.158 * bounce, 0.138 * bounce);
     this.domeMat.uniforms.uIntensity!.value = this.skyIntensity;
     this.scene.environmentIntensity = this.skyIntensity;
     this.rebuildEnvironment();

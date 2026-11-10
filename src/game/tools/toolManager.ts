@@ -4,9 +4,11 @@ import type { ToolPreview } from '../../render/tools/toolPreview';
 import { RoadType } from '../../sim/roads/types';
 import type { Sim } from '../../sim/sim';
 import { ui, type ToolId } from '../../ui/store';
-import { pickGround } from '../picking';
+import { pickBuilding, pickGround } from '../picking';
 import { BulldozeTool } from './bulldozeTool';
 import { RoadTool, type RoadMode } from './roadTool';
+import { ZoneTool } from './zoneTool';
+import type { Density, ZoneType } from '../../sim/zoning/zones';
 import type { GroundPoint, Tool, ToolContext } from './tool';
 
 const CLICK_SLOP = 5;
@@ -19,6 +21,8 @@ export class ToolManager {
   private active: Tool | null = null;
   private readonly road = new RoadTool(RoadType.Street);
   private readonly bulldoze = new BulldozeTool();
+  private readonly zone = new ZoneTool();
+  private dragging = false;
   private readonly ctx: ToolContext;
   private readonly hit = new Vector3();
   private downX = 0;
@@ -33,6 +37,7 @@ export class ToolManager {
     private readonly rig: RtsCamera,
     sim: Sim,
     preview: ToolPreview,
+    private readonly buildingHeight: (id: number) => number,
   ) {
     this.ctx = {
       sim,
@@ -59,9 +64,10 @@ export class ToolManager {
   private pendingHint: { text: string; tone: 'info' | 'ok' | 'bad' } | null = null;
 
   select(id: ToolId): void {
-    const next: Tool | null = id === 'road' ? this.road : id === 'bulldoze' ? this.bulldoze : null;
+    const next: Tool | null = id === 'road' ? this.road : id === 'bulldoze' ? this.bulldoze : id === 'zone' ? this.zone : null;
     if (next === this.active) return;
     this.active?.deactivate(this.ctx);
+    this.dragging = false;
     this.active = next;
     ui.tool.value = id;
     this.pendingHint = null;
@@ -84,11 +90,26 @@ export class ToolManager {
     if (this.active === this.road) this.road.refresh(this.ctx);
   }
 
+  /** Picks a zone to paint. Type 0 selects the de-zone brush. */
+  setZone(type: ZoneType, density: Density): void {
+    this.zone.type = type;
+    this.zone.density = density;
+    ui.zoneType.value = type;
+    ui.zoneDensity.value = density;
+    if (this.active === this.zone) this.zone.describe(this.ctx);
+    else this.select('zone');
+  }
+
   private ground(clientX: number, clientY: number): GroundPoint | null {
     const r = this.canvas.getBoundingClientRect();
     const nx = ((clientX - r.left) / r.width) * 2 - 1;
     const ny = -(((clientY - r.top) / r.height) * 2 - 1);
-    if (!pickGround(this.rig.camera, nx, ny, this.ctx.sim.state.heights, this.hit)) return null;
+    const cam = this.rig.camera;
+    const onGround = pickGround(cam, nx, ny, this.ctx.sim.state.heights, this.hit);
+    const reach = onGround ? this.hit.distanceTo(cam.position) : 9000;
+    const b = pickBuilding(cam, nx, ny, this.ctx.sim.state.buildings, this.buildingHeight, reach);
+    if (b) return { x: b.x, y: this.ctx.sim.state.buildings[b.id]!.baseY, z: b.z, building: b.id };
+    if (!onGround) return null;
     return { x: this.hit.x, y: this.hit.y, z: this.hit.z };
   }
 
@@ -102,18 +123,35 @@ export class ToolManager {
     this.downX = e.clientX;
     this.downY = e.clientY;
     this.downButton = e.altKey || e.shiftKey ? -1 : e.button;
+    if (this.downButton === 0 && this.active?.dragStart) {
+      const g = this.ground(e.clientX, e.clientY);
+      if (g) {
+        this.dragging = true;
+        this.active.dragStart(this.ctx, g);
+      }
+    }
   };
 
   private onMove = (e: PointerEvent): void => {
     this.lastX = e.clientX;
     this.lastY = e.clientY;
-    if (!this.active || e.buttons !== 0) return;
+    if (!this.active) return;
+    if (this.dragging) {
+      this.active.dragMove?.(this.ctx, this.ground(e.clientX, e.clientY));
+      return;
+    }
+    if (e.buttons !== 0) return;
     this.active.move(this.ctx, this.ground(e.clientX, e.clientY));
   };
 
   private onUp = (e: PointerEvent): void => {
     const button = this.downButton;
     this.downButton = -1;
+    if (this.dragging) {
+      this.dragging = false;
+      if (e.button === 0) this.active?.dragEnd?.(this.ctx, this.ground(e.clientX, e.clientY));
+      return;
+    }
     if (!this.active || button !== e.button) return;
     if (Math.hypot(e.clientX - this.downX, e.clientY - this.downY) > CLICK_SLOP) return;
     if (button === 0) {
@@ -152,6 +190,6 @@ export class ToolManager {
       this.toastTimer -= dt;
       if (this.toastTimer <= 0) ui.hint.value = this.active ? this.pendingHint : null;
     }
-    if (cameraMoving) this.repick();
+    if (cameraMoving && !this.dragging) this.repick();
   }
 }
