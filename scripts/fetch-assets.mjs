@@ -1,0 +1,151 @@
+// Downloads CC0 assets from Poly Haven into public/assets and regenerates ASSETS.md.
+// Usage: node scripts/fetch-assets.mjs [--force]
+// Every asset has a procedural fallback at runtime (src/render/assets), so a failed
+// download degrades quality but never breaks the game.
+import { mkdir, writeFile, stat } from 'node:fs/promises';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
+const OUT = join(ROOT, 'public', 'assets');
+const FORCE = process.argv.includes('--force');
+const UA = 'metropolis-city-builder-dev/0.1 (asset fetch script)';
+
+/** role -> Poly Haven asset id */
+const HDRIS = [
+  { role: 'day', id: 'kloofendal_48d_partly_cloudy_puresky', res: '4k' },
+  { role: 'golden', id: 'belfast_sunset_puresky', res: '2k' },
+  { role: 'night', id: 'rogland_clear_night', res: '2k' },
+];
+
+const TEXTURES = [
+  { role: 'grass', id: 'forrest_ground_01', use: 'Terrain: meadow grass (close range)' },
+  { role: 'grass2', id: 'rocky_terrain_02', use: 'Terrain: rough grass, hillsides' },
+  { role: 'dirt', id: 'dirt', use: 'Terrain: bare soil, lots under construction' },
+  { role: 'rock', id: 'rock_face_03', use: 'Terrain: cliffs and steep slopes' },
+  { role: 'sand', id: 'coast_sand_01', use: 'Terrain: shoreline and riverbed' },
+  { role: 'asphalt', id: 'asphalt_02', use: 'Roads: carriageway' },
+  { role: 'concrete', id: 'concrete_floor_worn_001', use: 'Roads: curbs, medians; building bases' },
+  { role: 'pavement', id: 'concrete_pavement', use: 'Roads: sidewalks; plazas' },
+  { role: 'brick', id: 'brick_wall_001', use: 'Buildings: facades' },
+  { role: 'brick2', id: 'red_brick_03', use: 'Buildings: facades' },
+  { role: 'plaster', id: 'plastered_wall_04', use: 'Buildings: facades' },
+  { role: 'plaster2', id: 'painted_plaster_wall', use: 'Buildings: facades' },
+  { role: 'concrete_wall', id: 'concrete_wall_008', use: 'Buildings: facades, industrial' },
+  { role: 'metal', id: 'corrugated_iron_02', use: 'Buildings: industrial cladding and roofs' },
+  { role: 'roof', id: 'roof_tiles_14', use: 'Buildings: pitched roofs' },
+  { role: 'roof2', id: 'clay_roof_tiles_02', use: 'Buildings: pitched roofs' },
+  { role: 'roof3', id: 'grey_roof_tiles_02', use: 'Buildings: pitched roofs' },
+  { role: 'bark', id: 'bark_brown_02', use: 'Trees: trunks' },
+];
+
+const MAPS = [
+  { key: 'Diffuse', suffix: 'diff' },
+  { key: 'nor_gl', suffix: 'nor' },
+  { key: 'arm', suffix: 'arm' },
+];
+
+async function exists(p) {
+  try {
+    return (await stat(p)).size > 0;
+  } catch {
+    return false;
+  }
+}
+
+async function fetchJson(url) {
+  const res = await fetch(url, { headers: { 'User-Agent': UA } });
+  if (!res.ok) throw new Error(`${res.status} ${url}`);
+  return res.json();
+}
+
+async function download(url, dest) {
+  if (!FORCE && (await exists(dest))) return 'cached';
+  const res = await fetch(url, { headers: { 'User-Agent': UA } });
+  if (!res.ok) throw new Error(`${res.status} ${url}`);
+  const buf = Buffer.from(await res.arrayBuffer());
+  await mkdir(dirname(dest), { recursive: true });
+  await writeFile(dest, buf);
+  return `${(buf.length / 1024).toFixed(0)} kB`;
+}
+
+const rows = [];
+const manifest = { hdri: {}, textures: {} };
+let failures = 0;
+
+for (const h of HDRIS) {
+  const file = `hdri/${h.role}.hdr`;
+  try {
+    const info = await fetchJson(`https://api.polyhaven.com/files/${h.id}`);
+    const url = info.hdri[h.res].hdr.url;
+    const r = await download(url, join(OUT, file));
+    console.log(`hdri  ${h.role.padEnd(14)} ${r}`);
+    manifest.hdri[h.role] = file;
+    rows.push({ file: `public/assets/${file}`, name: `${h.id} (${h.res} HDR)`, use: `Sky and image-based lighting: ${h.role}`, src: `https://polyhaven.com/a/${h.id}` });
+  } catch (e) {
+    failures++;
+    console.warn(`hdri  ${h.role} FAILED: ${e.message}`);
+  }
+}
+
+for (const t of TEXTURES) {
+  try {
+    const info = await fetchJson(`https://api.polyhaven.com/files/${t.id}`);
+    const entry = {};
+    for (const m of MAPS) {
+      const file = `textures/${t.role}_${m.suffix}.jpg`;
+      const url = info[m.key]['1k'].jpg.url;
+      const r = await download(url, join(OUT, file));
+      console.log(`tex   ${(t.role + '_' + m.suffix).padEnd(20)} ${r}`);
+      entry[m.suffix] = file;
+    }
+    manifest.textures[t.role] = entry;
+    rows.push({ file: `public/assets/textures/${t.role}_{diff,nor,arm}.jpg`, name: `${t.id} (1k JPG: diffuse, GL normal, AO/rough/metal)`, use: t.use, src: `https://polyhaven.com/a/${t.id}` });
+  } catch (e) {
+    failures++;
+    console.warn(`tex   ${t.role} FAILED: ${e.message}`);
+  }
+}
+
+await mkdir(OUT, { recursive: true });
+await writeFile(join(OUT, 'manifest.json'), JSON.stringify(manifest, null, 2));
+
+const md = `# Assets
+
+Every third-party asset used by the game, with its source and licence. The table of
+downloaded files is generated by \`scripts/fetch-assets.mjs\` (run \`npm run assets\`);
+edit the script, not the table.
+
+## Downloaded files (Poly Haven, CC0)
+
+All Poly Haven assets are released under [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/).
+
+| File | Asset | Used for | Source | Licence |
+|---|---|---|---|---|
+${rows.map((r) => `| \`${r.file}\` | ${r.name} | ${r.use} | ${r.src} | CC0 |`).join('\n')}
+
+## Fonts
+
+| Package | Used for | Licence |
+|---|---|---|
+| \`@fontsource-variable/inter\` (Inter, Rasmus Andersson) | HUD typography | SIL Open Font License 1.1 |
+
+## Generated in code (no external files)
+
+These are built procedurally at runtime, so they carry no third-party licence:
+
+- Building geometry and facade/window shading (\`src/render/buildings\`)
+- Tree geometry and foliage shading (\`src/render/props\`)
+- Vehicle geometry (\`src/render/traffic\`). Kenney's Car Kit was the first choice, but
+  kenney.nl does not expose a scriptable download link, so cars are procedural.
+- Road markings, crosswalks, water normals, noise and fallback textures (\`src/render/assets\`)
+- HUD icons (\`src/ui/icons\`)
+- Audio (\`src/audio\`, synthesised with the Web Audio API)
+
+## Runtime libraries
+
+Code dependencies (not assets) are listed in \`package.json\`: three (MIT), postprocessing (Zlib),
+n8ao (CC0), preact and @preact/signals (MIT).
+`;
+await writeFile(join(ROOT, 'ASSETS.md'), md);
+console.log(`\nWrote ASSETS.md and public/assets/manifest.json (${failures} failures)`);

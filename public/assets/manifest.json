@@ -1,0 +1,99 @@
+{
+  "hdri": {
+    "day": "hdri/day.hdr",
+    "golden": "hdri/golden.hdr",
+    "night": "hdri/night.hdr"
+  },
+  "textures": {
+    "grass": {
+      "diff": "textures/grass_diff.jpg",
+      "nor": "textures/grass_nor.jpg",
+      "arm": "textures/grass_arm.jpg"
+    },
+    "grass2": {
+      "diff": "textures/grass2_diff.jpg",
+      "nor": "textures/grass2_nor.jpg",
+      "arm": "textures/grass2_arm.jpg"
+    },
+    "dirt": {
+      "diff": "textures/dirt_diff.jpg",
+      "nor": "textures/dirt_nor.jpg",
+      "arm": "textures/dirt_arm.jpg"
+    },
+    "rock": {
+      "diff": "textures/rock_diff.jpg",
+      "nor": "textures/rock_nor.jpg",
+      "arm": "textures/rock_arm.jpg"
+    },
+    "sand": {
+      "diff": "textures/sand_diff.jpg",
+      "nor": "textures/sand_nor.jpg",
+      "arm": "textures/sand_arm.jpg"
+    },
+    "asphalt": {
+      "diff": "textures/asphalt_diff.jpg",
+      "nor": "textures/asphalt_nor.jpg",
+      "arm": "textures/asphalt_arm.jpg"
+    },
+    "concrete": {
+      "diff": "textures/concrete_diff.jpg",
+      "nor": "textures/concrete_nor.jpg",
+      "arm": "textures/concrete_arm.jpg"
+    },
+    "pavement": {
+      "diff": "textures/pavement_diff.jpg",
+      "nor": "textures/pavement_nor.jpg",
+      "arm": "textures/pavement_arm.jpg"
+    },
+    "brick": {
+      "diff": "textures/brick_diff.jpg",
+      "nor": "textures/brick_nor.jpg",
+      "arm": "textures/brick_arm.jpg"
+    },
+    "brick2": {
+      "diff": "textures/brick2_diff.jpg",
+      "nor": "textures/brick2_nor.jpg",
+      "arm": "textures/brick2_arm.jpg"
+    },
+    "plaster": {
+      "diff": "textures/plaster_diff.jpg",
+      "nor": "textures/plaster_nor.jpg",
+      "arm": "textures/plaster_arm.jpg"
+    },
+    "plaster2": {
+      "diff": "textures/plaster2_diff.jpg",
+      "nor": "textures/plaster2_nor.jpg",
+      "arm": "textures/plaster2_arm.jpg"
+    },
+    "concrete_wall": {
+      "diff": "textures/concrete_wall_diff.jpg",
+      "nor": "textures/concrete_wall_nor.jpg",
+      "arm": "textures/concrete_wall_arm.jpg"
+    },
+    "metal": {
+      "diff": "textures/metal_diff.jpg",
+      "nor": "textures/metal_nor.jpg",
+      "arm": "textures/metal_arm.jpg"
+    },
+    "roof": {
+      "diff": "textures/roof_diff.jpg",
+      "nor": "textures/roof_nor.jpg",
+      "arm": "textures/roof_arm.jpg"
+    },
+    "roof2": {
+      "diff": "textures/roof2_diff.jpg",
+      "nor": "textures/roof2_nor.jpg",
+      "arm": "textures/roof2_arm.jpg"
+    },
+    "roof3": {
+      "diff": "textures/roof3_diff.jpg",
+      "nor": "textures/roof3_nor.jpg",
+      "arm": "textures/roof3_arm.jpg"
+    },
+    "bark": {
+      "diff": "textures/bark_diff.jpg",
+      "nor": "textures/bark_nor.jpg",
+      "arm": "textures/bark_arm.jpg"
+    }
+  }
+}

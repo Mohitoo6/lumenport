@@ -1,0 +1,18 @@
+{
+  // The simulation must stay pure: no DOM, no three.js. Compiling it without the DOM
+  // lib (and without any ambient types) makes an accidental dependency a type error.
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": ["ES2022"],
+    "types": [],
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "skipLibCheck": true,
+    "isolatedModules": true,
+    "noEmit": true
+  },
+  "include": ["src/sim", "src/core"]
+}
