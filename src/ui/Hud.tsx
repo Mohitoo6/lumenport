@@ -1,6 +1,6 @@
 import { render, type JSX } from 'preact';
 import type { Speed } from '../sim/state';
-import { IconClose, IconFast, IconFaster, IconHelp, IconPause, IconPlay } from './icons';
+import { IconAvenue, IconBulldoze, IconClose, IconCurve, IconFast, IconFaster, IconHelp, IconPause, IconPlay, IconRoad, IconStraight } from './icons';
 import { actions, ui } from './store';
 
 const SPEEDS: Array<{ speed: Speed; label: string; icon: () => JSX.Element; key: string }> = [
@@ -43,6 +43,7 @@ const HELP: Array<[string[], string]> = [
   [['Scroll'], 'Zoom'],
   [['Right-drag'], 'Orbit'],
   [['Shift', 'Drag'], 'Grab'],
+  [['Esc'], 'Cancel tool'],
 ];
 
 function Help(): JSX.Element {
@@ -77,6 +78,59 @@ function Help(): JSX.Element {
   );
 }
 
+function ToolButton(props: { active: boolean; label: string; hotkey?: string; onClick: () => void; children: JSX.Element; danger?: boolean }): JSX.Element {
+  return (
+    <button
+      type="button"
+      class={`tool-btn${props.active ? ' is-active' : ''}${props.danger ? ' is-danger' : ''}`}
+      aria-pressed={props.active}
+      title={props.hotkey ? `${props.label} (${props.hotkey})` : props.label}
+      onClick={props.onClick}
+    >
+      {props.children}
+      <span>{props.label}</span>
+    </button>
+  );
+}
+
+function Toolbar(): JSX.Element {
+  const tool = ui.tool.value;
+  const road = ui.roadType.value;
+  const mode = ui.roadMode.value;
+  const hint = ui.hint.value;
+  return (
+    <div class="dock">
+      {hint && (
+        <div class={`hint tone-${hint.tone}`} role="status">
+          {hint.text}
+        </div>
+      )}
+      {tool === 'road' && (
+        <div class="panel options" role="group" aria-label="Road shape">
+          <ToolButton active={mode === 'straight'} label="Straight" hotkey="C" onClick={() => actions.setRoadMode('straight')}>
+            <IconStraight />
+          </ToolButton>
+          <ToolButton active={mode === 'curve'} label="Curved" hotkey="C" onClick={() => actions.setRoadMode('curve')}>
+            <IconCurve />
+          </ToolButton>
+        </div>
+      )}
+      <nav class="panel toolbar" aria-label="Build tools">
+        <ToolButton active={tool === 'road' && road === 0} label="Street" onClick={() => (tool === 'road' && road === 0 ? actions.selectTool('none') : actions.setRoadType(0))}>
+          <IconRoad size={18} />
+        </ToolButton>
+        <ToolButton active={tool === 'road' && road === 1} label="Avenue" onClick={() => (tool === 'road' && road === 1 ? actions.selectTool('none') : actions.setRoadType(1))}>
+          <IconAvenue size={18} />
+        </ToolButton>
+        <div class="toolbar-sep" />
+        <ToolButton danger active={tool === 'bulldoze'} label="Bulldoze" hotkey="X" onClick={() => actions.selectTool(tool === 'bulldoze' ? 'none' : 'bulldoze')}>
+          <IconBulldoze size={18} />
+        </ToolButton>
+      </nav>
+    </div>
+  );
+}
+
 function DevOverlay(): JSX.Element | null {
   if (!ui.showDev.value) return null;
   return <pre class="panel dev">{ui.devText.value}</pre>;
@@ -101,6 +155,7 @@ function Hud(): JSX.Element {
   return (
     <>
       <TopBar />
+      <Toolbar />
       <Help />
       <DevOverlay />
       <Loading />

@@ -225,7 +225,12 @@ export class Atmosphere {
 
     // Distance haze: the horizon colour pulled a little toward the blue of the upper sky.
     this.fog.color.copy(key.horizon).lerp(key.zenith, 0.12).multiply(new Color(0.94, 0.99, 1.07)).multiplyScalar(this.skyIntensity * 1.45);
-    (this.envMat.uniforms.uGround!.value as Color).copy(key.zenith).multiply(new Color(0.42, 0.44, 0.3)).multiplyScalar(0.55);
+    // The lower half of the environment is light bounced off sunlit ground, not sky. It
+    // is what lights walls that face away from the sun, so it must not be left dark.
+    const zenithLum = key.zenith.r * 0.2126 + key.zenith.g * 0.7152 + key.zenith.b * 0.0722;
+    const irradiance = this.sunIntensity * Math.max(this.sunDir.y, 0) + this.skyIntensity * Math.PI * zenithLum;
+    const bounce = irradiance / Math.PI / this.skyIntensity;
+    (this.envMat.uniforms.uGround!.value as Color).setRGB(0.17 * bounce, 0.2 * bounce, 0.115 * bounce);
     this.domeMat.uniforms.uIntensity!.value = this.skyIntensity;
     this.scene.environmentIntensity = this.skyIntensity;
     this.rebuildEnvironment();

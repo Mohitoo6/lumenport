@@ -1,21 +1,26 @@
 import { Vector3 } from 'three';
 import { MONTH_NAMES, TICK_MS, WORLD } from '../core/constants';
 import { CameraInput } from './input';
-import { loadTextureArray, loadWarnings } from '../render/assets/loader';
+import { loadPbr, loadTextureArray, loadWarnings } from '../render/assets/loader';
 import { makeNoiseTexture, makeWaterNormalTexture } from '../render/assets/procedural';
 import { Atmosphere } from '../render/atmosphere';
 import { RtsCamera, type CameraPose } from '../render/camera/rtsCamera';
 import { Engine } from '../render/engine';
 import { TreeRenderer } from '../render/props/treeRenderer';
+import { createRoadMaterials } from '../render/roads/roadMaterials';
+import { RoadRenderer } from '../render/roads/roadRenderer';
 import { ShadowFitter } from '../render/shadows';
+import { ToolPreview } from '../render/tools/toolPreview';
 import { TERRAIN_LAYERS, createTerrainMaterial } from '../render/terrain/terrainMaterial';
 import { TerrainRenderer } from '../render/terrain/terrainRenderer';
 import { WaterRenderer } from '../render/water/waterRenderer';
 import type { Command, CommandResult } from '../sim/commands';
 import { heightAt } from '../sim/map/terrain';
+import { TreeSpecies } from '../sim/map/trees';
 import { Sim } from '../sim/sim';
 import { dateOf } from '../sim/state';
 import { actions, ui } from '../ui/store';
+import { ToolManager } from './tools/toolManager';
 
 export interface GameOptions {
   seed: number;
@@ -36,6 +41,9 @@ export class Game {
   terrain!: TerrainRenderer;
   water!: WaterRenderer;
   trees!: TreeRenderer;
+  roads!: RoadRenderer;
+  preview!: ToolPreview;
+  tools!: ToolManager;
   input!: CameraInput;
   ready = false;
   frameCount = 0;
@@ -74,33 +82,51 @@ export class Game {
     const aniso = Math.min(8, engine.renderer.capabilities.getMaxAnisotropy());
 
     ui.loading.value = 'Loading sky and terrain';
-    const [, diff, nor, arm] = await Promise.all([
+    const [, diff, nor, arm, asphalt, pavement, concrete, grass] = await Promise.all([
       atmosphere.load(),
       loadTextureArray(TERRAIN_LAYERS, 'diff', 1024, aniso),
       loadTextureArray(TERRAIN_LAYERS, 'nor', 1024, aniso),
       loadTextureArray(TERRAIN_LAYERS, 'arm', 1024, aniso),
+      loadPbr('asphalt', aniso),
+      loadPbr('pavement', aniso),
+      loadPbr('concrete', aniso),
+      loadPbr('grass', aniso),
     ]);
     const noise = makeNoiseTexture();
     const waterNormal = makeWaterNormalTexture();
 
     ui.loading.value = 'Building the landscape';
     await nextFrame();
-    this.terrain = new TerrainRenderer(state.heights, state.seed, createTerrainMaterial({ diff, nor, arm, noise }));
+    this.preview = new ToolPreview(() => sim.state.heights);
+    engine.scene.add(this.preview.group);
+    this.terrain = new TerrainRenderer(state.heights, state.seed, createTerrainMaterial({ diff, nor, arm, noise }, this.preview.grid));
     engine.scene.add(this.terrain.group);
     this.water = new WaterRenderer(state.heights, state.seed, waterNormal, noise, atmosphere.uniforms);
     engine.scene.add(this.water.mesh);
     this.trees = new TreeRenderer(state.trees, state.heights, atmosphere.uniforms, noise);
     engine.scene.add(this.trees.group);
+    this.roads = new RoadRenderer(
+      state,
+      createRoadMaterials({ asphalt, pavement, concrete, grass }, noise),
+      this.trees.lodGeometry(TreeSpecies.Oak, 1),
+      this.trees.material,
+    );
+    engine.scene.add(this.roads.group);
 
     sim.events.on('terrainChanged', (r) => {
       this.terrain.updateRect(r);
       this.water.updateHeights(sim.state.heights);
     });
     sim.events.on('treesChanged', (r) => this.trees.updateRect(r));
+    sim.events.on('roadsChanged', (c) => this.roads.onChange(c));
     sim.events.on('speedChanged', (s) => (ui.speed.value = s as 0 | 1 | 2 | 3));
 
     this.input = new CameraInput(this.canvas, this.rig, () => sim.state.heights, { edgeScroll: !this.options.shots });
+    this.tools = new ToolManager(this.canvas, this.rig, sim, this.preview);
     actions.setSpeed = (speed) => void sim.apply({ type: 'setSpeed', speed });
+    actions.selectTool = (tool) => this.tools.select(tool);
+    actions.setRoadType = (type) => this.tools.setRoadType(type);
+    actions.setRoadMode = (mode) => this.tools.setRoadMode(mode);
     window.addEventListener('keydown', this.onKey);
     window.addEventListener('resize', this.onResize);
 
@@ -188,12 +214,25 @@ export class Game {
     this.simMs = performance.now() - t0;
 
     this.input?.update(dt);
+    const before = this.rig.pose;
+    const bx = before.x;
+    const bz = before.z;
+    const byaw = before.yaw;
+    const bdist = before.dist;
+    const bpitch = before.pitch;
     this.rig.update(dt);
+    const moved =
+      Math.abs(before.x - bx) + Math.abs(before.z - bz) > 0.01 ||
+      Math.abs(before.yaw - byaw) + Math.abs(before.pitch - bpitch) > 1e-4 ||
+      Math.abs(before.dist - bdist) > 0.01;
+    this.tools?.update(dt, moved);
+    this.preview?.update(dt, before.dist);
     const cam = this.rig.camera;
     this.camPos.copy(cam.position);
     this.atmosphere.update(cam, dt);
     this.shadows.update(cam, this.atmosphere.sunDir, this.rig.focusY, this.rig.pose.dist);
     this.trees?.updateLod(this.camPos);
+    this.roads?.update();
     this.engine.render(dt);
     this.frameCount++;
 

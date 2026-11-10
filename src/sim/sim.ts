@@ -1,6 +1,7 @@
 import { TICKS_PER_DAY } from '../core/constants';
 import { Emitter } from '../core/events';
 import { OK, fail, type Command, type CommandResult } from './commands';
+import { demolishEdge, executePlan, planRoad, type RoadChange, type RoadPlan, type RoadRequest } from './roads/plan';
 import { createState, type GameState } from './state';
 
 export interface CellRect {
@@ -15,6 +16,8 @@ export type SimEvents = {
   terrainChanged: CellRect;
   /** Tree bytes changed inside this cell rectangle. */
   treesChanged: CellRect;
+  /** Roads were added, split or removed. */
+  roadsChanged: RoadChange;
   speedChanged: number;
   dayPassed: number;
   /** A whole new state was installed (new game or load). */
@@ -49,6 +52,17 @@ export class Sim {
     if (s.tick % TICKS_PER_DAY === 0) this.events.emit('dayPassed', s.tick / TICKS_PER_DAY);
   }
 
+  /** Dry run of a road: validity, attachment points, length and cost. Changes nothing. */
+  planRoad(req: RoadRequest): RoadPlan {
+    return planRoad(this.state.roads, this.state.heights, req);
+  }
+
+  private roadChanged(change: RoadChange): void {
+    if (change.terrain) this.events.emit('terrainChanged', change.terrain);
+    if (change.trees) this.events.emit('treesChanged', change.trees);
+    this.events.emit('roadsChanged', change);
+  }
+
   apply(cmd: Command): CommandResult {
     const s = this.state;
     switch (cmd.type) {
@@ -61,6 +75,18 @@ export class Sim {
         const name = cmd.name.trim();
         if (!name) return fail('Name cannot be empty');
         s.cityName = name.slice(0, 40);
+        return OK;
+      }
+      case 'buildRoad': {
+        const plan = planRoad(s.roads, s.heights, cmd);
+        if (!plan.ok) return fail(plan.reason);
+        this.roadChanged(executePlan(s.roads, s, plan));
+        return { ok: true, cost: plan.cost };
+      }
+      case 'bulldozeRoad': {
+        const change = demolishEdge(s.roads, s, cmd.edge);
+        if (!change) return fail('No road there');
+        this.roadChanged(change);
         return OK;
       }
     }

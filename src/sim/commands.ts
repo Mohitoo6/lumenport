@@ -1,14 +1,19 @@
+import type { RoadRequest } from './roads/plan';
 import type { Speed } from './state';
 
 /** Every mutation of the game goes through a command. Commands are plain serialisable data. */
 export type Command =
   | { type: 'setSpeed'; speed: Speed }
-  | { type: 'renameCity'; name: string };
+  | { type: 'renameCity'; name: string }
+  | ({ type: 'buildRoad' } & RoadRequest)
+  | { type: 'bulldozeRoad'; edge: number };
 
 export interface CommandResult {
   ok: boolean;
   /** Human-readable reason when ok is false. */
   reason?: string;
+  /** Money spent, when the command cost something. */
+  cost?: number;
 }
 
 export const OK: CommandResult = { ok: true };

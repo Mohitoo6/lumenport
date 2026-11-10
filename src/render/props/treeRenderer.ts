@@ -98,6 +98,11 @@ export class TreeRenderer {
     this.rebuildAll();
   }
 
+  /** Shared tree geometry, for other renderers that plant trees (road medians, parks). */
+  lodGeometry(species: TreeSpecies, lod: 0 | 1 | 2): BufferGeometry {
+    return this.species[species]!.lods[lod];
+  }
+
   setSource(trees: Uint8Array, heights: Float32Array): void {
     this.trees = trees;
     this.heights = heights;

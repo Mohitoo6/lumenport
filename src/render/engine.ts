@@ -82,16 +82,16 @@ export class Engine {
     this.ao = new N8AOPostPass(this.scene, camera, w, h);
     patchHalfResTarget(this.ao);
     const ao = this.ao.configuration;
-    ao.aoRadius = 5;
-    ao.distanceFalloff = 1;
-    ao.intensity = 2.4;
+    ao.aoRadius = 3.5;
+    ao.distanceFalloff = 0.7;
+    ao.intensity = 1.7;
     ao.aoSamples = 12;
     ao.denoiseSamples = 6;
     ao.denoiseRadius = 10;
     ao.halfRes = true;
     ao.depthAwareUpsampling = true;
     ao.gammaCorrection = false;
-    ao.color.setRGB(0.02, 0.03, 0.06);
+    ao.color.setRGB(0.04, 0.05, 0.09);
     this.composer.addPass(this.ao);
 
     this.bloom = new BloomEffect({

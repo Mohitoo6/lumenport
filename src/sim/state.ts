@@ -1,8 +1,9 @@
-import { DAYS_PER_MONTH, MONTHS_PER_YEAR, START_YEAR, TICKS_PER_DAY } from '../core/constants';
+import { DAYS_PER_MONTH, MAP, MONTHS_PER_YEAR, START_YEAR, TICKS_PER_DAY, VERTS } from '../core/constants';
 import { generateHeights } from './map/terrain';
 import { generateTrees } from './map/trees';
+import { emptyNetwork, type RoadNetwork } from './roads/types';
 
-export const STATE_VERSION = 1;
+export const STATE_VERSION = 2;
 
 export type Speed = 0 | 1 | 2 | 3;
 
@@ -22,6 +23,11 @@ export interface GameState {
   heights: Float32Array;
   /** One byte per cell, see map/trees.ts. */
   trees: Uint8Array;
+  roads: RoadNetwork;
+  /** Per cell: id of the road edge covering it, or -1. */
+  roadCell: Int32Array;
+  /** Per vertex: 1 where a road has graded the terrain, so later roads leave it alone. */
+  roadLock: Uint8Array;
 }
 
 export function createState(seed: number, cityName = 'New Haven'): GameState {
@@ -35,6 +41,9 @@ export function createState(seed: number, cityName = 'New Haven'): GameState {
     speed: 1,
     heights,
     trees: generateTrees(heights, seed),
+    roads: emptyNetwork(),
+    roadCell: new Int32Array(MAP * MAP).fill(-1),
+    roadLock: new Uint8Array(VERTS * VERTS),
   };
 }
 

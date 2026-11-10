@@ -1,4 +1,4 @@
-import { MeshStandardMaterial, type DataArrayTexture, type Texture } from 'three';
+import { MeshStandardMaterial, Vector4, type DataArrayTexture, type Texture } from 'three';
 
 /** Layer order inside the terrain texture arrays. */
 export const TERRAIN_LAYERS = ['grass', 'grass2', 'dirt', 'rock', 'sand'] as const;
@@ -16,6 +16,7 @@ const PARS = /* glsl */ `
   uniform sampler2DArray uTerrNor;
   uniform sampler2DArray uTerrArm;
   uniform sampler2D uNoise;
+  uniform vec4 uGrid; // xy = centre, z = radius, w = strength
   varying vec3 vWPos;
   varying vec3 vWNormal;
 
@@ -90,6 +91,14 @@ const MAP = /* glsl */ `
   // Damp ground at the waterline, darker still under water.
   tAlb *= mix(0.5, 1.0, smoothstep(-0.6, 0.55, tH));
   tAlb *= mix(1.0, tAo, 0.6);
+  // Build grid: faint cell lines around the cursor while a placement tool is active.
+  if (uGrid.w > 0.0) {
+    vec2 tCell = tP / 8.0;
+    vec2 tLine = abs(fract(tCell - 0.5) - 0.5) / (fwidth(tCell) + 1e-5);
+    float tGrid = 1.0 - min(min(tLine.x, tLine.y), 1.0);
+    float tFade = smoothstep(uGrid.z, uGrid.z * 0.25, distance(tP, uGrid.xy));
+    tAlb = mix(tAlb, vec3(0.9, 0.95, 1.0), tGrid * tFade * uGrid.w * 0.2);
+  }
   diffuseColor.rgb = tAlb;
 `;
 
@@ -111,9 +120,10 @@ const NORMAL = /* glsl */ `
  * slope, height and noise, sampled at two scales. Built on MeshStandardMaterial so it
  * keeps the engine's lighting, shadows, fog and image-based light.
  */
-export function createTerrainMaterial(tex: TerrainTextures): MeshStandardMaterial {
+export function createTerrainMaterial(tex: TerrainTextures, grid: { value: Vector4 }): MeshStandardMaterial {
   const mat = new MeshStandardMaterial({ roughness: 1, metalness: 0 });
   mat.onBeforeCompile = (shader) => {
+    shader.uniforms.uGrid = grid;
     shader.uniforms.uTerrDiff = { value: tex.diff };
     shader.uniforms.uTerrNor = { value: tex.nor };
     shader.uniforms.uTerrArm = { value: tex.arm };
@@ -127,6 +137,6 @@ export function createTerrainMaterial(tex: TerrainTextures): MeshStandardMateria
       .replace('#include <roughnessmap_fragment>', 'float roughnessFactor = clamp(tRough, 0.55, 1.0);')
       .replace('#include <normal_fragment_maps>', NORMAL);
   };
-  mat.customProgramCacheKey = () => 'terrain-splat-v2';
+  mat.customProgramCacheKey = () => 'terrain-splat-v4';
   return mat;
 }
