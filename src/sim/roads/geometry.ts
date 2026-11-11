@@ -163,3 +163,19 @@ export function subControl(a: number, c: number, b: number, t0: number, t1: numb
   // Blossom of the quadratic at (t0, t1).
   return (1 - t0) * (1 - t1) * a + ((1 - t0) * t1 + t0 * (1 - t1)) * c + t0 * t1 * b;
 }
+
+/** Bezier parameter at arc length s along a flattened curve. */
+export function paramAtArc(poly: Polyline, s: number): number {
+  if (s <= 0) return 0;
+  if (s >= poly.length) return 1;
+  let lo = 0;
+  let hi = poly.n - 1;
+  while (hi - lo > 1) {
+    const mid = (lo + hi) >> 1;
+    if (poly.s[mid]! <= s) lo = mid;
+    else hi = mid;
+  }
+  const span = poly.s[hi]! - poly.s[lo]!;
+  const k = span > 0 ? (s - poly.s[lo]!) / span : 0;
+  return poly.t[lo]! + (poly.t[hi]! - poly.t[lo]!) * k;
+}

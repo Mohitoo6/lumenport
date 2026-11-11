@@ -15,6 +15,7 @@ import { RoadRenderer } from '../render/roads/roadRenderer';
 import { ZoneOverlay } from '../render/overlays/zoneOverlay';
 import { ShadowFitter } from '../render/shadows';
 import { ToolPreview } from '../render/tools/toolPreview';
+import { VehicleRenderer } from '../render/traffic/vehicleRenderer';
 import { TERRAIN_LAYERS, createTerrainMaterial } from '../render/terrain/terrainMaterial';
 import { TerrainRenderer } from '../render/terrain/terrainRenderer';
 import { WaterRenderer } from '../render/water/waterRenderer';
@@ -48,6 +49,7 @@ export class Game {
   trees!: TreeRenderer;
   roads!: RoadRenderer;
   buildings!: BuildingRenderer;
+  vehicles!: VehicleRenderer;
   preview!: ToolPreview;
   zones!: ZoneOverlay;
   tools!: ToolManager;
@@ -135,6 +137,8 @@ export class Game {
       this.trees.material,
     );
     engine.scene.add(this.buildings.group);
+    this.vehicles = new VehicleRenderer();
+    engine.scene.add(this.vehicles.group);
 
     sim.events.on('terrainChanged', (r) => {
       this.terrain.updateRect(r);
@@ -272,6 +276,8 @@ export class Game {
     this.trees?.updateLod(this.camPos);
     this.roads?.update();
     this.buildings?.update();
+    // While paused the cars sit at their last tick position.
+    this.vehicles?.update(this.sim.traffic, state.speed === 0 ? 1 : Math.min(1, this.acc / TICK_MS));
     this.engine.render(dt);
     this.frameCount++;
 
@@ -314,7 +320,7 @@ export class Game {
           `draws ${s.drawCalls}  tris ${(s.triangles / 1000).toFixed(0)}k\n` +
           `geo ${s.geometries}  tex ${s.textures}\n` +
           `sim ${this.simMs.toFixed(2)} ms  trees ${this.trees?.count ?? 0}\n` +
-          `buildings ${this.buildings?.buildingCount ?? 0}\n` +
+          `buildings ${this.buildings?.buildingCount ?? 0}  cars ${this.sim.traffic.count}\n` +
           `shadow texel ${this.shadows.texel.toFixed(2)} m`;
       }
     }
@@ -345,7 +351,7 @@ export class Game {
   }
 
   /** Numbers for the dev overlay and automated performance checks. */
-  stats(): { fps: number; frameMs: number; drawCalls: number; triangles: number; simMs: number; gpu: string; trees: number } {
+  stats(): { fps: number; frameMs: number; drawCalls: number; triangles: number; simMs: number; gpu: string; trees: number; cars: number } {
     const s = this.engine.stats;
     return {
       fps: this.fps,
@@ -355,6 +361,7 @@ export class Game {
       simMs: this.simMs,
       gpu: this.engine.gpuName,
       trees: this.trees?.count ?? 0,
+      cars: this.sim.traffic.count,
     };
   }
 }

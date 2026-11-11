@@ -24,6 +24,10 @@ export interface CityStats {
   /** Finished zoned buildings currently without power or without water. */
   unpowered: number;
   unwatered: number;
+  /** Share of road speed lost to queues, 0..1, smoothed. */
+  congestion: number;
+  /** Vehicles on the road right now. */
+  vehicles: number;
 }
 
 export function emptyStats(): CityStats {
@@ -40,6 +44,8 @@ export function emptyStats(): CityStats {
     waterDemand: 0,
     unpowered: 0,
     unwatered: 0,
+    congestion: 0,
+    vehicles: 0,
   };
 }
 
@@ -111,7 +117,8 @@ export function economyStep(buildings: ReadonlyArray<Building | null>, tax: read
   const plannedJobs = plannedC + plannedI;
   const dR = (plannedJobs * 1.15 + 40 - plannedLabor) / Math.max(60, plannedLabor) + taxEffect(tax[1]!);
   const targetC = population * 0.22 + 4;
-  const dC = (targetC - plannedC) / Math.max(30, targetC) + taxEffect(tax[2]!);
+  // Shops suffer when customers are stuck in traffic.
+  const dC = (targetC - plannedC) / Math.max(30, targetC) + taxEffect(tax[2]!) - stats.congestion * 0.5;
   const targetI = population * 0.33 + 25;
   const dI = (targetI - plannedI) / Math.max(40, targetI) + taxEffect(tax[3]!);
 

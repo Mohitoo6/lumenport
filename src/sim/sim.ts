@@ -7,7 +7,8 @@ import { LOAN_TIERS, loanPayment, projectBudget } from './economy/budget';
 import { economyStep, growthRateFor } from './economy/economy';
 import { planFacility, type FacilityPlan } from './facilities';
 import { cellMinHeight } from './map/terrain';
-import { computeUtilities, newNetworks, type Networks } from './utilities/network';
+import { Traffic } from './traffic/traffic';
+import { POWERED, WATERED, computeUtilities, newNetworks, type Networks } from './utilities/network';
 import { frontageOf } from './zoning/lots';
 import { FACING_DX, FACING_DY } from './zoning/zones';
 import { createState, type GameState } from './state';
@@ -51,6 +52,8 @@ export class Sim {
   growthRate = 0.7;
   /** Road networks and their power and water balance. Derived, never saved. */
   readonly net: Networks = newNetworks();
+  /** Vehicles on the roads. Derived, never saved. */
+  readonly traffic: Traffic;
   private netDirty = true;
   private utilDirty = true;
   private readonly rates: number[] = [0, 0, 0, 0];
@@ -60,6 +63,8 @@ export class Sim {
 
   constructor(state: GameState) {
     this.state = state;
+    this.traffic = new Traffic(state);
+    this.traffic.reset(state);
   }
 
   static create(seed: number, cityName?: string): Sim {
@@ -71,6 +76,7 @@ export class Sim {
     this.frontier = null;
     this.netDirty = true;
     this.utilDirty = true;
+    this.traffic.reset(state);
     this.events.emit('stateReplaced', null);
   }
 
@@ -91,8 +97,12 @@ export class Sim {
     }
     if (changed.length > 0) this.events.emit('buildingsChanged', { changed: changed.slice(), removed: [] });
 
+    this.traffic.tick();
+
     if (newDay) {
       const day = s.tick / TICKS_PER_DAY;
+      s.stats.congestion = this.traffic.congestion;
+      s.stats.vehicles = this.traffic.count;
       economyStep(s.buildings, s.tax, s.stats);
       this.events.emit('dayPassed', day);
       if (day % DAYS_PER_MONTH === 0) this.settleMonth(day / DAYS_PER_MONTH);
@@ -103,6 +113,8 @@ export class Sim {
   refreshUtilities(): void {
     const s = this.state;
     computeUtilities(s.buildings, s.roadCell, this.net, this.netDirty, Math.floor(s.tick / TICKS_PER_DAY), s.stats);
+    // Sandbox cities need no plants: everything counts as connected.
+    if (s.sandbox) for (const b of s.buildings) if (b) b.flags |= POWERED | WATERED;
     this.netDirty = false;
     this.utilDirty = false;
   }
@@ -196,6 +208,7 @@ export class Sim {
   }
 
   private roadChanged(change: RoadChange): void {
+    this.traffic.reset();
     this.frontier = null;
     this.netDirty = true;
     this.utilDirty = true;
