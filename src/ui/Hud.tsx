@@ -17,12 +17,14 @@ import {
   IconHelp,
   IconHome,
   IconLayers,
+  IconMoon,
   IconPause,
   IconPlay,
   IconRoad,
   IconShield,
   IconShop,
   IconStraight,
+  IconSun,
   IconWarn,
 } from './icons';
 import { actions, ui } from './store';
@@ -33,6 +35,8 @@ const SPEEDS: Array<{ speed: Speed; label: string; icon: () => JSX.Element; key:
   { speed: 2, label: 'Fast', icon: () => <IconFast />, key: '2' },
   { speed: 3, label: 'Fastest', icon: () => <IconFaster />, key: '3' },
 ];
+
+const TIME_LABEL = { auto: 'Auto', day: 'Day', night: 'Night' } as const;
 
 const usd = (n: number): string => `${n < 0 ? '-' : ''}$${Math.abs(Math.round(n)).toLocaleString('en-US')}`;
 
@@ -267,6 +271,11 @@ function TopBar(): JSX.Element {
         ))}
       </div>
       <Stats />
+      <button type="button" class="panel clock" title={`Time of day: ${TIME_LABEL[ui.timeMode.value]}. Click to change.`} onClick={() => actions.cycleTimeMode()}>
+        {ui.isNight.value ? <IconMoon /> : <IconSun />}
+        <span class="clock-time">{ui.clock.value}</span>
+        <span class="label">{TIME_LABEL[ui.timeMode.value]}</span>
+      </button>
       <Views />
     </header>
   );

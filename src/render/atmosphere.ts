@@ -27,6 +27,8 @@ const SKY_GLSL = /* glsl */ `
   uniform float uBlend;
   uniform float uRotA;
   uniform float uRotB;
+  uniform float uIntA;
+  uniform float uIntB;
 
   vec3 sampleSky(sampler2D tex, vec3 d, float rot) {
     float u = atan(d.z, d.x) * 0.15915494309 + 0.5 + rot;
@@ -35,9 +37,9 @@ const SKY_GLSL = /* glsl */ `
   }
 
   vec3 skyColor(vec3 d) {
-    vec3 a = sampleSky(uSkyA, d, uRotA);
+    vec3 a = sampleSky(uSkyA, d, uRotA) * uIntA;
     if (uBlend <= 0.001) return a;
-    return mix(a, sampleSky(uSkyB, d, uRotB), uBlend);
+    return mix(a, sampleSky(uSkyB, d, uRotB) * uIntB, uBlend);
   }
 `;
 
@@ -49,19 +51,40 @@ interface SkyKey {
   horizon: Color;
   /** Average colour of the upper sky, linear. */
   zenith: Color;
+  /** Brightness multiplier that brings this sky to a sensible level for exposure 1. */
+  intensity: number;
+  /** Azimuth of its sun, radians. */
+  azimuth: number;
+}
+
+/** How high the noon sun climbs, radians above the horizon. */
+const SUN_TILT = (58 * Math.PI) / 180;
+const DAY_INTENSITY = 0.55;
+
+function lum(c: Color): number {
+  return c.r * 0.2126 + c.g * 0.7152 + c.b * 0.0722;
+}
+
+function smooth(e0: number, e1: number, x: number): number {
+  const t = Math.min(1, Math.max(0, (x - e0) / (e1 - e0)));
+  return t * t * (3 - 2 * t);
 }
 
 /**
  * Owns everything that depends on time of day: the sky dome, image-based lighting, the
- * sun, fog, and the shared `uNight` / `uTime` uniforms other materials read.
+ * sun and moon, fog, and the shared `uNight` / `uTime` uniforms other materials read.
  *
- * The sky is an HDRI keyframe (later: a blend of two). The same blend is re-rendered into
- * a small equirect with the sun disc clamped out, then prefiltered for IBL. The sun's
- * direct light comes from the DirectionalLight instead, so it can cast shadows and is not
- * counted twice.
+ * The sky is a blend of two HDRI keyframes (day, golden hour, night) chosen by the sun's
+ * height, rotated so the sun in the picture sits where the game's sun is. The same blend
+ * is re-rendered into a small equirect with the sun disc clamped out and prefiltered for
+ * image-based light. Direct light comes from one DirectionalLight, which is the sun by
+ * day and a dim blue moon by night, so shadows are cast around the clock.
  */
 export class Atmosphere {
+  /** Where the sun is, even when it is below the horizon. */
   readonly sunDir = new Vector3(0.4, 0.7, 0.3).normalize();
+  /** Direction toward whichever body is lighting the scene: the sun or the moon. */
+  readonly lightDir = new Vector3(0.4, 0.7, 0.3).normalize();
   readonly sun = new DirectionalLight(0xffffff, 1);
   readonly fog = new FogExp2(0xbfd4e6, 0.00016);
   /** Shared uniforms: add these objects to any material that reacts to time. */
@@ -71,8 +94,8 @@ export class Atmosphere {
     uSunDir: { value: this.sunDir },
   };
 
-  /** Overall brightness of sky and image-based light. Tuned so exposure can stay at 1. */
-  skyIntensity = 0.55;
+  /** Time of day in hours, 0..24. */
+  hour = 14.5;
   sunIntensity = 5.2;
 
   private readonly keys = new Map<HdriRole, SkyKey>();
@@ -84,6 +107,11 @@ export class Atmosphere {
   private readonly envTarget: WebGLRenderTarget;
   private readonly pmrem: PMREMGenerator;
   private pmremTarget: WebGLRenderTarget | null = null;
+  private envHour = -99;
+  private envAge = 99;
+  private appliedHour = -99;
+  private readonly tmpA = new Color();
+  private readonly tmpB = new Color();
 
   constructor(
     private readonly renderer: WebGLRenderer,
@@ -103,12 +131,13 @@ export class Atmosphere {
       uBlend: { value: 0 },
       uRotA: { value: 0 },
       uRotB: { value: 0 },
+      uIntA: { value: DAY_INTENSITY },
+      uIntB: { value: DAY_INTENSITY },
     };
 
     this.domeMat = new ShaderMaterial({
       uniforms: {
         ...skyUniforms,
-        uIntensity: { value: this.skyIntensity },
         uFogColor: { value: this.fog.color },
       },
       vertexShader: /* glsl */ `
@@ -120,13 +149,12 @@ export class Atmosphere {
       `,
       fragmentShader: /* glsl */ `
         ${SKY_GLSL}
-        uniform float uIntensity;
         uniform vec3 uFogColor;
         varying vec3 vDir;
         void main() {
           vec3 d = normalize(vDir);
           // Never sample below the horizon: the HDRI ground is hidden by haze anyway.
-          vec3 c = skyColor(normalize(vec3(d.x, max(d.y, 0.004), d.z))) * uIntensity;
+          vec3 c = skyColor(normalize(vec3(d.x, max(d.y, 0.004), d.z)));
           // Keep the sun disc bright enough to bloom without blowing the whole frame out.
           c = min(c, vec3(22.0));
           // Haze toward the horizon so distant fogged terrain meets the sky without a seam.
@@ -170,7 +198,7 @@ export class Atmosphere {
           vec3 c = skyColor(normalize(vec3(d.x, max(d.y, 0.004), d.z)));
           // Remove the sun disc: its light is supplied by the directional light.
           float lum = dot(c, vec3(0.2126, 0.7152, 0.0722));
-          c *= min(1.0, 6.0 / max(lum, 1e-4));
+          c *= min(1.0, 3.3 / max(lum, 1e-4));
           // Below the horizon the environment is ground bounce, not sky.
           c = mix(c, uGround, smoothstep(0.02, -0.12, d.y));
           gl_FragColor = vec4(c, 1.0);
@@ -187,58 +215,111 @@ export class Atmosphere {
     scene.add(this.sun);
     scene.add(this.sun.target);
     scene.fog = this.fog;
+    scene.environmentIntensity = 1;
   }
 
   async load(): Promise<void> {
-    await this.loadKey('day');
-    this.setSky('day');
+    const roles: HdriRole[] = ['day', 'golden', 'night'];
+    const textures = await Promise.all(roles.map((r) => loadHdri(r)));
+    roles.forEach((role, i) => {
+      const key = analyseSky(textures[i]!);
+      const z = Math.max(lum(key.zenith), 1e-4);
+      // Bring each sky to a level that suits a fixed exposure: bright by day, a dim glow
+      // at dusk, and just enough at night to read silhouettes.
+      key.intensity = role === 'day' ? DAY_INTENSITY : role === 'golden' ? Math.min(2.5, Math.max(0.3, 0.36 / z)) : Math.min(200, 0.05 / z);
+      key.azimuth = Math.atan2(key.sunDir.z, key.sunDir.x);
+      this.keys.set(role, key);
+    });
+    this.apply(true);
   }
 
-  private async loadKey(role: HdriRole): Promise<SkyKey> {
-    const existing = this.keys.get(role);
-    if (existing) return existing;
-    const texture = await loadHdri(role);
-    const key = analyseSky(texture);
-    this.keys.set(role, key);
-    return key;
+  /** Night factor: 0 in daylight, 1 when the sun is well below the horizon. */
+  get night(): number {
+    return this.uniforms.uNight.value;
   }
 
-  /** Shows one keyframe sky and rebuilds lighting from it. */
-  setSky(role: HdriRole): void {
-    const key = this.keys.get(role);
-    if (!key) return;
+  /** Recomputes sun, sky blend, fog and light for the current hour. */
+  private apply(forceEnv: boolean): void {
+    const day = this.keys.get('day');
+    const golden = this.keys.get('golden');
+    const night = this.keys.get('night');
+    if (!day || !golden || !night) return;
+    this.appliedHour = this.hour;
+
+    // The sun rises in the east (+x), peaks in the south (+z) and sets in the west.
+    const a = ((this.hour - 6) / 12) * Math.PI;
+    this.sunDir.set(Math.cos(a), Math.sin(a) * Math.sin(SUN_TILT), Math.sin(a) * Math.cos(SUN_TILT)).normalize();
+    const y = this.sunDir.y;
+    const azimuth = Math.atan2(this.sunDir.z, this.sunDir.x);
+    this.uniforms.uNight.value = smooth(0.1, -0.1, y);
+
+    // Which two skies, and how far between them.
+    let ka = day;
+    let kb = golden;
+    let blend = 0;
+    if (y < -0.14) {
+      ka = night;
+      kb = night;
+    } else if (y < 0.06) {
+      ka = golden;
+      kb = night;
+      blend = 1 - (y + 0.14) / 0.2;
+    } else if (y < 0.3) {
+      blend = 1 - (y - 0.06) / 0.24;
+    }
+    const rot = (k: SkyKey): number => (k === night ? 0 : (k.azimuth - azimuth) / (Math.PI * 2));
     for (const mat of [this.domeMat, this.envMat]) {
-      mat.uniforms.uSkyA!.value = key.texture;
-      mat.uniforms.uSkyB!.value = key.texture;
-      mat.uniforms.uBlend!.value = 0;
-    }
-    this.sunDir.copy(key.sunDir);
-    // Never let the sun sit so low that shadows stretch across the whole map.
-    if (this.sunDir.y < 0.35) {
-      this.sunDir.y = 0.35;
-      this.sunDir.normalize();
+      const u = mat.uniforms;
+      u.uSkyA!.value = ka.texture;
+      u.uSkyB!.value = kb.texture;
+      u.uBlend!.value = blend;
+      u.uRotA!.value = rot(ka);
+      u.uRotB!.value = rot(kb);
+      u.uIntA!.value = ka.intensity;
+      u.uIntB!.value = kb.intensity;
     }
 
-    // Warm the sun slightly against the blue sky fill.
-    this.sun.color.setRGB(1.0, 0.94, 0.84);
-    this.sun.intensity = this.sunIntensity;
+    // Direct light: the sun while it is up, then the moon.
+    const light = this.sun;
+    if (y > -0.06) {
+      this.lightDir.copy(this.sunDir);
+      // Keep the light a little above the horizon so shadows do not stretch forever.
+      if (this.lightDir.y < 0.07) {
+        this.lightDir.y = 0.07;
+        this.lightDir.normalize();
+      }
+      const warm = smooth(0.02, 0.3, y);
+      light.color.setRGB(1.0, 0.55 + 0.39 * warm, 0.3 + 0.54 * warm);
+      light.intensity = this.sunIntensity * smooth(-0.04, 0.15, y);
+    } else {
+      this.lightDir.set(-this.sunDir.x, Math.max(0.5, -this.sunDir.y), -this.sunDir.z).normalize();
+      light.color.setRGB(0.45, 0.6, 1.0);
+      light.intensity = 1.5 * smooth(-0.05, -0.12, y);
+    }
 
-    // Distance haze: the horizon colour pulled a little toward the blue of the upper sky.
-    this.fog.color.copy(key.horizon).lerp(key.zenith, 0.12).multiply(new Color(0.94, 0.99, 1.07)).multiplyScalar(this.skyIntensity * 1.45);
-    // The lower half of the environment is light bounced off sunlit ground, not sky. It
-    // is what lights walls that face away from the sun, so it must not be left dark.
-    const zenithLum = key.zenith.r * 0.2126 + key.zenith.g * 0.7152 + key.zenith.b * 0.0722;
-    const irradiance = this.sunIntensity * Math.max(this.sunDir.y, 0) + this.skyIntensity * Math.PI * zenithLum;
-    const bounce = irradiance / Math.PI / this.skyIntensity;
-    // A neutral, slightly warm grey: a mix of grass, paving and asphalt. A greener bounce
-    // tints every shaded wall and window olive.
+    // Fog: the blended horizon colour, pulled slightly toward the upper sky.
+    const fogOf = (k: SkyKey, out: Color): Color => out.copy(k.horizon).lerp(k.zenith, 0.12).multiplyScalar(k.intensity * 1.45);
+    this.fog.color.copy(fogOf(ka, this.tmpA)).lerp(fogOf(kb, this.tmpB), blend);
+    this.fog.color.r *= 0.94;
+    this.fog.color.b *= 1.07;
+
+    // The lower half of the environment is light bounced off the lit ground, not sky. It
+    // lights walls that face away from the sun. Neutral grey: a greener bounce tints every
+    // shaded wall and window olive.
+    const skyLum = lum(ka.zenith) * ka.intensity * (1 - blend) + lum(kb.zenith) * kb.intensity * blend;
+    const bounce = (light.intensity * Math.max(this.lightDir.y, 0) + Math.PI * skyLum) / Math.PI;
     (this.envMat.uniforms.uGround!.value as Color).setRGB(0.16 * bounce, 0.158 * bounce, 0.138 * bounce);
-    this.domeMat.uniforms.uIntensity!.value = this.skyIntensity;
-    this.scene.environmentIntensity = this.skyIntensity;
-    this.rebuildEnvironment();
+
+    // Re-filtering the environment costs a few milliseconds: only do it when the sky has
+    // visibly moved on, and not more than a couple of times a second.
+    let dh = Math.abs(this.hour - this.envHour);
+    if (dh > 12) dh = 24 - dh;
+    if (forceEnv || (dh > 0.07 && this.envAge > 0.4)) this.rebuildEnvironment();
   }
 
   private rebuildEnvironment(): void {
+    this.envHour = this.hour;
+    this.envAge = 0;
     const r = this.renderer;
     const prev = r.getRenderTarget();
     r.setRenderTarget(this.envTarget);
@@ -250,9 +331,17 @@ export class Atmosphere {
     this.pmremTarget = next;
   }
 
+  /** Jumps to a time of day and rebuilds the lighting immediately. */
+  setHour(hour: number): void {
+    this.hour = ((hour % 24) + 24) % 24;
+    this.apply(true);
+  }
+
   update(camera: PerspectiveCamera, dt: number): void {
     this.uniforms.uTime.value += dt;
+    this.envAge += dt;
     this.dome.position.copy(camera.position);
+    if (this.hour !== this.appliedHour || this.envHour !== this.hour) this.apply(false);
   }
 }
 
@@ -313,5 +402,5 @@ function analyseSky(texture: DataTexture): SkyKey {
   sun.normalize();
   horizon.multiplyScalar(1 / Math.max(1, horizonN));
   zenith.multiplyScalar(1 / Math.max(1, zenithN));
-  return { texture, sunDir: sun, horizon, zenith };
+  return { texture, sunDir: sun, horizon, zenith, intensity: 1, azimuth: 0 };
 }

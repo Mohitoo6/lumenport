@@ -263,6 +263,28 @@ button:focus-visible {
   transition: height 0.3s ease;
 }
 
+/* Clock */
+
+.clock {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 14px;
+  color: var(--muted);
+}
+
+.clock:hover {
+  color: var(--text);
+  border-color: var(--hairline-strong);
+}
+
+.clock-time {
+  font-size: 15px;
+  font-weight: 650;
+  color: var(--text);
+  min-width: 44px;
+}
+
 /* Data views */
 
 .views {

@@ -6,6 +6,7 @@ import type { Speed } from '../sim/state';
 
 export type ToolId = 'none' | 'road' | 'zone' | 'place' | 'bulldoze';
 export type RoadModeId = 'straight' | 'curve';
+export type TimeMode = 'auto' | 'day' | 'night';
 
 /** What the inspect panel shows for the selected building. */
 export interface InspectData {
@@ -51,6 +52,10 @@ export const ui = {
   sandbox: signal(false),
   showBudget: signal(false),
   happiness: signal(0.5),
+  /** Time of day as HH:MM, whether it is dark, and how the clock is driven. */
+  clock: signal('14:30'),
+  isNight: signal(false),
+  timeMode: signal<TimeMode>('auto'),
   overlay: signal<OverlayId>('none'),
   showViews: signal(false),
   inspect: signal<InspectData | null>(null),
@@ -66,6 +71,7 @@ export interface UiActions {
   setTax(zone: number, rate: number): void;
   takeLoan(tier: number): void;
   setOverlay(id: OverlayId): void;
+  cycleTimeMode(): void;
   closeInspect(): void;
 }
 
@@ -79,5 +85,6 @@ export const actions: UiActions = {
   setTax: () => {},
   takeLoan: () => {},
   setOverlay: () => {},
+  cycleTimeMode: () => {},
   closeInspect: () => {},
 };

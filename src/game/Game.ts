@@ -42,6 +42,8 @@ export interface GameOptions {
 }
 
 const MAX_TICKS_PER_FRAME = 8;
+/** Real seconds for one day/night cycle at normal speed. */
+const DAY_SECONDS = 600;
 
 /** Wires the simulation, renderer, input and HUD together and runs the frame loop. */
 export class Game {
@@ -75,6 +77,7 @@ export class Game {
   private frameMs = 0;
   private lastDay = -1;
   private hudTimer = 1;
+  private clockHeld = false;
   private readonly camPos = new Vector3();
 
   private constructor(
@@ -140,6 +143,7 @@ export class Game {
       createRoadMaterials({ asphalt, pavement, concrete, grass }, noise, this.preview.fx),
       this.trees.lodGeometry(TreeSpecies.Oak, 1),
       this.trees.material,
+      atmosphere.uniforms.uNight,
     );
     engine.scene.add(this.roads.group);
     this.buildings = new BuildingRenderer(
@@ -185,6 +189,11 @@ export class Game {
       this.overlay.set(id, sim);
       ui.overlay.value = id;
     };
+    actions.cycleTimeMode = () => {
+      const next = ui.timeMode.value === 'auto' ? 'day' : ui.timeMode.value === 'day' ? 'night' : 'auto';
+      ui.timeMode.value = next;
+      this.clockHeld = false;
+    };
     actions.closeInspect = () => {
       this.inspectId = -1;
       ui.inspect.value = null;
@@ -205,6 +214,9 @@ export class Game {
     ui.speed.value = state.speed;
     ui.showDev.value = this.options.dev && !this.options.shots;
     ui.showHelp.value = !this.options.shots;
+    // Screenshot runs hold the afternoon light unless a test asks otherwise.
+    ui.timeMode.value = this.options.shots ? 'day' : 'auto';
+    this.atmosphere.setHour(this.options.shots ? 14.5 : 9);
     this.onResize();
 
     // Compile shaders and upload textures before revealing the scene.
@@ -313,13 +325,15 @@ export class Game {
     }
     const cam = this.rig.camera;
     this.camPos.copy(cam.position);
+    this.advanceClock(dt);
     this.atmosphere.update(cam, dt);
-    this.shadows.update(cam, this.atmosphere.sunDir, this.rig.focusY, this.rig.pose.dist);
+    this.roads?.setNight(this.atmosphere.night);
+    this.shadows.update(cam, this.atmosphere.lightDir, this.rig.focusY, this.rig.pose.dist);
     this.trees?.updateLod(this.camPos);
     this.roads?.update();
     this.buildings?.update();
     // While paused the cars sit at their last tick position.
-    this.vehicles?.update(this.sim.traffic, state.speed === 0 ? 1 : Math.min(1, this.acc / TICK_MS));
+    this.vehicles?.update(this.sim.traffic, state.speed === 0 ? 1 : Math.min(1, this.acc / TICK_MS), this.atmosphere.night);
     this.engine.render(dt);
     this.frameCount++;
 
@@ -347,6 +361,9 @@ export class Game {
       ui.water.value = [st.waterSupply, st.waterDemand];
       ui.sandbox.value = state.sandbox;
       ui.happiness.value = st.happiness;
+      const hr = this.atmosphere.hour;
+      ui.clock.value = `${String(Math.floor(hr)).padStart(2, '0')}:${String(Math.floor((hr % 1) * 60)).padStart(2, '0')}`;
+      ui.isNight.value = this.atmosphere.night > 0.5;
       ui.alerts.value = this.alerts();
       ui.inspect.value = this.inspectId >= 0 ? this.describe(this.inspectId) : null;
     }
@@ -368,6 +385,33 @@ export class Game {
           `shadow texel ${this.shadows.texel.toFixed(2)} m`;
       }
     }
+  }
+
+  /**
+   * Moves the time of day. In auto mode a full day takes ten real minutes at normal speed
+   * (independent of the calendar, so the economy's pace does not make the sun race).
+   * Pinned modes glide to 14:30 or 22:00 and stay there.
+   */
+  private advanceClock(dt: number): void {
+    const atmo = this.atmosphere;
+    const mode = ui.timeMode.value;
+    if (this.clockHeld) return;
+    if (mode === 'auto') {
+      atmo.hour = (atmo.hour + (dt * this.sim.state.speed * 24) / DAY_SECONDS) % 24;
+    } else {
+      const target = mode === 'day' ? 14.5 : 22;
+      let d = target - atmo.hour;
+      if (d > 12) d -= 24;
+      if (d < -12) d += 24;
+      const step = dt * 6;
+      atmo.hour = Math.abs(d) <= step ? target : (atmo.hour + Math.sign(d) * step + 24) % 24;
+    }
+  }
+
+  /** Jumps to a time of day and holds the clock there (used by the screenshot runs). */
+  setTime(hour: number): void {
+    this.clockHeld = true;
+    this.atmosphere.setHour(hour);
   }
 
   /** The inspect panel's contents for one building, or null if it no longer exists. */

@@ -84,7 +84,7 @@ const FRAG_MAP = /* glsl */ `
     // Sign panel: flat colour by day, glowing by night.
     cAlb = vTint * 0.85;
     cRough = 0.45;
-    cEmissive = vTint * uNight * 2.6;
+    cEmissive = vTint * uNight * 1.8;
   } else if (cStyle > 0.5) {
     vec2 cSize = vB.xy;
     vec2 cCell = vA.xy / cSize;
@@ -172,7 +172,7 @@ const FRAG_MAP = /* glsl */ `
     float cLitShare = cStyle > 3.5 && cStyle < 4.5 ? 0.85 : mix(0.22, 0.6, cHash(vec2(vA.w * 91.0, 3.0)));
     float cLit = step(1.0 - cLitShare * uNight, cHash(cWinId * 1.37 + vA.w * 311.0));
     vec3 cLamp = mix(vec3(1.0, 0.74, 0.42), vec3(0.82, 0.9, 1.0), step(0.82, cHash(cWinId + 7.0 + vA.w * 53.0)));
-    cEmissive = cLamp * cLit * cGlass * uNight * (1.6 + 1.8 * cRnd);
+    cEmissive = cLamp * cLit * cGlass * uNight * (0.7 + 1.1 * cRnd);
     // A lit room hides the reflection.
     cMetal *= 1.0 - cLit * uNight * 0.85;
   }
@@ -241,6 +241,6 @@ export function createCityMaterial(
       .replace('#include <normal_fragment_maps>', FRAG_NORMAL)
       .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\ntotalEmissiveRadiance += cEmissive;');
   };
-  m.customProgramCacheKey = () => 'city-v6';
+  m.customProgramCacheKey = () => 'city-v7';
   return m;
 }

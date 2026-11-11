@@ -1,4 +1,5 @@
 import {
+  AdditiveBlending,
   Color,
   DynamicDrawUsage,
   Group,
@@ -6,7 +7,9 @@ import {
   Matrix4,
   Mesh,
   MeshStandardMaterial,
+  PlaneGeometry,
   Quaternion,
+  ShaderMaterial,
   Vector3,
   type BufferGeometry,
   type Material,
@@ -17,7 +20,7 @@ import { bezX } from '../../sim/roads/geometry';
 import { nodeLayout, type NodeLayout } from '../../sim/roads/junction';
 import type { RoadChange } from '../../sim/roads/plan';
 import type { RoadEdge, RoadNetwork } from '../../sim/roads/types';
-import { buildLamp } from './lampGeometry';
+import { LAMP_REACH, buildLamp } from './lampGeometry';
 import { RoadMesher, newBuckets, type PropSpot, type RoadBuckets } from './roadMesher';
 import type { RoadMaterials } from './roadMaterials';
 
@@ -63,6 +66,11 @@ export class RoadRenderer {
   /** Lens material: Phase 7 raises emissiveIntensity at night. */
   readonly lensMat = new MeshStandardMaterial({ color: new Color(0.85, 0.85, 0.8), emissive: new Color(1.0, 0.82, 0.55), emissiveIntensity: 0, roughness: 0.3 });
 
+  /** Pools of light on the ground under each lamp, faded in by `uNight`. */
+  private glow: InstancedMesh;
+  private readonly glowGeo: BufferGeometry;
+  private readonly glowMat: ShaderMaterial;
+
   private readonly m = new Matrix4();
   private readonly q = new Quaternion();
   private readonly p = new Vector3();
@@ -75,11 +83,39 @@ export class RoadRenderer {
     private readonly materials: RoadMaterials,
     treeGeo: BufferGeometry,
     treeMat: Material,
+    night: { value: number },
   ) {
+    this.glowGeo = new PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
+    this.glowMat = new ShaderMaterial({
+      uniforms: { uNight: night },
+      vertexShader: /* glsl */ `
+        varying vec2 vUv;
+        void main() {
+          vUv = uv;
+          gl_Position = projectionMatrix * viewMatrix * modelMatrix * instanceMatrix * vec4(position, 1.0);
+        }
+      `,
+      fragmentShader: /* glsl */ `
+        uniform float uNight;
+        varying vec2 vUv;
+        void main() {
+          float r = length(vUv - 0.5) * 2.0;
+          float a = pow(max(0.0, 1.0 - r), 2.2);
+          gl_FragColor = vec4(vec3(1.0, 0.74, 0.42) * a * 0.55 * uNight, 1.0);
+        }
+      `,
+      blending: AdditiveBlending,
+      transparent: true,
+      depthWrite: false,
+      fog: false,
+    });
     for (let i = 0; i < CHUNKS * CHUNKS; i++) this.chunks.push({ meshes: {}, lamps: [], trees: [] });
     this.lampBody = this.makeInstanced(this.lampGeo.body, this.lampMat, 256, true);
     this.lampLens = this.makeInstanced(this.lampGeo.lens, this.lensMat, 256, false);
     this.treeMesh = this.makeInstanced(treeGeo, treeMat, 128, true);
+    this.glow = this.makeInstanced(this.glowGeo, this.glowMat, 256, false);
+    this.glow.receiveShadow = false;
+    this.glow.renderOrder = 20;
     this.rebuildAll();
   }
 
@@ -93,6 +129,12 @@ export class RoadRenderer {
     mesh.matrixAutoUpdate = false;
     this.group.add(mesh);
     return mesh;
+  }
+
+  /** Lamps come on at dusk. */
+  setNight(night: number): void {
+    this.lensMat.emissiveIntensity = night * 7;
+    this.glow.visible = night > 0.02;
   }
 
   setSource(source: RoadSource): void {
@@ -209,6 +251,12 @@ export class RoadRenderer {
     this.lampBody = this.ensureCapacity(this.lampBody, lamps, true);
     this.lampLens = this.ensureCapacity(this.lampLens, lamps, false);
     this.treeMesh = this.ensureCapacity(this.treeMesh, trees, true);
+    const hadGlow = this.glow;
+    this.glow = this.ensureCapacity(this.glow, lamps, false);
+    if (this.glow !== hadGlow) {
+      this.glow.receiveShadow = false;
+      this.glow.renderOrder = 20;
+    }
 
     let i = 0;
     let t = 0;
@@ -221,6 +269,11 @@ export class RoadRenderer {
         this.m.compose(this.p, this.q, this.s);
         this.lampBody.setMatrixAt(i, this.m);
         this.lampLens.setMatrixAt(i, this.m);
+        // Light pool centred under the lamp head, just above the sidewalk.
+        this.p.set(l.x + Math.sin(l.rot) * LAMP_REACH, l.y + 0.12, l.z + Math.cos(l.rot) * LAMP_REACH);
+        this.s.set(19, 1, 19);
+        this.m.compose(this.p, this.q, this.s);
+        this.glow.setMatrixAt(i, this.m);
         i++;
       }
       for (const tr of c.trees) {
@@ -238,6 +291,8 @@ export class RoadRenderer {
     }
     this.lampBody.count = lamps;
     this.lampLens.count = lamps;
+    this.glow.count = lamps;
+    this.glow.instanceMatrix.needsUpdate = true;
     this.treeMesh.count = trees;
     this.lampBody.instanceMatrix.needsUpdate = true;
     this.lampLens.instanceMatrix.needsUpdate = true;

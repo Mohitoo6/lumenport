@@ -151,3 +151,16 @@ export const IconLayers = (p: P): JSX.Element => (
     <path d="M8 2.200l6 3.200-6 3.200-6-3.200zM2.600 8.200L8 11l5.400-2.800M2.600 10.800L8 13.600l5.400-2.800" />
   </Svg>
 );
+
+export const IconSun = (p: P): JSX.Element => (
+  <Svg {...p}>
+    <circle cx="8" cy="8" r="2.800" />
+    <path d="M8 1.600v1.600M8 12.800v1.600M1.600 8h1.600M12.800 8h1.600M3.500 3.500l1.100 1.100M11.400 11.400l1.100 1.100M12.500 3.500l-1.100 1.100M4.600 11.400l-1.100 1.100" />
+  </Svg>
+);
+
+export const IconMoon = (p: P): JSX.Element => (
+  <Svg {...p}>
+    <path d="M13 9.400A5.400 5.400 0 0 1 6.600 3a5.400 5.400 0 1 0 6.400 6.400z" />
+  </Svg>
+);
