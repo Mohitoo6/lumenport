@@ -164,3 +164,9 @@ export const IconMoon = (p: P): JSX.Element => (
     <path d="M13 9.400A5.400 5.400 0 0 1 6.600 3a5.400 5.400 0 1 0 6.400 6.400z" />
   </Svg>
 );
+
+export const IconMenu = (p: P): JSX.Element => (
+  <Svg {...p}>
+    <path d="M2.600 4.400h10.800M2.600 8h10.800M2.600 11.600h10.800" />
+  </Svg>
+);

@@ -2,6 +2,7 @@ import { signal } from '@preact/signals';
 import { emptyReport, type BudgetReport, type Loan } from '../sim/economy/budget';
 import type { OverlayId } from '../render/overlays/dataOverlay';
 import type { RoadType } from '../sim/roads/types';
+import type { SaveMeta } from '../sim/save/serialize';
 import type { Speed } from '../sim/state';
 
 export type ToolId = 'none' | 'road' | 'zone' | 'place' | 'bulldoze';
@@ -59,6 +60,11 @@ export const ui = {
   overlay: signal<OverlayId>('none'),
   showViews: signal(false),
   inspect: signal<InspectData | null>(null),
+  showMenu: signal(false),
+  saves: signal<SaveMeta[]>([]),
+  muted: signal(false),
+  /** Result of the last menu action, shown in the menu. */
+  menuNote: signal(''),
 };
 
 export interface UiActions {
@@ -72,6 +78,11 @@ export interface UiActions {
   takeLoan(tier: number): void;
   setOverlay(id: OverlayId): void;
   cycleTimeMode(): void;
+  newCity(seed: number, sandbox: boolean): void;
+  save(slot: string): void;
+  load(slot: string): void;
+  setMuted(muted: boolean): void;
+  refreshSaves(): void;
   closeInspect(): void;
 }
 
@@ -86,5 +97,10 @@ export const actions: UiActions = {
   takeLoan: () => {},
   setOverlay: () => {},
   cycleTimeMode: () => {},
+  newCity: () => {},
+  save: () => {},
+  load: () => {},
+  setMuted: () => {},
+  refreshSaves: () => {},
   closeInspect: () => {},
 };

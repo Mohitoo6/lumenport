@@ -38,6 +38,8 @@ export type SimEvents = {
   dayPassed: number;
   /** A month's budget was settled; the report is in state.report. */
   monthPassed: number;
+  /** A command was applied (or refused). */
+  command: { cmd: Command; result: CommandResult };
   /** A whole new state was installed (new game or load). */
   stateReplaced: null;
 };
@@ -80,6 +82,8 @@ export class Sim {
     this.netDirty = true;
     this.utilDirty = true;
     this.traffic.reset(state);
+    this.refreshUtilities();
+    this.refreshFields();
     this.events.emit('stateReplaced', null);
   }
 
@@ -232,7 +236,14 @@ export class Sim {
     this.events.emit('roadsChanged', change);
   }
 
+  /** Carries out a player command and announces the outcome. */
   apply(cmd: Command): CommandResult {
+    const result = this.run(cmd);
+    this.events.emit('command', { cmd, result });
+    return result;
+  }
+
+  private run(cmd: Command): CommandResult {
     const s = this.state;
     switch (cmd.type) {
       case 'setSpeed':

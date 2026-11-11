@@ -13,6 +13,8 @@ export interface DebugApi {
   camera(pose: Partial<CameraPose>, instant?: boolean): void;
   /** Runs `n` simulation ticks immediately, regardless of game speed. */
   advance(n: number): void;
+  /** Installs a game state (for tests of save and load). */
+  loadState(state: import('../sim/state').GameState): void;
   /** Jumps to a time of day (hours) and holds the clock there. */
   time(hour: number): void;
   /** Resolves after `n` rendered frames. */
@@ -33,6 +35,7 @@ export function installDebugApi(game: Game): void {
     exec: (cmd) => game.exec(cmd),
     camera: (pose, instant = true) => game.setCamera(pose, instant),
     time: (hour) => game.setTime(hour),
+    loadState: (state) => game.loadState(state),
     advance: (n) => {
       for (let i = 0; i < n; i++) game.sim.tick();
     },

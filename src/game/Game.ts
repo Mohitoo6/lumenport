@@ -1,5 +1,9 @@
 import { Vector3 } from 'three';
 import { MONTH_NAMES, TICK_MS, WORLD } from '../core/constants';
+import { GameAudio } from '../audio/audio';
+import { saves } from '../platform/idb';
+import { cloneState, metaOf, validateState } from '../sim/save/serialize';
+import { createState, type GameState } from '../sim/state';
 import { CameraInput } from './input';
 import { loadPbr, loadTextureArray, loadWarnings } from '../render/assets/loader';
 import { makeNoiseTexture, makeWaterNormalTexture } from '../render/assets/procedural';
@@ -78,6 +82,11 @@ export class Game {
   private lastDay = -1;
   private hudTimer = 1;
   private clockHeld = false;
+  readonly audio = new GameAudio();
+  private autosaveTimer = 0;
+  private slowFrames = 0;
+  private fastSeconds = 0;
+  private resCooldown = 0;
   private readonly camPos = new Vector3();
 
   private constructor(
@@ -194,6 +203,49 @@ export class Game {
       ui.timeMode.value = next;
       this.clockHeld = false;
     };
+    actions.newCity = (seed, sandbox) => {
+      // Keep the city being left behind, in case this was a mistake.
+      void this.saveTo('autosave').then(() => {
+        const next = createState(seed);
+        next.sandbox = sandbox;
+        this.loadState(next);
+        ui.menuNote.value = 'New city started. The previous one is in Autosave.';
+      });
+    };
+    actions.save = (slot) => void this.saveTo(slot).then((ok) => (ui.menuNote.value = ok ? 'City saved.' : 'Could not save: storage is unavailable.'));
+    actions.load = (slot) => void this.loadFrom(slot);
+    actions.refreshSaves = () => void this.refreshSaves();
+    actions.setMuted = (m) => {
+      this.audio.setMuted(m);
+      ui.muted.value = m;
+    };
+    ui.muted.value = this.audio.muted;
+    sim.events.on('stateReplaced', () => this.onStateReplaced());
+    sim.events.on('command', ({ cmd, result }) => {
+      if (!result.ok) {
+        if (cmd.type !== 'setTax' && result.reason !== 'Too short') this.audio.play('error');
+        return;
+      }
+      switch (cmd.type) {
+        case 'buildRoad':
+        case 'placeFacility':
+          this.audio.play('place');
+          break;
+        case 'zoneRect':
+          this.audio.play('zone');
+          break;
+        case 'bulldozeRoad':
+        case 'bulldozeBuilding':
+          this.audio.play('bulldoze');
+          break;
+        case 'takeLoan':
+          this.audio.play('cash');
+          break;
+        case 'setSpeed':
+          this.audio.play('click');
+          break;
+      }
+    });
     actions.closeInspect = () => {
       this.inspectId = -1;
       ui.inspect.value = null;
@@ -258,6 +310,10 @@ export class Game {
         break;
       case 'Digit3':
         this.sim.apply({ type: 'setSpeed', speed: 3 });
+        break;
+      case 'KeyM':
+        ui.showMenu.value = !ui.showMenu.value;
+        if (ui.showMenu.value) void this.refreshSaves();
         break;
       case 'KeyV':
         ui.showViews.value = !ui.showViews.value;
@@ -337,6 +393,16 @@ export class Game {
     this.engine.render(dt);
     this.frameCount++;
 
+    this.audio.update(dt, { dist: this.rig.pose.dist, population: state.stats.population, night: this.atmosphere.night, paused: state.speed === 0 });
+    this.adaptResolution(dt);
+    if (!this.options.shots && this.ready) {
+      this.autosaveTimer += dt;
+      if (this.autosaveTimer > 120) {
+        this.autosaveTimer = 0;
+        void this.saveTo('autosave');
+      }
+    }
+
     this.updateHud(dt);
   }
 
@@ -382,8 +448,91 @@ export class Game {
           `geo ${s.geometries}  tex ${s.textures}\n` +
           `sim ${this.simMs.toFixed(2)} ms  trees ${this.trees?.count ?? 0}\n` +
           `buildings ${this.buildings?.buildingCount ?? 0}  cars ${this.sim.traffic.count}\n` +
-          `shadow texel ${this.shadows.texel.toFixed(2)} m`;
+          `shadow texel ${this.shadows.texel.toFixed(2)} m  dpr ${this.engine.pixelRatio.toFixed(2)}`;
       }
+    }
+  }
+
+  /** Installs a whole new game state (new city or a loaded one). */
+  loadState(state: GameState): void {
+    this.sim.replaceState(state);
+  }
+
+  /** Points every renderer at the new state and rebuilds what it draws. */
+  private onStateReplaced(): void {
+    const s = this.sim.state;
+    this.terrain.setHeights(s.heights, s.seed);
+    this.water.setHeights(s.heights, s.seed);
+    this.trees.setSource(s.trees, s.heights);
+    this.roads.setSource(s);
+    this.buildings.setSource(s.buildings);
+    this.zones.setSource(s.zone);
+    this.tools.select('none');
+    this.inspectId = -1;
+    this.lastDay = -1;
+    this.hudTimer = 1;
+    ui.cityName.value = s.cityName;
+    ui.speed.value = s.speed;
+    if (this.overlay.id !== 'none') this.overlay.refresh(this.sim);
+  }
+
+  private async saveTo(slot: string): Promise<boolean> {
+    try {
+      const copy = cloneState(this.sim.state);
+      await saves.put(metaOf(slot, copy, Date.now()), copy);
+      await this.refreshSaves();
+      return true;
+    } catch (err) {
+      console.warn('[save]', err);
+      return false;
+    }
+  }
+
+  private async loadFrom(slot: string): Promise<void> {
+    try {
+      const raw = await saves.get(slot);
+      const state = raw ? validateState(raw) : 'Nothing is saved in that slot';
+      if (typeof state === 'string') {
+        ui.menuNote.value = state;
+        this.audio.play('error');
+        return;
+      }
+      this.loadState(state);
+      ui.menuNote.value = 'City loaded.';
+    } catch (err) {
+      console.warn('[load]', err);
+      ui.menuNote.value = 'Could not load: storage is unavailable.';
+    }
+  }
+
+  private async refreshSaves(): Promise<void> {
+    try {
+      ui.saves.value = await saves.list();
+    } catch {
+      ui.saves.value = [];
+    }
+  }
+
+  /** Lowers the render resolution when frames run long and raises it again when there is headroom. */
+  private adaptResolution(dt: number): void {
+    if (this.options.shots) return;
+    const e = this.engine;
+    const cap = Math.min(window.devicePixelRatio || 1, 1.5);
+    this.resCooldown = Math.max(0, this.resCooldown - dt);
+    if (dt > 0.021) this.slowFrames++;
+    else this.slowFrames = Math.max(0, this.slowFrames - 2);
+    if (this.frameMs < 17.5) this.fastSeconds += dt;
+    else this.fastSeconds = 0;
+    if (this.slowFrames > 45 && e.pixelRatio > 0.75) {
+      e.pixelRatio = Math.max(0.75, e.pixelRatio - 0.25);
+      e.resize();
+      this.slowFrames = 0;
+      this.fastSeconds = 0;
+      this.resCooldown = 30;
+    } else if (this.fastSeconds > 8 && this.resCooldown === 0 && e.pixelRatio < cap) {
+      e.pixelRatio = Math.min(cap, e.pixelRatio + 0.25);
+      e.resize();
+      this.fastSeconds = 0;
     }
   }
 

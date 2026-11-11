@@ -1,4 +1,5 @@
 import { render, type JSX } from 'preact';
+import { useState } from 'preact/hooks';
 import { LOAN_TIERS, loanPayment } from '../sim/economy/budget';
 import { OVERLAYS } from '../render/overlays/dataOverlay';
 import { FACILITIES, POWER_FACILITIES, SERVICE_FACILITIES, WATER_FACILITIES } from '../sim/facilities';
@@ -17,6 +18,7 @@ import {
   IconHelp,
   IconHome,
   IconLayers,
+  IconMenu,
   IconMoon,
   IconPause,
   IconPlay,
@@ -226,6 +228,84 @@ function Views(): JSX.Element {
   );
 }
 
+const SLOTS: Array<[id: string, name: string]> = [
+  ['autosave', 'Autosave'],
+  ['slot1', 'Slot 1'],
+  ['slot2', 'Slot 2'],
+  ['slot3', 'Slot 3'],
+];
+
+function Menu(): JSX.Element | null {
+  const [seed, setSeed] = useState('');
+  const [sandbox, setSandbox] = useState(false);
+  if (!ui.showMenu.value) return null;
+  const saved = ui.saves.value;
+  const when = (ms: number): string => new Date(ms).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+  return (
+    <aside class="panel menu" aria-label="Menu">
+      <div class="panel-head">
+        <h2>Menu</h2>
+        <button type="button" class="icon-btn" aria-label="Close menu" onClick={() => (ui.showMenu.value = false)}>
+          <IconClose size={12} />
+        </button>
+      </div>
+
+      <section>
+        <h3 class="label">Saved cities</h3>
+        {SLOTS.map(([id, name]) => {
+          const meta = saved.find((m) => m.slot === id);
+          return (
+            <div class="loan" key={id}>
+              <div>
+                <div>{meta ? `${name}: ${meta.cityName}` : name}</div>
+                <div class="muted">{meta ? `${meta.population.toLocaleString('en-US')} residents, saved ${when(meta.savedAt)}` : 'Empty'}</div>
+              </div>
+              <div class="btn-row">
+                {id !== 'autosave' && (
+                  <button type="button" class="btn" onClick={() => actions.save(id)}>
+                    Save
+                  </button>
+                )}
+                <button type="button" class="btn" disabled={!meta} onClick={() => actions.load(id)}>
+                  Load
+                </button>
+              </div>
+            </div>
+          );
+        })}
+        <p class="muted menu-note">The city is also saved automatically every two minutes.</p>
+      </section>
+
+      <section>
+        <h3 class="label">New city</h3>
+        <label class="field">
+          <span>Map seed</span>
+          <input type="text" inputMode="numeric" placeholder="Random" value={seed} onInput={(e) => setSeed((e.target as HTMLInputElement).value.replace(/[^0-9]/g, '').slice(0, 9))} />
+        </label>
+        <label class="check">
+          <input type="checkbox" checked={sandbox} onChange={(e) => setSandbox((e.target as HTMLInputElement).checked)} />
+          <span>Sandbox: unlimited money, no utilities needed</span>
+        </label>
+        <button type="button" class="btn btn-wide" onClick={() => actions.newCity(seed ? Number(seed) : Math.floor(Math.random() * 1e9), sandbox)}>
+          Start new city
+        </button>
+      </section>
+
+      <section>
+        <label class="check">
+          <input type="checkbox" checked={!ui.muted.value} onChange={(e) => actions.setMuted(!(e.target as HTMLInputElement).checked)} />
+          <span>Sound</span>
+        </label>
+      </section>
+      {ui.menuNote.value && (
+        <p class="menu-status" role="status">
+          {ui.menuNote.value}
+        </p>
+      )}
+    </aside>
+  );
+}
+
 function Inspect(): JSX.Element | null {
   const d = ui.inspect.value;
   if (!d) return null;
@@ -277,6 +357,19 @@ function TopBar(): JSX.Element {
         <span class="label">{TIME_LABEL[ui.timeMode.value]}</span>
       </button>
       <Views />
+      <button
+        type="button"
+        class={`panel menu-btn${ui.showMenu.value ? ' is-on' : ''}`}
+        aria-label="Menu"
+        aria-expanded={ui.showMenu.value}
+        title="Menu (M)"
+        onClick={() => {
+          ui.showMenu.value = !ui.showMenu.value;
+          if (ui.showMenu.value) actions.refreshSaves();
+        }}
+      >
+        <IconMenu />
+      </button>
     </header>
   );
 }
@@ -291,6 +384,7 @@ const HELP: Array<[string[], string]> = [
   [['Esc'], 'Cancel tool'],
   [['B'], 'Budget'],
   [['V'], 'Data views'],
+  [['M'], 'Menu, save and load'],
 ];
 
 function Help(): JSX.Element {
@@ -461,6 +555,7 @@ function Hud(): JSX.Element {
       <TopBar />
       <Alerts />
       <BudgetPanel />
+      <Menu />
       <Inspect />
       <Toolbar />
       <Help />
