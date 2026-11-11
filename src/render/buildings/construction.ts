@@ -29,6 +29,8 @@ export function construction(l: Lot, stage: number, m: Massing): void {
   let z0 = m.minZ;
   let z1 = m.maxZ;
   let height = m.maxY;
+  // Masts and chimneys would make a site frame absurdly tall; cap it.
+  height = Math.min(height, 60);
   if (!(height > 0) || x1 - x0 < 3 || z1 - z0 < 3) {
     x0 = -W * 0.3;
     x1 = W * 0.3;

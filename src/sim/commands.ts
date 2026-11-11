@@ -9,7 +9,13 @@ export type Command =
   | { type: 'bulldozeRoad'; edge: number }
   /** Paints a zone code (0 clears) over a rectangle of cells, inclusive. */
   | { type: 'zoneRect'; x0: number; y0: number; x1: number; y1: number; zone: number }
-  | { type: 'bulldozeBuilding'; id: number };
+  | { type: 'bulldozeBuilding'; id: number }
+  /** Places a facility with its centre on cell (x, y). */
+  | { type: 'placeFacility'; kind: number; x: number; y: number }
+  /** zone: 1 residential, 2 commercial, 3 industrial. rate in percent, 0..20. */
+  | { type: 'setTax'; zone: number; rate: number }
+  | { type: 'takeLoan'; tier: number }
+  | { type: 'setSandbox'; on: boolean };
 
 export interface CommandResult {
   ok: boolean;

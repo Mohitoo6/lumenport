@@ -1,11 +1,17 @@
-import { CELL, MAP, TICKS_PER_DAY } from '../core/constants';
+import { CELL, DAYS_PER_MONTH, MAP, TICKS_PER_DAY } from '../core/constants';
 import { Rng } from '../core/rng';
 import { Emitter } from '../core/events';
 import { OK, fail, type Command, type CommandResult } from './commands';
 import { demolishEdge, executePlan, planRoad, type RoadChange, type RoadPlan, type RoadRequest } from './roads/plan';
+import { LOAN_TIERS, loanPayment, projectBudget } from './economy/budget';
+import { economyStep, growthRateFor } from './economy/economy';
+import { planFacility, type FacilityPlan } from './facilities';
 import { cellMinHeight } from './map/terrain';
+import { computeUtilities, newNetworks, type Networks } from './utilities/network';
+import { frontageOf } from './zoning/lots';
+import { FACING_DX, FACING_DY } from './zoning/zones';
 import { createState, type GameState } from './state';
-import { advanceConstruction, buildFrontier, growthStep, lotRect, removeBuilding, type GrowthResult } from './zoning/growth';
+import { advanceConstruction, buildFrontier, growthStep, lotRect, removeBuilding, spawnBuilding, type GrowthResult } from './zoning/growth';
 import type { Building } from './zoning/zones';
 
 export interface CellRect {
@@ -28,6 +34,8 @@ export type SimEvents = {
   buildingsChanged: { changed: number[]; removed: Building[] };
   speedChanged: number;
   dayPassed: number;
+  /** A month's budget was settled; the report is in state.report. */
+  monthPassed: number;
   /** A whole new state was installed (new game or load). */
   stateReplaced: null;
 };
@@ -39,8 +47,13 @@ export type SimEvents = {
 export class Sim {
   readonly events = new Emitter<SimEvents>();
   state: GameState;
-  /** How eagerly zoned land develops, 0..1. Phase 4 drives this from demand. */
+  /** How eagerly zoned land develops in sandbox mode, 0..1. Otherwise demand decides. */
   growthRate = 0.7;
+  /** Road networks and their power and water balance. Derived, never saved. */
+  readonly net: Networks = newNetworks();
+  private netDirty = true;
+  private utilDirty = true;
+  private readonly rates: number[] = [0, 0, 0, 0];
   /** Cached list of cells where a building could start; null means it must be rebuilt. */
   private frontier: number[] | null = null;
   private readonly changedIds: number[] = [];
@@ -56,6 +69,8 @@ export class Sim {
   replaceState(state: GameState): void {
     this.state = state;
     this.frontier = null;
+    this.netDirty = true;
+    this.utilDirty = true;
     this.events.emit('stateReplaced', null);
   }
 
@@ -66,11 +81,64 @@ export class Sim {
 
     const changed = this.changedIds;
     changed.length = 0;
+    const building = s.constructing.length;
     advanceConstruction(s, changed);
-    if (s.tick % 8 === 0) this.grow(changed);
+    if (s.constructing.length !== building) this.utilDirty = true;
+    const newDay = s.tick % TICKS_PER_DAY === 0;
+    if (s.tick % 8 === 0) {
+      if (this.utilDirty || newDay) this.refreshUtilities();
+      this.grow(changed);
+    }
     if (changed.length > 0) this.events.emit('buildingsChanged', { changed: changed.slice(), removed: [] });
 
-    if (s.tick % TICKS_PER_DAY === 0) this.events.emit('dayPassed', s.tick / TICKS_PER_DAY);
+    if (newDay) {
+      const day = s.tick / TICKS_PER_DAY;
+      economyStep(s.buildings, s.tax, s.stats);
+      this.events.emit('dayPassed', day);
+      if (day % DAYS_PER_MONTH === 0) this.settleMonth(day / DAYS_PER_MONTH);
+    }
+  }
+
+  /** Recomputes power and water on every road network. */
+  refreshUtilities(): void {
+    const s = this.state;
+    computeUtilities(s.buildings, s.roadCell, this.net, this.netDirty, Math.floor(s.tick / TICKS_PER_DAY), s.stats);
+    this.netDirty = false;
+    this.utilDirty = false;
+  }
+
+  private settleMonth(month: number): void {
+    const s = this.state;
+    projectBudget(s.buildings, s.roads, s.tax, s.loans, s.stats, s.report);
+    if (!s.sandbox) s.funds += s.report.net;
+    for (let i = s.loans.length - 1; i >= 0; i--) {
+      if (--s.loans[i]!.monthsLeft <= 0) s.loans.splice(i, 1);
+    }
+    this.events.emit('monthPassed', month);
+  }
+
+  /** True if the street in front of cell (i, j) has spare power and water. */
+  private served = (i: number, j: number): boolean => {
+    const f: number = frontageOf(this.state, i, j);
+    if (f < 0) return false;
+    const c = this.net.comp[(j + FACING_DY[f as 0]!) * MAP + i + FACING_DX[f as 0]!]!;
+    if (c < 0) return false;
+    const n = this.net;
+    return n.powerSupply[c]! > n.powerDemand[c]! && n.waterSupply[c]! > n.waterDemand[c]!;
+  };
+
+  /** Takes money for a build. Returns false (and takes nothing) if the city cannot pay. */
+  private charge(cost: number): boolean {
+    const s = this.state;
+    if (s.sandbox) return true;
+    if (s.funds < cost) return false;
+    s.funds -= cost;
+    return true;
+  }
+
+  /** Dry run of placing a facility centred on a cell. */
+  planFacility(kind: number, i: number, j: number): FacilityPlan {
+    return planFacility(this.state, kind, i, j);
   }
 
   private grow(changed: number[]): void {
@@ -78,7 +146,10 @@ export class Sim {
     this.frontier ??= buildFrontier(s);
     const rng = new Rng(s.rng);
     const result: GrowthResult = { spawned: [], upgraded: [] };
-    growthStep(s, this.frontier, rng, this.growthRate, result);
+    const rates = this.rates;
+    for (let t = 1; t <= 3; t++) rates[t] = s.sandbox ? this.growthRate : growthRateFor(s.stats.demand[t]!);
+    growthStep(s, this.frontier, rng, rates, result, s.sandbox ? undefined : this.served);
+    if (result.spawned.length > 0) this.utilDirty = true;
     s.rng = rng.state;
     for (const b of result.spawned) {
       const r = lotRect(b);
@@ -126,6 +197,8 @@ export class Sim {
 
   private roadChanged(change: RoadChange): void {
     this.frontier = null;
+    this.netDirty = true;
+    this.utilDirty = true;
     this.clearUnderRoads(change);
     if (change.terrain) this.events.emit('terrainChanged', change.terrain);
     if (change.trees) this.events.emit('treesChanged', change.trees);
@@ -149,6 +222,7 @@ export class Sim {
       case 'buildRoad': {
         const plan = planRoad(s.roads, s.heights, cmd);
         if (!plan.ok) return fail(plan.reason);
+        if (!this.charge(plan.cost)) return fail('Not enough money');
         this.roadChanged(executePlan(s.roads, s, plan));
         return { ok: true, cost: plan.cost };
       }
@@ -192,9 +266,45 @@ export class Sim {
         const b = removeBuilding(s, cmd.id);
         if (!b) return fail('No building there');
         this.frontier = null;
+        this.utilDirty = true;
         this.events.emit('buildingsChanged', { changed: [], removed: [b] });
         return OK;
       }
+      case 'placeFacility': {
+        const plan = planFacility(s, cmd.kind, cmd.x, cmd.y);
+        if (!plan.ok) return fail(plan.reason);
+        if (!this.charge(plan.cost)) return fail('Not enough money');
+        const rng = new Rng(s.rng);
+        const b = spawnBuilding(s, { x: plan.x, y: plan.y, w: plan.size, h: plan.size, facing: plan.facing }, 0, rng, plan.kind);
+        s.rng = rng.state;
+        // Clear any zoning under it.
+        const r = lotRect(b);
+        for (let j = b.y; j < b.y + b.h; j++) for (let i = b.x; i < b.x + b.w; i++) s.zone[j * MAP + i] = 0;
+        this.frontier = null;
+        this.utilDirty = true;
+        this.events.emit('zonesChanged', r);
+        this.events.emit('terrainChanged', r);
+        this.events.emit('treesChanged', r);
+        this.events.emit('buildingsChanged', { changed: [b.id], removed: [] });
+        return { ok: true, cost: plan.cost };
+      }
+      case 'setTax': {
+        if (cmd.zone < 1 || cmd.zone > 3) return fail('Invalid zone');
+        if (!(cmd.rate >= 0 && cmd.rate <= 20)) return fail('Tax must be between 0 and 20%');
+        s.tax[cmd.zone] = Math.round(cmd.rate);
+        return OK;
+      }
+      case 'takeLoan': {
+        const tier = LOAN_TIERS[cmd.tier];
+        if (!tier) return fail('No such loan');
+        if (s.loans.some((l) => l.tier === cmd.tier)) return fail('That loan is already taken');
+        s.loans.push({ tier: cmd.tier, payment: loanPayment(tier), monthsLeft: tier.months });
+        s.funds += tier.amount;
+        return OK;
+      }
+      case 'setSandbox':
+        s.sandbox = cmd.on;
+        return OK;
     }
   }
 }

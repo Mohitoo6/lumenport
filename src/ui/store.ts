@@ -1,8 +1,9 @@
 import { signal } from '@preact/signals';
+import { emptyReport, type BudgetReport, type Loan } from '../sim/economy/budget';
 import type { RoadType } from '../sim/roads/types';
 import type { Speed } from '../sim/state';
 
-export type ToolId = 'none' | 'road' | 'zone' | 'bulldoze';
+export type ToolId = 'none' | 'road' | 'zone' | 'place' | 'bulldoze';
 export type RoadModeId = 'straight' | 'curve';
 
 export interface Hint {
@@ -26,6 +27,21 @@ export const ui = {
   /** Zone brush: 0 clears zoning, 1-3 are residential, commercial, industrial. */
   zoneType: signal(1),
   zoneDensity: signal(1),
+  /** Facility being placed (a FacilityKind). */
+  facility: signal(1),
+  funds: signal(0),
+  population: signal(0),
+  /** Demand per zone in -1..1: residential, commercial, industrial. */
+  demand: signal<[number, number, number]>([0, 0, 0]),
+  /** Projected monthly budget as the city stands now. */
+  budget: signal<BudgetReport>(emptyReport()),
+  tax: signal<[number, number, number]>([9, 9, 9]),
+  loans: signal<Loan[]>([]),
+  power: signal<[number, number]>([0, 0]),
+  water: signal<[number, number]>([0, 0]),
+  alerts: signal<string[]>([]),
+  sandbox: signal(false),
+  showBudget: signal(false),
 };
 
 export interface UiActions {
@@ -34,6 +50,9 @@ export interface UiActions {
   setRoadType(type: RoadType): void;
   setRoadMode(mode: RoadModeId): void;
   setZone(type: number, density: number): void;
+  setFacility(kind: number): void;
+  setTax(zone: number, rate: number): void;
+  takeLoan(tier: number): void;
 }
 
 export const actions: UiActions = {
@@ -42,4 +61,7 @@ export const actions: UiActions = {
   setRoadType: () => {},
   setRoadMode: () => {},
   setZone: () => {},
+  setFacility: () => {},
+  setTax: () => {},
+  takeLoan: () => {},
 };

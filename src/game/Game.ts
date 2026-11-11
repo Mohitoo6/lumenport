@@ -19,6 +19,7 @@ import { TERRAIN_LAYERS, createTerrainMaterial } from '../render/terrain/terrain
 import { TerrainRenderer } from '../render/terrain/terrainRenderer';
 import { WaterRenderer } from '../render/water/waterRenderer';
 import type { Command, CommandResult } from '../sim/commands';
+import { emptyReport, projectBudget } from '../sim/economy/budget';
 import { heightAt } from '../sim/map/terrain';
 import { TreeSpecies } from '../sim/map/trees';
 import { Sim } from '../sim/sim';
@@ -62,6 +63,7 @@ export class Game {
   private fps = 0;
   private frameMs = 0;
   private lastDay = -1;
+  private hudTimer = 1;
   private readonly camPos = new Vector3();
 
   private constructor(
@@ -151,6 +153,15 @@ export class Game {
     actions.setRoadType = (type) => this.tools.setRoadType(type);
     actions.setRoadMode = (mode) => this.tools.setRoadMode(mode);
     actions.setZone = (type, density) => this.tools.setZone(type as 0 | 1 | 2 | 3, density as 1 | 2 | 3);
+    actions.setFacility = (kind) => this.tools.setFacility(kind);
+    actions.setTax = (zone, rate) => {
+      sim.apply({ type: 'setTax', zone, rate });
+      this.hudTimer = 1;
+    };
+    actions.takeLoan = (tier) => {
+      sim.apply({ type: 'takeLoan', tier });
+      this.hudTimer = 1;
+    };
     window.addEventListener('keydown', this.onKey);
     window.addEventListener('resize', this.onResize);
 
@@ -200,6 +211,9 @@ export class Game {
         break;
       case 'Digit3':
         this.sim.apply({ type: 'setSpeed', speed: 3 });
+        break;
+      case 'KeyB':
+        ui.showBudget.value = !ui.showBudget.value;
         break;
       case 'Backquote':
         ui.showDev.value = !ui.showDev.value;
@@ -271,6 +285,21 @@ export class Game {
       this.lastDay = d.totalDays;
       ui.dateLabel.value = `${d.day} ${MONTH_NAMES[d.month]} ${d.year}`;
     }
+    this.hudTimer += dt;
+    if (this.hudTimer >= 0.25) {
+      this.hudTimer = 0;
+      const st = state.stats;
+      ui.funds.value = Math.floor(state.funds);
+      ui.population.value = st.population;
+      ui.demand.value = [st.demand[1], st.demand[2], st.demand[3]];
+      ui.budget.value = projectBudget(state.buildings, state.roads, state.tax, state.loans, st, emptyReport());
+      ui.tax.value = [state.tax[1], state.tax[2], state.tax[3]];
+      ui.loans.value = state.loans.slice();
+      ui.power.value = [st.powerSupply, st.powerDemand];
+      ui.water.value = [st.waterSupply, st.waterDemand];
+      ui.sandbox.value = state.sandbox;
+      ui.alerts.value = this.alerts();
+    }
     this.fpsFrames++;
     this.fpsTime += dt;
     this.frameMs = this.frameMs * 0.9 + dt * 1000 * 0.1;
@@ -289,6 +318,30 @@ export class Game {
           `shadow texel ${this.shadows.texel.toFixed(2)} m`;
       }
     }
+  }
+
+  /** Short messages about what is holding the city back, most important first. */
+  private alerts(): string[] {
+    const s = this.sim.state;
+    const st = s.stats;
+    const out: string[] = [];
+    if (s.sandbox) return out;
+    let hasRoad = false;
+    for (const e of s.roads.edges) {
+      if (e) {
+        hasRoad = true;
+        break;
+      }
+    }
+    if (!hasRoad) return ['Start by laying a street'];
+    if (st.powerSupply === 0) out.push('No power: build a power plant beside a road');
+    else if (st.powerDemand > st.powerSupply) out.push('Power shortage');
+    else if (st.powerDemand > st.powerSupply * 0.9) out.push('Power nearly at capacity');
+    if (st.waterSupply === 0) out.push('No water: build a water tower beside a road');
+    else if (st.waterDemand > st.waterSupply) out.push('Water shortage');
+    else if (st.waterDemand > st.waterSupply * 0.9) out.push('Water nearly at capacity');
+    if (ui.budget.value.net < 0 && s.funds < 15000 && st.population > 0) out.push('The city is losing money');
+    return out;
   }
 
   /** Numbers for the dev overlay and automated performance checks. */

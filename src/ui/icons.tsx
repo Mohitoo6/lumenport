@@ -114,3 +114,27 @@ export const IconErase = (p: P): JSX.Element => (
     <path d="M6.2 13.200L2.6 9.600l6.600-6.600 4.200 4.200-6 6zM6.200 13.200h7M5.800 6.400l4.200 4.200" />
   </Svg>
 );
+
+export const IconBolt = (p: P): JSX.Element => (
+  <Svg {...p}>
+    <path d="M9 1.800L3.600 9h4l-.8 5.200L12.400 7h-4z" />
+  </Svg>
+);
+
+export const IconDrop = (p: P): JSX.Element => (
+  <Svg {...p}>
+    <path d="M8 2c2.400 3 4 5 4 7.200a4 4 0 0 1-8 0C4 7 5.600 5 8 2z" />
+  </Svg>
+);
+
+export const IconChart = (p: P): JSX.Element => (
+  <Svg {...p}>
+    <path d="M2.600 13.400h10.800M4.600 11V7.600M8 11V4M11.400 11V6" stroke-width="1.800" />
+  </Svg>
+);
+
+export const IconWarn = (p: P): JSX.Element => (
+  <Svg {...p}>
+    <path d="M8 2.400l6 10.600H2zM8 6.600v3M8 11.400v.1" />
+  </Svg>
+);

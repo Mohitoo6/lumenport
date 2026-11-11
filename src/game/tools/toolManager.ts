@@ -6,6 +6,7 @@ import type { Sim } from '../../sim/sim';
 import { ui, type ToolId } from '../../ui/store';
 import { pickBuilding, pickGround } from '../picking';
 import { BulldozeTool } from './bulldozeTool';
+import { PlaceTool } from './placeTool';
 import { RoadTool, type RoadMode } from './roadTool';
 import { ZoneTool } from './zoneTool';
 import type { Density, ZoneType } from '../../sim/zoning/zones';
@@ -22,6 +23,7 @@ export class ToolManager {
   private readonly road = new RoadTool(RoadType.Street);
   private readonly bulldoze = new BulldozeTool();
   private readonly zone = new ZoneTool();
+  private readonly place = new PlaceTool();
   private dragging = false;
   private readonly ctx: ToolContext;
   private readonly hit = new Vector3();
@@ -64,7 +66,7 @@ export class ToolManager {
   private pendingHint: { text: string; tone: 'info' | 'ok' | 'bad' } | null = null;
 
   select(id: ToolId): void {
-    const next: Tool | null = id === 'road' ? this.road : id === 'bulldoze' ? this.bulldoze : id === 'zone' ? this.zone : null;
+    const next: Tool | null = id === 'road' ? this.road : id === 'bulldoze' ? this.bulldoze : id === 'zone' ? this.zone : id === 'place' ? this.place : null;
     if (next === this.active) return;
     this.active?.deactivate(this.ctx);
     this.dragging = false;
@@ -98,6 +100,14 @@ export class ToolManager {
     ui.zoneDensity.value = density;
     if (this.active === this.zone) this.zone.describe(this.ctx);
     else this.select('zone');
+  }
+
+  /** Picks a facility to place. */
+  setFacility(kind: number): void {
+    this.place.kind = kind;
+    ui.facility.value = kind;
+    if (this.active === this.place) this.place.describe(this.ctx);
+    else this.select('place');
   }
 
   private ground(clientX: number, clientY: number): GroundPoint | null {

@@ -12,6 +12,7 @@ function flatSim(height = 5): Sim {
   const sim = Sim.create(1);
   sim.state.heights.fill(height);
   sim.state.trees.fill(0);
+  sim.state.sandbox = true;
   return sim;
 }
 
@@ -50,7 +51,7 @@ describe('building roads', () => {
     const sim = flatSim();
     const r = build(sim, 400, 400, 560, 400);
     expect(r.ok).toBe(true);
-    expect(r.cost).toBe(160 * 20);
+    expect(r.cost).toBe(160 * 10);
     const net = sim.state.roads;
     expect(countNodes(net)).toBe(2);
     expect(countEdges(net)).toBe(1);
@@ -158,7 +159,7 @@ describe('building roads', () => {
     const plan = sim.planRoad({ road: RoadType.Street, ax: 400, az: 400, bx: 600, bz: 400 });
     expect(plan.ok).toBe(true);
     expect(plan.bridgeLength).toBeGreaterThan(40);
-    expect(plan.cost).toBeGreaterThan(200 * 20);
+    expect(plan.cost).toBeGreaterThan(200 * 10);
     expect(build(sim, 400, 400, 600, 400).ok).toBe(true);
     // The river bed was not filled in.
     expect(h[50 * VERTS + 63]).toBe(-4);

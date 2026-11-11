@@ -66,13 +66,14 @@ const TOWN_ROADS: Road[] = [
   [1376, 744, 1376, 1504],
 ];
 
-export async function buildTown(page: Page): Promise<void> {
-  const results = await page.evaluate((roads) => {
+export async function buildTown(page: Page, sandbox = true): Promise<void> {
+  const results = await page.evaluate(({ roads, sandbox }) => {
+    window.__game!.exec({ type: 'setSandbox', on: sandbox });
     return roads.map(([ax, az, bx, bz, road, cx, cz]) => {
       const r = window.__game!.exec({ type: 'buildRoad', road: road ?? 0, ax, az, bx, bz, cx, cz });
       return r.ok ? 'ok' : `FAILED ${ax},${az} -> ${bx},${bz}: ${r.reason}`;
     });
-  }, TOWN_ROADS);
+  }, { roads: TOWN_ROADS, sandbox });
   for (const r of results) if (r !== 'ok') console.log(r);
 }
 

@@ -1,10 +1,14 @@
 import { render, type JSX } from 'preact';
+import { LOAN_TIERS, loanPayment } from '../sim/economy/budget';
+import { FACILITIES, POWER_FACILITIES, WATER_FACILITIES } from '../sim/facilities';
 import type { Speed } from '../sim/state';
 import {
   IconAvenue,
+  IconBolt,
   IconBulldoze,
   IconClose,
   IconCurve,
+  IconDrop,
   IconErase,
   IconFactory,
   IconFast,
@@ -16,6 +20,7 @@ import {
   IconRoad,
   IconShop,
   IconStraight,
+  IconWarn,
 } from './icons';
 import { actions, ui } from './store';
 
@@ -25,6 +30,150 @@ const SPEEDS: Array<{ speed: Speed; label: string; icon: () => JSX.Element; key:
   { speed: 2, label: 'Fast', icon: () => <IconFast />, key: '2' },
   { speed: 3, label: 'Fastest', icon: () => <IconFaster />, key: '3' },
 ];
+
+const usd = (n: number): string => `${n < 0 ? '-' : ''}$${Math.abs(Math.round(n)).toLocaleString('en-US')}`;
+
+function DemandBars(): JSX.Element {
+  const d = ui.demand.value;
+  const names = ['Residential', 'Commercial', 'Industrial'];
+  return (
+    <div class="demand" role="img" aria-label={`Demand: ${names.map((n, i) => `${n} ${Math.round(d[i]! * 100)}%`).join(', ')}`}>
+      {d.map((v, i) => (
+        <div class={`demand-bar ${ZONE_CLASS[i + 1]}`} key={i} title={`${names[i]} demand ${Math.round(v * 100)}%`}>
+          <span style={{ height: `${Math.abs(v) * 50}%`, [v >= 0 ? 'bottom' : 'top']: '50%' }} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function Stats(): JSX.Element {
+  const net = ui.budget.value.net;
+  const sandbox = ui.sandbox.value;
+  return (
+    <div class="panel stats">
+      <button type="button" class={`stat stat-btn${ui.showBudget.value ? ' is-open' : ''}`} title="Budget (B)" aria-expanded={ui.showBudget.value} onClick={() => (ui.showBudget.value = !ui.showBudget.value)}>
+        <span class="label">Funds</span>
+        <span class="stat-value">{sandbox ? 'Unlimited' : usd(ui.funds.value)}</span>
+        {!sandbox && <span class={`stat-sub ${net >= 0 ? 'good' : 'bad'}`}>{`${net >= 0 ? '+' : ''}${usd(net)} / mo`}</span>}
+      </button>
+      <div class="stat">
+        <span class="label">Population</span>
+        <span class="stat-value">{ui.population.value.toLocaleString('en-US')}</span>
+      </div>
+      <div class="stat">
+        <span class="label">Demand</span>
+        <DemandBars />
+      </div>
+    </div>
+  );
+}
+
+function Alerts(): JSX.Element | null {
+  const list = ui.alerts.value;
+  if (list.length === 0) return null;
+  return (
+    <ul class="alerts" aria-live="polite">
+      {list.map((a) => (
+        <li key={a}>
+          <IconWarn size={13} />
+          {a}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function Meter(props: { label: string; supply: number; demand: number; unit: string }): JSX.Element {
+  const { supply, demand } = props;
+  const ratio = supply > 0 ? Math.min(1, demand / supply) : demand > 0 ? 1 : 0;
+  const tone = supply === 0 || demand > supply ? 'bad' : ratio > 0.9 ? 'warn' : 'good';
+  const fmt = (n: number): string => (n >= 100 ? Math.round(n).toLocaleString('en-US') : n.toFixed(1));
+  return (
+    <div class="meter">
+      <div class="meter-head">
+        <span>{props.label}</span>
+        <span class="muted">{`${fmt(demand)} / ${fmt(supply)} ${props.unit}`}</span>
+      </div>
+      <div class="meter-track">
+        <span class={`tone-${tone}`} style={{ width: `${ratio * 100}%` }} />
+      </div>
+    </div>
+  );
+}
+
+function BudgetPanel(): JSX.Element | null {
+  if (!ui.showBudget.value) return null;
+  const b = ui.budget.value;
+  const tax = ui.tax.value;
+  const loans = ui.loans.value;
+  const row = (label: string, value: number, sign: 1 | -1): JSX.Element => (
+    <div class="ledger-row" key={label}>
+      <span>{label}</span>
+      <span class={value === 0 ? 'muted' : sign > 0 ? 'good' : 'bad'}>{value === 0 ? '$0' : `${sign > 0 ? '+' : '-'}${usd(value)}`}</span>
+    </div>
+  );
+  const zones = ['Residential', 'Commercial', 'Industrial'];
+  return (
+    <aside class="panel budget" aria-label="Budget">
+      <div class="panel-head">
+        <h2>Budget</h2>
+        <button type="button" class="icon-btn" aria-label="Close budget" onClick={() => (ui.showBudget.value = false)}>
+          <IconClose size={12} />
+        </button>
+      </div>
+
+      <section>
+        <h3 class="label">Taxes</h3>
+        {zones.map((z, i) => (
+          <label class={`tax ${ZONE_CLASS[i + 1]}`} key={z}>
+            <span>{z}</span>
+            <input type="range" min="0" max="20" step="1" value={tax[i]} onInput={(e) => actions.setTax(i + 1, Number((e.target as HTMLInputElement).value))} />
+            <output>{tax[i]}%</output>
+          </label>
+        ))}
+      </section>
+
+      <section>
+        <h3 class="label">This month, as things stand</h3>
+        {row('Residential tax', b.taxR, 1)}
+        {row('Commercial tax', b.taxC, 1)}
+        {row('Industrial tax', b.taxI, 1)}
+        {row('Road upkeep', b.roads, -1)}
+        {row('Utilities', b.utilities, -1)}
+        {row('Loan payments', b.loans, -1)}
+        <div class="ledger-row total">
+          <span>Net</span>
+          <span class={b.net >= 0 ? 'good' : 'bad'}>{`${b.net >= 0 ? '+' : ''}${usd(b.net)}`}</span>
+        </div>
+      </section>
+
+      <section>
+        <h3 class="label">Utilities</h3>
+        <Meter label="Power" supply={ui.power.value[0]} demand={ui.power.value[1]} unit="MW" />
+        <Meter label="Water" supply={ui.water.value[0]} demand={ui.water.value[1]} unit="units" />
+      </section>
+
+      <section>
+        <h3 class="label">Loans</h3>
+        {LOAN_TIERS.map((t, i) => {
+          const taken = loans.find((l) => l.tier === i);
+          return (
+            <div class="loan" key={i}>
+              <div>
+                <div>{usd(t.amount)}</div>
+                <div class="muted">{taken ? `${taken.monthsLeft} payments of ${usd(taken.payment)} left` : `${usd(loanPayment(t))} / mo for ${t.months} months`}</div>
+              </div>
+              <button type="button" class="btn" disabled={!!taken} onClick={() => actions.takeLoan(i)}>
+                {taken ? 'Active' : 'Borrow'}
+              </button>
+            </div>
+          );
+        })}
+      </section>
+    </aside>
+  );
+}
 
 function TopBar(): JSX.Element {
   return (
@@ -48,6 +197,7 @@ function TopBar(): JSX.Element {
           </button>
         ))}
       </div>
+      <Stats />
     </header>
   );
 }
@@ -60,6 +210,7 @@ const HELP: Array<[string[], string]> = [
   [['Right-drag'], 'Orbit'],
   [['Shift', 'Drag'], 'Grab'],
   [['Esc'], 'Cancel tool'],
+  [['B'], 'Budget'],
 ];
 
 function Help(): JSX.Element {
@@ -119,6 +270,8 @@ function Toolbar(): JSX.Element {
   const hint = ui.hint.value;
   const zt = ui.zoneType.value;
   const zd = ui.zoneDensity.value;
+  const fk = ui.facility.value;
+  const isPower = POWER_FACILITIES.includes(fk as never);
   const zoneBtn = (type: number, label: string, icon: JSX.Element): JSX.Element => (
     <ToolButton
       tone={ZONE_CLASS[type]}
@@ -159,6 +312,15 @@ function Toolbar(): JSX.Element {
           ))}
         </div>
       )}
+      {tool === 'place' && (
+        <div class="panel options" role="group" aria-label="Facility">
+          {(POWER_FACILITIES.includes(fk as never) ? POWER_FACILITIES : WATER_FACILITIES).map((k) => (
+            <ToolButton key={k} active={fk === k} label={`${FACILITIES[k]!.name} · ${usd(FACILITIES[k]!.cost)}`} onClick={() => actions.setFacility(k)}>
+              <span class="opt-dot" aria-hidden="true" />
+            </ToolButton>
+          ))}
+        </div>
+      )}
       <nav class="panel toolbar" aria-label="Build tools">
         <ToolButton active={tool === 'road' && road === 0} label="Street" onClick={() => (tool === 'road' && road === 0 ? actions.selectTool('none') : actions.setRoadType(0))}>
           <IconRoad size={18} />
@@ -171,6 +333,13 @@ function Toolbar(): JSX.Element {
         {zoneBtn(2, 'Shops', <IconShop size={18} />)}
         {zoneBtn(3, 'Industry', <IconFactory size={18} />)}
         {zoneBtn(0, 'De-zone', <IconErase size={18} />)}
+        <div class="toolbar-sep" />
+        <ToolButton active={tool === 'place' && isPower} label="Power" onClick={() => (tool === 'place' && isPower ? actions.selectTool('none') : actions.setFacility(POWER_FACILITIES[0]))}>
+          <IconBolt size={18} />
+        </ToolButton>
+        <ToolButton active={tool === 'place' && !isPower} label="Water" onClick={() => (tool === 'place' && !isPower ? actions.selectTool('none') : actions.setFacility(WATER_FACILITIES[0]))}>
+          <IconDrop size={18} />
+        </ToolButton>
         <div class="toolbar-sep" />
         <ToolButton danger active={tool === 'bulldoze'} label="Bulldoze" hotkey="X" onClick={() => actions.selectTool(tool === 'bulldoze' ? 'none' : 'bulldoze')}>
           <IconBulldoze size={18} />
@@ -204,6 +373,8 @@ function Hud(): JSX.Element {
   return (
     <>
       <TopBar />
+      <Alerts />
+      <BudgetPanel />
       <Toolbar />
       <Help />
       <DevOverlay />

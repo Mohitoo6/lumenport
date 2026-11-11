@@ -23,8 +23,8 @@ export interface RoadSpec {
 }
 
 export const ROAD_SPECS: Record<RoadType, RoadSpec> = {
-  [RoadType.Street]: { name: 'Street', width: 16, sidewalk: 3, median: 0, lanes: 1, laneWidth: 3.2, speed: 11, cost: 20, upkeep: 0.02 },
-  [RoadType.Avenue]: { name: 'Avenue', width: 32, sidewalk: 4.5, median: 3, lanes: 2, laneWidth: 3.4, speed: 16, cost: 55, upkeep: 0.05 },
+  [RoadType.Street]: { name: 'Street', width: 16, sidewalk: 3, median: 0, lanes: 1, laneWidth: 3.2, speed: 11, cost: 10, upkeep: 0.035 },
+  [RoadType.Avenue]: { name: 'Avenue', width: 32, sidewalk: 4.5, median: 3, lanes: 2, laneWidth: 3.4, speed: 16, cost: 26, upkeep: 0.09 },
 };
 
 export interface RoadNode {

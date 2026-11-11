@@ -98,10 +98,14 @@ export class RoadTool implements Tool {
       cz: this.control?.z,
     });
     this.plan = plan;
-    const tone = plan.ok ? 'ok' : 'bad';
+    const st = ctx.sim.state;
+    const broke = plan.ok && !st.sandbox && st.funds < plan.cost;
+    const tone = plan.ok && !broke ? 'ok' : 'bad';
     ctx.preview.showRoad(plan.ax, plan.az, plan.cx, plan.cz, plan.bx, plan.bz, spec.width, roadway, tone);
     ctx.preview.showCursor(plan.bx, plan.bz, spec.width / 2, tone);
-    if (plan.ok) {
+    if (broke) {
+      ctx.hint(`${money(plan.cost)}: not enough money`, 'bad');
+    } else if (plan.ok) {
       const bridge = plan.bridgeLength > 1 ? `  ·  ${Math.round(plan.bridgeLength)} m of bridge` : '';
       ctx.hint(`${Math.round(plan.length)} m  ·  ${money(plan.cost)}${bridge}`, 'ok');
     } else if (plan.reason === 'Too short') {

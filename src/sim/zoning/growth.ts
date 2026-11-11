@@ -29,9 +29,10 @@ export function buildFrontier(s: ZoningLayers): number[] {
 }
 
 /** Creates a building on a lot: claims the cells, clears trees and levels a pad. */
-export function spawnBuilding(s: ZoningLayers, lot: Lot, zone: number, rng: Rng): Building {
+export function spawnBuilding(s: ZoningLayers, lot: Lot, zone: number, rng: Rng, kind = 0): Building {
   const b: Building = {
     id: s.buildings.length,
+    kind,
     zone,
     x: lot.x,
     y: lot.y,
@@ -42,6 +43,8 @@ export function spawnBuilding(s: ZoningLayers, lot: Lot, zone: number, rng: Rng)
     progress: 0,
     seed: (rng.next() * 0x7fffffff) | 0,
     baseY: 0,
+    pop: 0,
+    flags: 0,
   };
   s.buildings.push(b);
   s.constructing.push(b.id);
@@ -111,7 +114,7 @@ export function advanceConstruction(s: ZoningLayers, changed: number[]): void {
       continue;
     }
     const before = stageOf(b.progress);
-    b.progress = Math.min(1, b.progress + 1 / (buildDays(b.zone) * TICKS_PER_DAY));
+    b.progress = Math.min(1, b.progress + 1 / ((b.kind !== 0 ? 3 : buildDays(b.zone)) * TICKS_PER_DAY));
     if (stageOf(b.progress) !== before) changed.push(b.id);
     if (b.progress >= 1) list.splice(n, 1);
   }
@@ -124,17 +127,26 @@ export interface GrowthResult {
 
 /**
  * One growth step: start a few buildings on frontier cells and occasionally upgrade a
- * finished one. `rate` scales how eagerly (Phase 4 feeds demand into it).
+ * finished one. `rates` gives eagerness 0..1 per zone type; `canGrow` can veto a cell
+ * (for example, no power or water on its street).
  */
-export function growthStep(s: ZoningLayers, frontier: number[], rng: Rng, rate: number, out: GrowthResult): void {
+export function growthStep(
+  s: ZoningLayers,
+  frontier: number[],
+  rng: Rng,
+  rates: readonly number[],
+  out: GrowthResult,
+  canGrow?: (i: number, j: number) => boolean,
+): void {
   const attempts = Math.min(4, Math.ceil(frontier.length / 12));
   for (let a = 0; a < attempts; a++) {
     if (frontier.length === 0) break;
-    if (!rng.chance(rate)) continue;
     const pick = rng.int(frontier.length);
     const k = frontier[pick]!;
     const i = k % MAP;
     const j = (k / MAP) | 0;
+    if (!rng.chance(rates[s.zone[k]! >> 2]!)) continue;
+    if (canGrow && !canGrow(i, j)) continue;
     const lot = findLot(s, i, j, rng);
     if (!lot) {
       // Nothing fits here now; drop it so it is not retried every step.
@@ -156,8 +168,8 @@ export function growthStep(s: ZoningLayers, frontier: number[], rng: Rng, rate: 
   const total = s.buildings.length;
   for (let a = 0; a < 2 && total > 0; a++) {
     const b = s.buildings[rng.int(total)];
-    if (!b || b.progress < 1 || b.level >= 3) continue;
-    if (!rng.chance(0.012 * rate)) continue;
+    if (!b || b.kind !== 0 || b.progress < 1 || b.level >= 3) continue;
+    if (!rng.chance(0.012 * rates[b.zone >> 2]!)) continue;
     b.level++;
     b.progress = 0.46;
     s.constructing.push(b.id);

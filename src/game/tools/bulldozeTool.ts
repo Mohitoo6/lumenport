@@ -2,6 +2,7 @@ import { CELL, MAP } from '../../core/constants';
 import { edgePolyline } from '../../sim/roads/graph';
 import { edgeAt } from '../../sim/roads/plan';
 import { ROAD_SPECS } from '../../sim/roads/types';
+import { FACILITIES } from '../../sim/facilities';
 import { ZONE_NAMES, zoneType } from '../../sim/zoning/zones';
 import type { GroundPoint, Tool, ToolContext } from './tool';
 
@@ -40,7 +41,7 @@ export class BulldozeTool implements Tool {
     if (b) {
       this.building = b.id;
       ctx.preview.showRect(b.x * CELL, b.y * CELL, (b.x + b.w) * CELL, (b.y + b.h) * CELL, 'remove', 0.55);
-      ctx.hint(`Demolish ${ZONE_NAMES[zoneType(b.zone)].toLowerCase()} building`, 'bad');
+      ctx.hint(b.kind !== 0 ? `Demolish ${FACILITIES[b.kind]!.name.toLowerCase()}` : `Demolish ${ZONE_NAMES[zoneType(b.zone)].toLowerCase()} building`, 'bad');
       return;
     }
     this.edge = edgeAt(net, p.x, p.z, 2);

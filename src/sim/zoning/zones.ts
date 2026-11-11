@@ -42,10 +42,12 @@ export const enum Facing {
 export const FACING_DX = [0, 1, 0, -1] as const;
 export const FACING_DY = [-1, 0, 1, 0] as const;
 
-/** A building that grew on zoned land. */
+/** A building: one that grew on zoned land, or a facility the player placed. */
 export interface Building {
   id: number;
-  /** Zone code it was built under. */
+  /** 0 for zoned buildings, otherwise a FacilityKind. */
+  kind: number;
+  /** Zone code it was built under (0 for facilities). */
   zone: number;
   /** Lot rectangle in cells: origin (min corner) and size. */
   x: number;
@@ -61,6 +63,10 @@ export interface Building {
   seed: number;
   /** Height of the building pad, metres. */
   baseY: number;
+  /** Residents living here, or workers employed here. */
+  pop: number;
+  /** Status bits, see utilities/network.ts. */
+  flags: number;
 }
 
 /** Visible construction stage: 0 site, 1-3 frame rising, 4 finished. */

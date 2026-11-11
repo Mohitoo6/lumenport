@@ -15,6 +15,7 @@ function town(): Sim {
   const sim = Sim.create(3);
   sim.state.heights.fill(5);
   sim.state.trees.fill(0);
+  sim.state.sandbox = true;
   sim.apply({ type: 'buildRoad', road: RoadType.Street, ax: 400, az: 400, bx: 720, bz: 400 });
   return sim;
 }
