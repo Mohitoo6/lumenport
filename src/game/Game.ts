@@ -264,7 +264,8 @@ export class Game {
     this.rig.setPose({ x: WORLD * 0.5, z: WORLD * 0.52, yaw: 0.55, pitch: 0.74, dist: 620 }, true);
     ui.cityName.value = state.cityName;
     ui.speed.value = state.speed;
-    ui.showDev.value = this.options.dev && !this.options.shots;
+    // Off by default even in dev builds; backtick shows it.
+    ui.showDev.value = false;
     ui.showHelp.value = !this.options.shots;
     // Screenshot runs hold the afternoon light unless a test asks otherwise.
     ui.timeMode.value = this.options.shots ? 'day' : 'auto';

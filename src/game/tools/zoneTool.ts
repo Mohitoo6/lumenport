@@ -1,6 +1,8 @@
 import { CELL, MAP } from '../../core/constants';
 import { ZONE_RGB } from '../../render/overlays/zoneOverlay';
-import { DENSITY_NAMES, ZONE_NAMES, ZoneType, zoneCode, type Density } from '../../sim/zoning/zones';
+import { FACILITIES } from '../../sim/facilities';
+import { frontageOf } from '../../sim/zoning/lots';
+import { DENSITY_NAMES, FACING_DX, FACING_DY, ZONE_NAMES, ZoneType, zoneCode, type Density } from '../../sim/zoning/zones';
 import type { GroundPoint, Tool, ToolContext } from './tool';
 
 interface Cell {
@@ -39,9 +41,42 @@ export class ZoneTool implements Tool {
     return this.type === ZoneType.None ? 'Clear zoning' : `${ZONE_NAMES[this.type]}, ${DENSITY_NAMES[this.density].toLowerCase()} density`;
   }
 
+  /**
+   * Why zoned land would not grow right now, or null if it can. Checks the whole city
+   * first, then (when given a road-side cell) the street that cell faces.
+   */
+  private blocker(ctx: ToolContext, cell: Cell | null): string | null {
+    const s = ctx.sim.state;
+    if (s.sandbox || this.type === ZoneType.None) return null;
+    const missing = (what: 'power' | 'water'): string | null => {
+      const supply = what === 'power' ? s.stats.powerSupply : s.stats.waterSupply;
+      if (supply > 0) return null;
+      const building = s.buildings.some((b) => b && b.kind !== 0 && (what === 'power' ? FACILITIES[b.kind]!.power : FACILITIES[b.kind]!.water) > 0);
+      if (building) return `Waiting for the ${what === 'power' ? 'power plant' : 'water tower'} to finish building`;
+      return what === 'power'
+        ? 'Nothing grows without power: place a power plant beside this road (Power button)'
+        : 'Nothing grows without water: place a water tower beside this road (Water button)';
+    };
+    const city = missing('power') ?? missing('water');
+    if (city) return city;
+    if (!cell) return null;
+    const f: number = frontageOf(s, cell.i, cell.j);
+    if (f < 0) return null;
+    const net = ctx.sim.net;
+    const c = net.comp[(cell.j + FACING_DY[f as 0]!) * MAP + cell.i + FACING_DX[f as 0]!]!;
+    if (c < 0) return null;
+    if (!(net.powerSupply[c]! > 0)) return 'This road is not connected to a power plant';
+    if (!(net.waterSupply[c]! > 0)) return 'This road is not connected to a water tower';
+    if (net.powerSupply[c]! <= net.powerDemand[c]!) return 'Power is used up on this road: build another power plant';
+    if (net.waterSupply[c]! <= net.waterDemand[c]!) return 'Water is used up on this road: build another water tower';
+    return null;
+  }
+
   /** Call after changing type or density. */
-  describe(ctx: ToolContext): void {
-    ctx.hint(`${this.label()}: drag over land beside a road`);
+  describe(ctx: ToolContext, cell: Cell | null = this.last): void {
+    const why = this.blocker(ctx, cell);
+    if (why) ctx.hint(why, 'bad');
+    else ctx.hint(`${this.label()}: drag over land right next to a road`);
   }
 
   private show(ctx: ToolContext, a: Cell, b: Cell): void {
@@ -67,6 +102,7 @@ export class ZoneTool implements Tool {
     ctx.preview.grid.value.x = p.x;
     ctx.preview.grid.value.y = p.z;
     this.show(ctx, c, c);
+    this.describe(ctx, c);
   }
 
   click(): void {
