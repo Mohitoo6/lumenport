@@ -1,6 +1,7 @@
 import { render, type JSX } from 'preact';
 import { LOAN_TIERS, loanPayment } from '../sim/economy/budget';
-import { FACILITIES, POWER_FACILITIES, WATER_FACILITIES } from '../sim/facilities';
+import { OVERLAYS } from '../render/overlays/dataOverlay';
+import { FACILITIES, POWER_FACILITIES, SERVICE_FACILITIES, WATER_FACILITIES } from '../sim/facilities';
 import type { Speed } from '../sim/state';
 import {
   IconAvenue,
@@ -15,9 +16,11 @@ import {
   IconFaster,
   IconHelp,
   IconHome,
+  IconLayers,
   IconPause,
   IconPlay,
   IconRoad,
+  IconShield,
   IconShop,
   IconStraight,
   IconWarn,
@@ -60,6 +63,10 @@ function Stats(): JSX.Element {
       <div class="stat">
         <span class="label">Population</span>
         <span class="stat-value">{ui.population.value.toLocaleString('en-US')}</span>
+      </div>
+      <div class="stat">
+        <span class="label">Happiness</span>
+        <span class={`stat-value ${ui.happiness.value >= 0.5 ? 'good' : 'bad'}`}>{`${Math.round(ui.happiness.value * 100)}%`}</span>
       </div>
       <div class="stat">
         <span class="label">Demand</span>
@@ -141,6 +148,7 @@ function BudgetPanel(): JSX.Element | null {
         {row('Industrial tax', b.taxI, 1)}
         {row('Road upkeep', b.roads, -1)}
         {row('Utilities', b.utilities, -1)}
+        {row('Services', b.services, -1)}
         {row('Loan payments', b.loans, -1)}
         <div class="ledger-row total">
           <span>Net</span>
@@ -175,6 +183,67 @@ function BudgetPanel(): JSX.Element | null {
   );
 }
 
+function Views(): JSX.Element {
+  const current = OVERLAYS.find((o) => o.id === ui.overlay.value)!;
+  const open = ui.showViews.value;
+  return (
+    <div class="views">
+      <button type="button" class={`panel views-btn${current.id !== 'none' ? ' is-on' : ''}`} aria-expanded={open} title="Data views (V)" onClick={() => (ui.showViews.value = !open)}>
+        <IconLayers />
+        <span>{current.id === 'none' ? 'Views' : current.name}</span>
+      </button>
+      {current.id !== 'none' && (
+        <div class="panel legend" aria-label={`${current.name} legend`}>
+          <span>{current.low}</span>
+          <i style={{ background: current.gradient }} />
+          <span>{current.high}</span>
+        </div>
+      )}
+      {open && (
+        <div class="panel views-menu" role="menu">
+          {OVERLAYS.map((o) => (
+            <button
+              type="button"
+              role="menuitemradio"
+              aria-checked={o.id === current.id}
+              class={o.id === current.id ? 'is-active' : ''}
+              key={o.id}
+              onClick={() => {
+                actions.setOverlay(o.id);
+                ui.showViews.value = false;
+              }}
+            >
+              {o.name}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Inspect(): JSX.Element | null {
+  const d = ui.inspect.value;
+  if (!d) return null;
+  return (
+    <aside class="panel inspect" aria-label="Selected building">
+      <div class="panel-head">
+        <h2>{d.title}</h2>
+        <button type="button" class="icon-btn" aria-label="Close" onClick={() => actions.closeInspect()}>
+          <IconClose size={12} />
+        </button>
+      </div>
+      <div class="muted inspect-sub">{d.subtitle}</div>
+      {d.rows.map(([label, value, tone]) => (
+        <div class="ledger-row" key={label + value}>
+          <span class="muted">{label}</span>
+          <span class={tone ?? ''}>{value}</span>
+        </div>
+      ))}
+    </aside>
+  );
+}
+
 function TopBar(): JSX.Element {
   return (
     <header class="topbar">
@@ -198,6 +267,7 @@ function TopBar(): JSX.Element {
         ))}
       </div>
       <Stats />
+      <Views />
     </header>
   );
 }
@@ -211,6 +281,7 @@ const HELP: Array<[string[], string]> = [
   [['Shift', 'Drag'], 'Grab'],
   [['Esc'], 'Cancel tool'],
   [['B'], 'Budget'],
+  [['V'], 'Data views'],
 ];
 
 function Help(): JSX.Element {
@@ -271,7 +342,10 @@ function Toolbar(): JSX.Element {
   const zt = ui.zoneType.value;
   const zd = ui.zoneDensity.value;
   const fk = ui.facility.value;
-  const isPower = POWER_FACILITIES.includes(fk as never);
+  const group = POWER_FACILITIES.includes(fk as never) ? POWER_FACILITIES : WATER_FACILITIES.includes(fk as never) ? WATER_FACILITIES : SERVICE_FACILITIES;
+  const isPower = group === POWER_FACILITIES;
+  const isWater = group === WATER_FACILITIES;
+  const isService = group === SERVICE_FACILITIES;
   const zoneBtn = (type: number, label: string, icon: JSX.Element): JSX.Element => (
     <ToolButton
       tone={ZONE_CLASS[type]}
@@ -314,7 +388,7 @@ function Toolbar(): JSX.Element {
       )}
       {tool === 'place' && (
         <div class="panel options" role="group" aria-label="Facility">
-          {(POWER_FACILITIES.includes(fk as never) ? POWER_FACILITIES : WATER_FACILITIES).map((k) => (
+          {group.map((k) => (
             <ToolButton key={k} active={fk === k} label={`${FACILITIES[k]!.name} · ${usd(FACILITIES[k]!.cost)}`} onClick={() => actions.setFacility(k)}>
               <span class="opt-dot" aria-hidden="true" />
             </ToolButton>
@@ -337,8 +411,11 @@ function Toolbar(): JSX.Element {
         <ToolButton active={tool === 'place' && isPower} label="Power" onClick={() => (tool === 'place' && isPower ? actions.selectTool('none') : actions.setFacility(POWER_FACILITIES[0]))}>
           <IconBolt size={18} />
         </ToolButton>
-        <ToolButton active={tool === 'place' && !isPower} label="Water" onClick={() => (tool === 'place' && !isPower ? actions.selectTool('none') : actions.setFacility(WATER_FACILITIES[0]))}>
+        <ToolButton active={tool === 'place' && isWater} label="Water" onClick={() => (tool === 'place' && isWater ? actions.selectTool('none') : actions.setFacility(WATER_FACILITIES[0]))}>
           <IconDrop size={18} />
+        </ToolButton>
+        <ToolButton active={tool === 'place' && isService} label="Services" onClick={() => (tool === 'place' && isService ? actions.selectTool('none') : actions.setFacility(SERVICE_FACILITIES[0]))}>
+          <IconShield size={18} />
         </ToolButton>
         <div class="toolbar-sep" />
         <ToolButton danger active={tool === 'bulldoze'} label="Bulldoze" hotkey="X" onClick={() => actions.selectTool(tool === 'bulldoze' ? 'none' : 'bulldoze')}>
@@ -375,6 +452,7 @@ function Hud(): JSX.Element {
       <TopBar />
       <Alerts />
       <BudgetPanel />
+      <Inspect />
       <Toolbar />
       <Help />
       <DevOverlay />

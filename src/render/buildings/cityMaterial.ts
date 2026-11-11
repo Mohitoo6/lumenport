@@ -1,4 +1,5 @@
-import { MeshStandardMaterial, type DataArrayTexture, type Vector4 } from 'three';
+import { MeshStandardMaterial, type DataArrayTexture } from 'three';
+import type { TerrainFx } from '../terrain/terrainMaterial';
 
 export interface CityTextures {
   diff: DataArrayTexture;
@@ -33,6 +34,8 @@ const FRAG_PARS = /* glsl */ `
   uniform float uNight;
   uniform vec4 uSel;
   uniform vec4 uSelColor;
+  uniform sampler2D uOverlayTex;
+  uniform float uOverlayAlpha;
   varying vec2 vWorldXZ;
   varying vec3 vTint;
   varying vec4 vA;
@@ -173,6 +176,15 @@ const FRAG_MAP = /* glsl */ `
     // A lit room hides the reflection.
     cMetal *= 1.0 - cLit * uNight * 0.85;
   }
+  // Data view: buildings go grey and take the colour of the cell they stand on.
+  if (uOverlayAlpha > 0.0) {
+    vec4 cOv = texture2D(uOverlayTex, vWorldXZ / 2048.0);
+    float cLum = dot(cAlb, vec3(0.3, 0.59, 0.11));
+    cAlb = mix(cAlb, vec3(cLum) * 0.6 + 0.16, uOverlayAlpha * 0.9);
+    cAlb = mix(cAlb, cOv.rgb, cOv.a * uOverlayAlpha * 0.8);
+    cMetal *= 1.0 - uOverlayAlpha;
+    cRough = mix(cRough, 0.9, uOverlayAlpha);
+  }
   // Buildings inside the tool's selection rectangle take its colour.
   if (uSelColor.a > 0.0 && vWorldXZ.x > uSel.x && vWorldXZ.y > uSel.y && vWorldXZ.x < uSel.z && vWorldXZ.y < uSel.w) {
     cAlb = mix(cAlb, uSelColor.rgb, uSelColor.a * 0.7);
@@ -206,7 +218,7 @@ const FRAG_NORMAL = /* glsl */ `
 export function createCityMaterial(
   tex: CityTextures,
   shared: { uNight: { value: number } },
-  fx: { sel: { value: Vector4 }; selColor: { value: Vector4 } },
+  fx: TerrainFx,
 ): MeshStandardMaterial {
   const m = new MeshStandardMaterial({ roughness: 1, metalness: 0 });
   m.onBeforeCompile = (shader) => {
@@ -216,6 +228,8 @@ export function createCityMaterial(
     shader.uniforms.uNight = shared.uNight;
     shader.uniforms.uSel = fx.sel;
     shader.uniforms.uSelColor = fx.selColor;
+    shader.uniforms.uOverlayTex = fx.overlayTex;
+    shader.uniforms.uOverlayAlpha = fx.overlayAlpha;
     shader.vertexShader = shader.vertexShader
       .replace('#include <common>', `#include <common>\n${VERT_PARS}`)
       .replace('#include <begin_vertex>', `#include <begin_vertex>\n${VERT_MAIN}`);
@@ -227,6 +241,6 @@ export function createCityMaterial(
       .replace('#include <normal_fragment_maps>', FRAG_NORMAL)
       .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\ntotalEmissiveRadiance += cEmissive;');
   };
-  m.customProgramCacheKey = () => 'city-v5';
+  m.customProgramCacheKey = () => 'city-v6';
   return m;
 }

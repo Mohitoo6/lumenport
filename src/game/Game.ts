@@ -12,6 +12,7 @@ import { Engine } from '../render/engine';
 import { TreeRenderer } from '../render/props/treeRenderer';
 import { createRoadMaterials } from '../render/roads/roadMaterials';
 import { RoadRenderer } from '../render/roads/roadRenderer';
+import { DataOverlay } from '../render/overlays/dataOverlay';
 import { ZoneOverlay } from '../render/overlays/zoneOverlay';
 import { ShadowFitter } from '../render/shadows';
 import { ToolPreview } from '../render/tools/toolPreview';
@@ -21,6 +22,11 @@ import { TerrainRenderer } from '../render/terrain/terrainRenderer';
 import { WaterRenderer } from '../render/water/waterRenderer';
 import type { Command, CommandResult } from '../sim/commands';
 import { emptyReport, projectBudget } from '../sim/economy/budget';
+import { capacityOf } from '../sim/economy/capacity';
+import { FACILITIES, Service } from '../sim/facilities';
+import { POWERED, WATERED } from '../sim/utilities/network';
+import { DENSITY_NAMES, ZONE_NAMES, ZoneType, stageOf, zoneDensity, zoneType } from '../sim/zoning/zones';
+import { CELL, MAP } from '../core/constants';
 import { heightAt } from '../sim/map/terrain';
 import { TreeSpecies } from '../sim/map/trees';
 import { Sim } from '../sim/sim';
@@ -52,6 +58,9 @@ export class Game {
   vehicles!: VehicleRenderer;
   preview!: ToolPreview;
   zones!: ZoneOverlay;
+  overlay!: DataOverlay;
+  private inspectId = -1;
+  private overlayTimer = 0;
   tools!: ToolManager;
   input!: CameraInput;
   ready = false;
@@ -117,6 +126,9 @@ export class Game {
     engine.scene.add(this.preview.group);
     this.zones = new ZoneOverlay(state.zone);
     this.preview.fx.zoneTex.value = this.zones.texture;
+    this.overlay = new DataOverlay();
+    this.preview.fx.overlayTex.value = this.overlay.texture;
+    this.preview.fx.overlayAlpha = this.overlay.alpha;
     this.terrain = new TerrainRenderer(state.heights, state.seed, createTerrainMaterial({ diff, nor, arm, noise }, this.preview.fx));
     engine.scene.add(this.terrain.group);
     this.water = new WaterRenderer(state.heights, state.seed, waterNormal, noise, atmosphere.uniforms);
@@ -125,7 +137,7 @@ export class Game {
     engine.scene.add(this.trees.group);
     this.roads = new RoadRenderer(
       state,
-      createRoadMaterials({ asphalt, pavement, concrete, grass }, noise),
+      createRoadMaterials({ asphalt, pavement, concrete, grass }, noise, this.preview.fx),
       this.trees.lodGeometry(TreeSpecies.Oak, 1),
       this.trees.material,
     );
@@ -151,13 +163,32 @@ export class Game {
     sim.events.on('speedChanged', (s) => (ui.speed.value = s as 0 | 1 | 2 | 3));
 
     this.input = new CameraInput(this.canvas, this.rig, () => sim.state.heights, { edgeScroll: !this.options.shots });
-    this.tools = new ToolManager(this.canvas, this.rig, sim, this.preview, (id) => this.buildings.heightOf(id));
+    this.tools = new ToolManager(
+      this.canvas,
+      this.rig,
+      sim,
+      this.preview,
+      (id) => this.buildings.heightOf(id),
+      (id) => {
+        this.inspectId = id;
+        this.hudTimer = 1;
+      },
+    );
     actions.setSpeed = (speed) => void sim.apply({ type: 'setSpeed', speed });
     actions.selectTool = (tool) => this.tools.select(tool);
     actions.setRoadType = (type) => this.tools.setRoadType(type);
     actions.setRoadMode = (mode) => this.tools.setRoadMode(mode);
     actions.setZone = (type, density) => this.tools.setZone(type as 0 | 1 | 2 | 3, density as 1 | 2 | 3);
     actions.setFacility = (kind) => this.tools.setFacility(kind);
+    actions.setOverlay = (id) => {
+      sim.refreshFields();
+      this.overlay.set(id, sim);
+      ui.overlay.value = id;
+    };
+    actions.closeInspect = () => {
+      this.inspectId = -1;
+      ui.inspect.value = null;
+    };
     actions.setTax = (zone, rate) => {
       sim.apply({ type: 'setTax', zone, rate });
       this.hudTimer = 1;
@@ -216,6 +247,9 @@ export class Game {
       case 'Digit3':
         this.sim.apply({ type: 'setSpeed', speed: 3 });
         break;
+      case 'KeyV':
+        ui.showViews.value = !ui.showViews.value;
+        break;
       case 'KeyB':
         ui.showBudget.value = !ui.showBudget.value;
         break;
@@ -269,6 +303,14 @@ export class Game {
       Math.abs(before.dist - bdist) > 0.01;
     this.tools?.update(dt, moved);
     this.preview?.update(dt, before.dist);
+    if (this.overlay) {
+      this.overlay.update(dt);
+      this.overlayTimer += dt;
+      if (this.overlayTimer > 1 && this.overlay.id !== 'none') {
+        this.overlayTimer = 0;
+        this.overlay.refresh(this.sim);
+      }
+    }
     const cam = this.rig.camera;
     this.camPos.copy(cam.position);
     this.atmosphere.update(cam, dt);
@@ -304,7 +346,9 @@ export class Game {
       ui.power.value = [st.powerSupply, st.powerDemand];
       ui.water.value = [st.waterSupply, st.waterDemand];
       ui.sandbox.value = state.sandbox;
+      ui.happiness.value = st.happiness;
       ui.alerts.value = this.alerts();
+      ui.inspect.value = this.inspectId >= 0 ? this.describe(this.inspectId) : null;
     }
     this.fpsFrames++;
     this.fpsTime += dt;
@@ -324,6 +368,46 @@ export class Game {
           `shadow texel ${this.shadows.texel.toFixed(2)} m`;
       }
     }
+  }
+
+  /** The inspect panel's contents for one building, or null if it no longer exists. */
+  private describe(id: number): import('../ui/store').InspectData | null {
+    const s = this.sim.state;
+    const b = s.buildings[id];
+    if (!b) {
+      this.inspectId = -1;
+      return null;
+    }
+    const f = this.sim.fields;
+    const k = (b.y + (b.h >> 1)) * MAP + b.x + (b.w >> 1);
+    const pct = (v: number): string => `${Math.round(v * 100)}%`;
+    const rows: import('../ui/store').InspectData['rows'] = [];
+    let title: string;
+    let subtitle: string;
+    if (b.kind !== 0) {
+      const spec = FACILITIES[b.kind]!;
+      title = spec.name;
+      subtitle = b.progress < 1 ? 'Under construction' : spec.blurb;
+      if (spec.power > 0) rows.push(['Output', `${spec.power} MW`]);
+      if (spec.water > 0) rows.push(['Output', `${spec.water.toLocaleString('en-US')} water`]);
+      if (spec.service !== Service.None) rows.push(['Reach', `${spec.radius * CELL} m`]);
+      rows.push(['Upkeep', `$${spec.upkeep} / month`]);
+    } else {
+      const t = zoneType(b.zone);
+      const cap = capacityOf(b);
+      title = `${ZONE_NAMES[t]} building`;
+      subtitle = b.progress < 1 ? `Under construction (stage ${stageOf(b.progress) + 1} of 4)` : `${DENSITY_NAMES[zoneDensity(b.zone)]} density, level ${b.level}`;
+      rows.push([t === ZoneType.Residential ? 'Residents' : 'Workers', `${b.pop} / ${cap}`]);
+      if (b.progress >= 1) {
+        rows.push(['Power', b.flags & POWERED ? 'Connected' : 'No power', b.flags & POWERED ? 'good' : 'bad']);
+        rows.push(['Water', b.flags & WATERED ? 'Connected' : 'No water', b.flags & WATERED ? 'good' : 'bad']);
+      }
+      if (t === ZoneType.Residential && b.progress >= 1) rows.push(['Happiness', pct(f.happiness[k]!), f.happiness[k]! >= 0.5 ? 'good' : 'bad']);
+    }
+    rows.push(['Land value', pct(f.landValue[k]!)]);
+    rows.push(['Pollution', pct(f.pollution[k]!), f.pollution[k]! > 0.3 ? 'bad' : undefined]);
+    rows.push(['Crime', pct(Math.min(1, f.crime[k]! * 2.2)), f.crime[k]! > 0.15 ? 'bad' : undefined]);
+    return { title, subtitle, rows };
   }
 
   /** Short messages about what is holding the city back, most important first. */

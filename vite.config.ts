@@ -8,5 +8,7 @@ export default defineConfig({
   test: {
     include: ['tests/sim/**/*.test.ts'],
     environment: 'node',
+    // Some tests simulate years of game time.
+    testTimeout: 30_000,
   },
 });

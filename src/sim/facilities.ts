@@ -9,6 +9,21 @@ export const enum FacilityKind {
   SolarFarm = 3,
   WaterTower = 4,
   WaterPump = 5,
+  Police = 6,
+  FireStation = 7,
+  Clinic = 8,
+  School = 9,
+  Park = 10,
+}
+
+/** Which coverage layer a service facility feeds. */
+export const enum Service {
+  None = 0,
+  Police = 1,
+  Fire = 2,
+  Health = 3,
+  Education = 4,
+  Park = 5,
 }
 
 export interface FacilitySpec {
@@ -25,18 +40,27 @@ export interface FacilitySpec {
   /** Must stand within a few cells of open water. */
   needsShore: boolean;
   blurb: string;
+  service: Service;
+  /** Service reach in cells; coverage falls off linearly to zero at this distance. */
+  radius: number;
 }
 
 export const FACILITIES: Record<number, FacilitySpec> = {
-  [FacilityKind.CoalPlant]: { name: 'Coal power plant', size: 4, cost: 14000, upkeep: 620, power: 45, water: 0, needsShore: false, blurb: 'Cheap, plentiful power. Dirty.' },
-  [FacilityKind.WindTurbine]: { name: 'Wind turbine', size: 2, cost: 3200, upkeep: 90, power: 4, water: 0, needsShore: false, blurb: 'Clean power in small amounts.' },
-  [FacilityKind.SolarFarm]: { name: 'Solar farm', size: 3, cost: 7500, upkeep: 130, power: 9, water: 0, needsShore: false, blurb: 'Clean power, needs space.' },
-  [FacilityKind.WaterTower]: { name: 'Water tower', size: 2, cost: 2800, upkeep: 110, power: 0, water: 1600, needsShore: false, blurb: 'Supplies a small district.' },
-  [FacilityKind.WaterPump]: { name: 'Pumping station', size: 2, cost: 6500, upkeep: 260, power: 0, water: 7000, needsShore: true, blurb: 'High output. Build by the water.' },
+  [FacilityKind.CoalPlant]: { name: 'Coal power plant', size: 4, cost: 14000, upkeep: 620, power: 45, water: 0, needsShore: false, blurb: 'Cheap, plentiful power. Dirty.', service: Service.None, radius: 0 },
+  [FacilityKind.WindTurbine]: { name: 'Wind turbine', size: 2, cost: 3200, upkeep: 90, power: 4, water: 0, needsShore: false, blurb: 'Clean power in small amounts.', service: Service.None, radius: 0 },
+  [FacilityKind.SolarFarm]: { name: 'Solar farm', size: 3, cost: 7500, upkeep: 130, power: 9, water: 0, needsShore: false, blurb: 'Clean power, needs space.', service: Service.None, radius: 0 },
+  [FacilityKind.WaterTower]: { name: 'Water tower', size: 2, cost: 2800, upkeep: 110, power: 0, water: 1600, needsShore: false, blurb: 'Supplies a small district.', service: Service.None, radius: 0 },
+  [FacilityKind.WaterPump]: { name: 'Pumping station', size: 2, cost: 6500, upkeep: 260, power: 0, water: 7000, needsShore: true, blurb: 'High output. Build by the water.', service: Service.None, radius: 0 },
+  [FacilityKind.Police]: { name: 'Police station', size: 2, cost: 5000, upkeep: 320, power: 0, water: 0, needsShore: false, blurb: 'Keeps crime down nearby.', service: Service.Police, radius: 42 },
+  [FacilityKind.FireStation]: { name: 'Fire station', size: 2, cost: 5500, upkeep: 340, power: 0, water: 0, needsShore: false, blurb: 'Makes the district safer.', service: Service.Fire, radius: 42 },
+  [FacilityKind.Clinic]: { name: 'Clinic', size: 2, cost: 6000, upkeep: 380, power: 0, water: 0, needsShore: false, blurb: 'Healthier, happier residents.', service: Service.Health, radius: 38 },
+  [FacilityKind.School]: { name: 'School', size: 3, cost: 7000, upkeep: 420, power: 0, water: 0, needsShore: false, blurb: 'Educated residents; lets homes improve.', service: Service.Education, radius: 38 },
+  [FacilityKind.Park]: { name: 'Park', size: 2, cost: 1200, upkeep: 40, power: 0, water: 0, needsShore: false, blurb: 'Raises land value around it.', service: Service.Park, radius: 14 },
 };
 
 export const POWER_FACILITIES = [FacilityKind.CoalPlant, FacilityKind.WindTurbine, FacilityKind.SolarFarm] as const;
 export const WATER_FACILITIES = [FacilityKind.WaterTower, FacilityKind.WaterPump] as const;
+export const SERVICE_FACILITIES = [FacilityKind.Police, FacilityKind.FireStation, FacilityKind.Clinic, FacilityKind.School, FacilityKind.Park] as const;
 
 export interface FacilityPlan {
   ok: boolean;

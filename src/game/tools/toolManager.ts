@@ -40,6 +40,8 @@ export class ToolManager {
     sim: Sim,
     preview: ToolPreview,
     private readonly buildingHeight: (id: number) => number,
+    /** Called when the player clicks with no tool active: a building id, or -1. */
+    private readonly onInspect: (building: number) => void,
   ) {
     this.ctx = {
       sim,
@@ -162,8 +164,12 @@ export class ToolManager {
       if (e.button === 0) this.active?.dragEnd?.(this.ctx, this.ground(e.clientX, e.clientY));
       return;
     }
-    if (!this.active || button !== e.button) return;
+    if (button !== e.button) return;
     if (Math.hypot(e.clientX - this.downX, e.clientY - this.downY) > CLICK_SLOP) return;
+    if (!this.active) {
+      if (button === 0) this.onInspect(this.ground(e.clientX, e.clientY)?.building ?? -1);
+      return;
+    }
     if (button === 0) {
       const g = this.ground(e.clientX, e.clientY);
       if (g) this.active.click(this.ctx, g);

@@ -28,6 +28,8 @@ export interface CityStats {
   congestion: number;
   /** Vehicles on the road right now. */
   vehicles: number;
+  /** Resident-weighted average happiness, 0..1. */
+  happiness: number;
 }
 
 export function emptyStats(): CityStats {
@@ -46,6 +48,7 @@ export function emptyStats(): CityStats {
     unwatered: 0,
     congestion: 0,
     vehicles: 0,
+    happiness: 0.5,
   };
 }
 
@@ -115,7 +118,8 @@ export function economyStep(buildings: ReadonlyArray<Building | null>, tax: read
   // side so growth does not overshoot while buildings are still going up.
   const plannedLabor = housing * LABOR_SHARE;
   const plannedJobs = plannedC + plannedI;
-  const dR = (plannedJobs * 1.15 + 40 - plannedLabor) / Math.max(60, plannedLabor) + taxEffect(tax[1]!);
+  // A happy city attracts people; an unhappy one puts them off.
+  const dR = (plannedJobs * 1.15 + 40 - plannedLabor) / Math.max(60, plannedLabor) + taxEffect(tax[1]!) + (stats.happiness - 0.5) * 0.6;
   const targetC = population * 0.22 + 4;
   // Shops suffer when customers are stuck in traffic.
   const dC = (targetC - plannedC) / Math.max(30, targetC) + taxEffect(tax[2]!) - stats.congestion * 0.5;

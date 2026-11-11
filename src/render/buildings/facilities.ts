@@ -4,20 +4,31 @@ import {
   CONCRETE,
   CONCRETE_DARK,
   LAWN,
+  LINE_WHITE,
   Layer,
   METAL_GREY,
   NO_WIN,
+  PAVING,
+  SIGN,
   STEEL_DARK,
   Style,
+  WHITE_TRIM,
+  WOOD,
   fence,
+  flatRoof,
   frontPanel,
   ground,
+  hedge,
   mat,
+  parking,
+  roofFinish,
+  rooftop,
   shrub,
   win,
   type Geo,
   type Lot,
   type Mat,
+  type RGB,
 } from './common';
 import { fitBay } from './geo';
 
@@ -216,6 +227,169 @@ function waterPump(l: Lot): void {
   fence(g, W / 2 - 0.3, -D / 2 + 0.3, W / 2 - 0.3, D / 2 - 0.3, 2, CHAIN_LINK);
 }
 
+function signBoard(g: Geo, x0: number, x1: number, z: number, y0: number, y1: number, tint: RGB): void {
+  g.box(x0, z, x1, z + 0.16, y0, y1, mat(Layer.Plaster2, tint, 3), SIGN, CONCRETE_DARK);
+}
+
+function flagpole(g: Geo, x: number, z: number, tint: RGB): void {
+  g.cyl(x, z, 0.07, 0.04, 0, 9, 6, mat(Layer.Concrete, [1.8, 1.8, 1.8]), null);
+  slab(g, [[x, 8.8, z], [x + 1.7, 8.8, z], [x + 1.7, 7.8, z], [x, 7.8, z]], mat(Layer.Plaster2, tint, 3));
+}
+
+function police(l: Lot): void {
+  const { g, r, W, D } = l;
+  ground(l, PAVING);
+  const wall = mat(Layer.ConcreteWall, [1.12, 1.14, 1.2], 3);
+  const blue: RGB = [0.08, 0.2, 0.62];
+  const x0 = -W / 2 + 1.2;
+  const x1 = W / 2 - 4.6;
+  const z0 = -D / 2 + 1.2;
+  const z1 = D / 2 - 3.2;
+  const fh = 3.4;
+  g.walls(x0, z0, x1, z1, 0, 0.5, CONCRETE_DARK);
+  g.walls(x0, z0, x1, z1, 0.5, 0.5 + 2 * fh, wall, win(Style.Ribbon, fitBay(x1 - x0, 3.2), fh, 0.5));
+  // A band in force blue under the parapet, and a lit sign over the door.
+  g.walls(x0 - 0.05, z0 - 0.05, x1 + 0.05, z1 + 0.05, 0.5 + 2 * fh - 0.7, 0.5 + 2 * fh, mat(Layer.Plaster2, blue, 3));
+  flatRoof(g, x0, z0, x1, z1, 0.5 + 2 * fh, wall, roofFinish(r));
+  rooftop(l, x0, z0, x1, z1, 0.5 + 2 * fh, wall);
+  g.cyl(x0 + 2, z0 + 2, 0.12, 0.04, 0.5 + 2 * fh, 0.5 + 2 * fh + 9, 5, METAL_GREY, null);
+  const dx = (x0 + x1) / 2;
+  g.box(dx - 2, z1, dx + 2, z1 + 1.8, 3.2, 3.45, CONCRETE);
+  frontPanel(g, dx, z1, 2.4, 0.5, 3, mat(Layer.Concrete, [0.5, 0.52, 0.56], 2), win(Style.Storefront, 2.4, 2.5, 0.5));
+  signBoard(g, dx - 2.6, dx + 2.6, z1, 3.6, 4.4, blue);
+  g.box(dx - 1.6, z1, dx + 1.6, z1 + 1.4, 0, 0.5, CONCRETE);
+  // Patrol car bays at the side.
+  parking(g, x1 + 0.4, z0, W / 2 - 0.5, z1);
+  flagpole(g, x0 + 1, D / 2 - 1.6, blue);
+}
+
+function fireStation(l: Lot): void {
+  const { g, r, W, D } = l;
+  ground(l, mat(Layer.Concrete, [1.15, 1.15, 1.14], 4));
+  const wall = mat(Layer.Brick, [1.5, 1.2, 1.1], 2);
+  const red: RGB = [0.75, 0.08, 0.06];
+  const x0 = -W / 2 + 1;
+  const x1 = W / 2 - 1;
+  const z0 = -D / 2 + 1;
+  const z1 = D / 2 - 5;
+  const h = 6.2;
+  // Appliance bay with three tall red doors, crew quarters above.
+  g.walls(x0, z0, x1, z1, 0, h, wall);
+  const bays = 3;
+  const bw = (x1 - x0 - 3.4) / bays;
+  for (let i = 0; i < bays; i++) {
+    const cx = x0 + 0.5 + bw * (i + 0.5);
+    frontPanel(g, cx, z1, bw - 0.6, 0.02, 4.4, mat(Layer.Metal, [1.9, 0.3, 0.24], 0.8));
+    frontPanel(g, cx, z1 + 0.03, bw - 1, 2.6, 3.6, mat(Layer.Concrete, [0.4, 0.45, 0.5], 2), win(Style.Curtain, (bw - 1) / 3, 1, 0.5));
+  }
+  g.walls(x0, z0, x1, z1, h, h + 3, wall, win(Style.Punched, fitBay(x1 - x0, 2.8), 3, 0.5));
+  flatRoof(g, x0, z0, x1, z1, h + 3, wall, roofFinish(r));
+  rooftop(l, x0, z0, x1, z1, h + 3, wall);
+  signBoard(g, x0 + 1, x1 - 4, z1, 4.9, 5.8, red);
+  // Hose-drying tower at the corner.
+  const tx = x1 - 1.5;
+  g.walls(tx - 1.5, z1 - 3, tx + 1.5, z1 + 0.3, 0, 15, wall, win(Style.Punched, 3, 3.6, 0.3));
+  g.hip(tx - 1.5, z1 - 3, tx + 1.5, z1 + 0.3, 15, 1.6, 0.3, mat(Layer.Roof3, [0.6, 0.62, 0.66], 2.4));
+  // Apron with keep-clear hatching.
+  for (let i = 0; i < 6; i++) g.flat(x0 + 1 + i * 2.2, z1 + 0.6, x0 + 1.2 + i * 2.2, D / 2 - 0.4, 0.04, mat(Layer.Concrete, [2.2, 1.7, 0.2], 3));
+}
+
+function clinic(l: Lot): void {
+  const { g, r, W, D } = l;
+  ground(l, PAVING);
+  const wall = mat(Layer.Plaster2, [1.32, 1.32, 1.3], 3);
+  const green: RGB = [0.08, 0.6, 0.3];
+  const x0 = -W / 2 + 1.2;
+  const x1 = W / 2 - 1.2;
+  const z0 = -D / 2 + 1.2;
+  const z1 = D / 2 - 5.2;
+  const fh = 3.5;
+  const top = 0.5 + 3 * fh;
+  g.walls(x0, z0, x1, z1, 0, 0.5, CONCRETE);
+  g.walls(x0, z0, x1, z1, 0.5, top, wall, win(Style.Ribbon, fitBay(x1 - x0, 2.6), fh, 0.5));
+  flatRoof(g, x0, z0, x1, z1, top, wall, roofFinish(r));
+  rooftop(l, x0, z0, x1, z1, top, wall);
+  // Stair tower with a green cross sign.
+  const tx = x0 + 2.2;
+  g.box(tx - 1.8, z1, tx + 1.8, z1 + 0.5, 0, top + 2.4, mat(Layer.Plaster2, [0.95, 1.2, 1.05], 3));
+  g.box(tx - 0.35, z1 + 0.5, tx + 0.35, z1 + 0.62, top - 2.6, top + 0.2, mat(Layer.Plaster2, green, 3), SIGN);
+  g.box(tx - 1.2, z1 + 0.5, tx + 1.2, z1 + 0.62, top - 1.55, top - 0.85, mat(Layer.Plaster2, green, 3), SIGN);
+  // Entrance canopy and ambulance bay.
+  const dx = x1 - 4;
+  g.box(dx - 3, z1, dx + 3, z1 + 3.4, 3.4, 3.7, mat(Layer.Plaster2, green, 3), NO_WIN, CONCRETE);
+  for (const px of [dx - 2.8, dx + 2.8]) g.box(px - 0.1, z1 + 3.1, px + 0.1, z1 + 3.3, 0, 3.4, WHITE_TRIM);
+  frontPanel(g, dx, z1, 4, 0.5, 3.2, mat(Layer.Concrete, [0.5, 0.52, 0.56], 2), win(Style.Storefront, 2, 2.7, 0.5));
+  g.flat(-W / 2 + 0.5, z1 + 3.6, W / 2 - 0.5, D / 2 - 0.4, 0.04, ASPHALT);
+  g.flat(dx - 1.6, z1 + 3.9, dx + 1.6, D / 2 - 0.7, 0.05, LINE_WHITE);
+  shrub(g, x0 + 5.5, z1 + 0.9, 0.6);
+  shrub(g, x0 + 7.2, z1 + 0.9, 0.6);
+}
+
+function school(l: Lot): void {
+  const { g, r, W, D } = l;
+  ground(l, LAWN);
+  const wall = mat(Layer.Brick2, [1.5, 1.42, 1.3], 2);
+  const yellow: RGB = [0.9, 0.62, 0.06];
+  const fh = 3.6;
+  // Classroom wing along the back, hall at one end.
+  const x0 = -W / 2 + 1.5;
+  const x1 = W / 2 - 1.5;
+  const z0 = -D / 2 + 1.5;
+  const z1 = z0 + 8.5;
+  const top = 0.5 + 2 * fh;
+  g.walls(x0, z0, x1, z1, 0, 0.5, CONCRETE);
+  g.walls(x0, z0, x1, z1, 0.5, top, wall, win(Style.Ribbon, fitBay(x1 - x0, 3), fh, 0.5));
+  flatRoof(g, x0, z0, x1, z1, top, wall, roofFinish(r));
+  rooftop(l, x0, z0, x1, z1, top, wall);
+  const hx1 = x0 + 9;
+  const hz1 = z1 + 7.5;
+  g.walls(x0, z1, hx1, hz1, 0, 7.5, wall, win(Style.Industrial, fitBay(9, 3), 7.5, 0.5));
+  g.gable(x0, z1, hx1, hz1, 7.5, 1.8, false, 0.4, mat(Layer.Metal, [1.2, 1.24, 1.3], 2.4), wall);
+  // Entrance and sign.
+  const dx = hx1 + 3;
+  g.box(dx - 2.2, z1, dx + 2.2, z1 + 2, 3.3, 3.55, mat(Layer.Plaster2, yellow, 3), NO_WIN, CONCRETE);
+  frontPanel(g, dx, z1, 3.2, 0.5, 3.1, mat(Layer.Concrete, [0.5, 0.52, 0.56], 2), win(Style.Storefront, 1.6, 2.6, 0.5));
+  signBoard(g, dx + 3, dx + 8, z1, 4.3, 5.2, yellow);
+  // Playground: a painted court, a path to the gate, trees along the fence.
+  const cx0 = hx1 + 1.5;
+  const cz0 = z1 + 3.4;
+  g.flat(cx0, cz0, x1, D / 2 - 2.2, 0.04, ASPHALT);
+  const lines = mat(Layer.Concrete, [2.1, 2.1, 2.05], 3);
+  g.flat(cx0 + 0.6, cz0 + 0.6, x1 - 0.6, cz0 + 0.72, 0.05, lines);
+  g.flat(cx0 + 0.6, D / 2 - 2.92, x1 - 0.6, D / 2 - 2.8, 0.05, lines);
+  g.flat(cx0 + 0.6, cz0 + 0.6, cx0 + 0.72, D / 2 - 2.8, 0.05, lines);
+  g.flat(x1 - 0.72, cz0 + 0.6, x1 - 0.6, D / 2 - 2.8, 0.05, lines);
+  g.flat((cx0 + x1) / 2 - 0.06, cz0 + 0.6, (cx0 + x1) / 2 + 0.06, D / 2 - 2.8, 0.05, lines);
+  g.flat(dx - 1, z1 + 2, dx + 1, cz0, 0.04, PAVING);
+  fence(g, -W / 2 + 0.4, D / 2 - 0.5, W / 2 - 0.4, D / 2 - 0.5, 1.4, CHAIN_LINK);
+  g.tree(x0 + 2, D / 2 - 2.4, 0.55, 1.2);
+  g.tree(x0 + 6.5, D / 2 - 2.6, 0.5, 3.1);
+  flagpole(g, dx - 3.4, z1 + 2.6, yellow);
+}
+
+function park(l: Lot): void {
+  const { g, r, W, D } = l;
+  ground(l, mat(Layer.Grass, [0.7, 1.02, 0.52], 5));
+  // Crossing paths meeting at a small fountain.
+  g.flat(-0.9, -D / 2, 0.9, D / 2, 0.035, PAVING);
+  g.flat(-W / 2, -0.9, W / 2, 0.9, 0.035, PAVING);
+  g.cyl(0, 0, 2.6, 2.6, 0, 0.05, 16, PAVING);
+  g.cyl(0, 0, 1.7, 1.7, 0.05, 0.5, 14, CONCRETE, mat(Layer.ConcreteWall, [0.2, 0.5, 0.62], 3));
+  g.cyl(0, 0, 0.22, 0.14, 0.5, 1.4, 8, CONCRETE);
+  g.cyl(0, 0, 0.6, 0.6, 1.4, 1.5, 10, CONCRETE);
+  // Hedge along the back and sides, open to the street.
+  hedge(g, -W / 2 + 0.2, -D / 2 + 0.2, -1.2, -D / 2 + 0.8, 0.9);
+  hedge(g, 1.2, -D / 2 + 0.2, W / 2 - 0.2, -D / 2 + 0.8, 0.9);
+  // Trees in each quarter, a little off-grid, with benches by the paths.
+  for (const sx of [-1, 1]) {
+    for (const sz of [-1, 1]) {
+      g.tree(sx * (W / 4 + r.range(-0.8, 0.8)), sz * (D / 4 + r.range(-0.8, 0.8)), r.range(0.5, 0.72), r.next() * 6);
+      g.box(sx * 1.5 - 0.25, sz * 3.4 - 0.7, sx * 1.5 + 0.25, sz * 3.4 + 0.7, 0.3, 0.45, WOOD);
+      shrub(g, sx * (W / 2 - 1.4), sz * 1.9, 0.55, [0.55 + r.next() * 0.3, 0.6, 0.3 + r.next() * 0.25]);
+    }
+  }
+}
+
 export function facility(l: Lot, kind: number): void {
   switch (kind) {
     case FacilityKind.CoalPlant:
@@ -230,7 +404,22 @@ export function facility(l: Lot, kind: number): void {
     case FacilityKind.WaterTower:
       waterTower(l);
       break;
-    default:
+    case FacilityKind.WaterPump:
       waterPump(l);
+      break;
+    case FacilityKind.Police:
+      police(l);
+      break;
+    case FacilityKind.FireStation:
+      fireStation(l);
+      break;
+    case FacilityKind.Clinic:
+      clinic(l);
+      break;
+    case FacilityKind.School:
+      school(l);
+      break;
+    default:
+      park(l);
   }
 }

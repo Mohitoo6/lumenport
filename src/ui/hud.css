@@ -263,6 +263,94 @@ button:focus-visible {
   transition: height 0.3s ease;
 }
 
+/* Data views */
+
+.views {
+  margin-left: auto;
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.views-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 14px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.views-btn:hover,
+.views-btn.is-on {
+  color: var(--text);
+}
+
+.views-btn.is-on {
+  border-color: var(--accent);
+}
+
+.legend {
+  order: -1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  font-size: 11.5px;
+  color: var(--muted);
+}
+
+.legend i {
+  width: 90px;
+  height: 8px;
+  border-radius: 4px;
+}
+
+.views-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 180px;
+  padding: 5px;
+  display: grid;
+  gap: 1px;
+  z-index: 5;
+}
+
+.views-menu button {
+  text-align: left;
+  padding: 7px 10px;
+  border-radius: 8px;
+  color: var(--muted);
+  font-weight: 550;
+}
+
+.views-menu button:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text);
+}
+
+.views-menu button.is-active {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+/* Inspect panel */
+
+.inspect {
+  position: absolute;
+  right: 14px;
+  bottom: 14px;
+  width: 250px;
+  padding: 12px 14px 12px;
+}
+
+.inspect-sub {
+  margin: 2px 0 9px;
+  font-size: 12px;
+}
+
 /* Alerts */
 
 .alerts {

@@ -42,6 +42,8 @@ export class ToolPreview {
     zoneAlpha: { value: 0.16 },
     sel: { value: new Vector4() },
     selColor: { value: new Vector4(0, 0, 0, 0) },
+    overlayTex: { value: null },
+    overlayAlpha: { value: 0 },
   };
   readonly grid = this.fx.grid;
   private zoneTarget = 0.16;

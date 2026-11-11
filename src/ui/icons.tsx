@@ -138,3 +138,16 @@ export const IconWarn = (p: P): JSX.Element => (
     <path d="M8 2.400l6 10.600H2zM8 6.600v3M8 11.400v.1" />
   </Svg>
 );
+
+export const IconShield = (p: P): JSX.Element => (
+  <Svg {...p}>
+    <path d="M8 1.800l5 1.800v4.200c0 3-2 5.200-5 6.400-3-1.200-5-3.400-5-6.400V3.600z" />
+    <path d="M8 5.600v4.400M5.800 7.800h4.400" />
+  </Svg>
+);
+
+export const IconLayers = (p: P): JSX.Element => (
+  <Svg {...p}>
+    <path d="M8 2.200l6 3.200-6 3.200-6-3.200zM2.600 8.200L8 11l5.400-2.800M2.600 10.800L8 13.600l5.400-2.800" />
+  </Svg>
+);

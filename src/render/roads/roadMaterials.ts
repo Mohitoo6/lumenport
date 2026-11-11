@@ -1,5 +1,6 @@
 import { Color, MeshStandardMaterial, type Texture } from 'three';
 import type { PbrSet } from '../assets/loader';
+import type { TerrainFx } from '../terrain/terrainMaterial';
 
 function pbr(set: PbrSet, tint: Color, extra: Partial<ConstructorParameters<typeof MeshStandardMaterial>[0]> = {}): MeshStandardMaterial {
   return new MeshStandardMaterial({
@@ -17,6 +18,8 @@ function pbr(set: PbrSet, tint: Color, extra: Partial<ConstructorParameters<type
 
 const LANE_PARS = /* glsl */ `
   uniform sampler2D uNoise;
+  uniform sampler2D uOverlayTex;
+  uniform float uOverlayAlpha;
   varying vec4 vLane;
   varying float vLaneKind;
 
@@ -79,6 +82,11 @@ const LANE_MAIN = /* glsl */ `
   float lnPaint = clamp(lnWhite + lnYellow, 0.0, 1.0) * lnWear;
   vec3 lnColor = mix(vec3(0.62, 0.62, 0.6), vec3(0.66, 0.44, 0.05), lnYellow / (lnWhite + lnYellow + 1e-4));
   diffuseColor.rgb = mix(diffuseColor.rgb, lnColor, lnPaint * 0.9);
+  // Data view: the road takes its cell's colour (asphalt UVs are world metres / 5).
+  if (uOverlayAlpha > 0.0) {
+    vec4 lnOv = texture2D(uOverlayTex, vMapUv * 5.0 / 2048.0);
+    diffuseColor.rgb = mix(diffuseColor.rgb, lnOv.rgb * 0.9, lnOv.a * uOverlayAlpha * 0.85);
+  }
 `;
 
 export interface RoadMaterials {
@@ -93,10 +101,12 @@ export interface RoadMaterials {
  * asphalt shader from per-vertex road coordinates (metres across, metres along, metres to
  * each junction), so they are sharp at any zoom and can never z-fight with the road.
  */
-export function createRoadMaterials(sets: { asphalt: PbrSet; pavement: PbrSet; concrete: PbrSet; grass: PbrSet }, noise: Texture): RoadMaterials {
+export function createRoadMaterials(sets: { asphalt: PbrSet; pavement: PbrSet; concrete: PbrSet; grass: PbrSet }, noise: Texture, fx: TerrainFx): RoadMaterials {
   const asphalt = pbr(sets.asphalt, new Color(0.62, 0.63, 0.66));
   asphalt.onBeforeCompile = (shader) => {
     shader.uniforms.uNoise = { value: noise };
+    shader.uniforms.uOverlayTex = fx.overlayTex;
+    shader.uniforms.uOverlayAlpha = fx.overlayAlpha;
     shader.vertexShader = shader.vertexShader
       .replace('#include <common>', '#include <common>\nattribute vec4 aLane;\nattribute float aLaneKind;\nvarying vec4 vLane;\nvarying float vLaneKind;')
       .replace('#include <begin_vertex>', '#include <begin_vertex>\nvLane = aLane;\nvLaneKind = aLaneKind;');
@@ -105,7 +115,7 @@ export function createRoadMaterials(sets: { asphalt: PbrSet; pavement: PbrSet; c
       .replace('#include <map_fragment>', `#include <map_fragment>\n${LANE_MAIN}`)
       .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor = mix(roughnessFactor, 0.5, lnPaint);');
   };
-  asphalt.customProgramCacheKey = () => 'road-asphalt-v1';
+  asphalt.customProgramCacheKey = () => 'road-asphalt-v2';
 
   // The scans are warm and dark; tint them to the pale grey of city paving and curbstone.
   const pavement = pbr(sets.pavement, new Color(1.12, 1.2, 1.32));

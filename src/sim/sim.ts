@@ -6,6 +6,7 @@ import { demolishEdge, executePlan, planRoad, type RoadChange, type RoadPlan, ty
 import { LOAN_TIERS, loanPayment, projectBudget } from './economy/budget';
 import { economyStep, growthRateFor } from './economy/economy';
 import { planFacility, type FacilityPlan } from './facilities';
+import { Fields } from './fields/fields';
 import { cellMinHeight } from './map/terrain';
 import { Traffic } from './traffic/traffic';
 import { POWERED, WATERED, computeUtilities, newNetworks, type Networks } from './utilities/network';
@@ -52,6 +53,8 @@ export class Sim {
   growthRate = 0.7;
   /** Road networks and their power and water balance. Derived, never saved. */
   readonly net: Networks = newNetworks();
+  /** Pollution, crime, land value, happiness and service coverage. Derived, never saved. */
+  readonly fields = new Fields();
   /** Vehicles on the roads. Derived, never saved. */
   readonly traffic: Traffic;
   private netDirty = true;
@@ -103,10 +106,21 @@ export class Sim {
       const day = s.tick / TICKS_PER_DAY;
       s.stats.congestion = this.traffic.congestion;
       s.stats.vehicles = this.traffic.count;
+      // The layers change slowly; every few days is plenty.
+      if (day % 4 === 0) this.refreshFields();
       economyStep(s.buildings, s.tax, s.stats);
       this.events.emit('dayPassed', day);
       if (day % DAYS_PER_MONTH === 0) this.settleMonth(day / DAYS_PER_MONTH);
     }
+  }
+
+  /** Recomputes the data layers and the city's average happiness. */
+  refreshFields(): void {
+    const s = this.state;
+    const st = s.stats;
+    const labor = st.population * 0.55;
+    const unemployment = labor > 0 ? Math.max(0, 1 - st.employed / labor) : 0;
+    st.happiness = this.fields.update(s.buildings, s.roads, s.roadCell, s.heights, this.traffic.density, s.tax, unemployment, st.congestion);
   }
 
   /** Recomputes power and water on every road network. */
@@ -160,7 +174,7 @@ export class Sim {
     const result: GrowthResult = { spawned: [], upgraded: [] };
     const rates = this.rates;
     for (let t = 1; t <= 3; t++) rates[t] = s.sandbox ? this.growthRate : growthRateFor(s.stats.demand[t]!);
-    growthStep(s, this.frontier, rng, rates, result, s.sandbox ? undefined : this.served);
+    growthStep(s, this.frontier, rng, rates, result, s.sandbox ? undefined : this.served, s.sandbox ? undefined : this.fields.landValue);
     if (result.spawned.length > 0) this.utilDirty = true;
     s.rng = rng.state;
     for (const b of result.spawned) {

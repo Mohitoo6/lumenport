@@ -1,4 +1,4 @@
-import { FACILITIES } from '../facilities';
+import { FACILITIES, Service } from '../facilities';
 import { ROAD_SPECS, type RoadNetwork } from '../roads/types';
 import { ZoneType, zoneType, type Building } from '../zoning/zones';
 import type { CityStats } from './economy';
@@ -63,10 +63,13 @@ export function projectBudget(
   let workersC = 0;
   let workersI = 0;
   let utilities = 0;
+  let services = 0;
   for (const b of buildings) {
     if (!b) continue;
     if (b.kind !== 0) {
-      utilities += FACILITIES[b.kind]!.upkeep;
+      const spec = FACILITIES[b.kind]!;
+      if (spec.service === Service.None) utilities += spec.upkeep;
+      else services += spec.upkeep;
     } else if (zoneType(b.zone) === ZoneType.Commercial) {
       workersC += b.pop;
     } else if (zoneType(b.zone) === ZoneType.Industrial) {
@@ -83,7 +86,7 @@ export function projectBudget(
   out.taxI = Math.round(workersI * TAX_BASE.i * tax[3]!);
   out.roads = Math.round(roadCost);
   out.utilities = utilities;
-  out.services = 0;
+  out.services = services;
   out.loans = loanCost;
   out.income = out.taxR + out.taxC + out.taxI;
   out.expense = out.roads + out.utilities + out.services + out.loans;

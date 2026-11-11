@@ -21,6 +21,8 @@ const PARS = /* glsl */ `
   uniform float uZoneAlpha;
   uniform vec4 uSel; // selection rectangle in world metres: min xz, max xz
   uniform vec4 uSelColor;
+  uniform sampler2D uOverlayTex; // data view: colour and strength per cell
+  uniform float uOverlayAlpha;
   varying vec3 vWPos;
   varying vec3 vWNormal;
 
@@ -101,7 +103,14 @@ const MAP = /* glsl */ `
     vec2 tZc = tP / 8.0;
     vec2 tZl = abs(fract(tZc - 0.5) - 0.5) / (fwidth(tZc) + 1e-5);
     float tZg = 1.0 - min(min(tZl.x, tZl.y), 1.0);
-    tAlb = mix(tAlb, tZone.rgb * (0.75 + 0.35 * tZg), uZoneAlpha * (0.8 + 0.2 * tZg));
+    tAlb = mix(tAlb, tZone.rgb * (0.75 + 0.35 * tZg), uZoneAlpha * (0.8 + 0.2 * tZg) * (1.0 - uOverlayAlpha));
+  }
+  // Data view: grey the land out and lay the selected layer over it.
+  if (uOverlayAlpha > 0.0) {
+    vec4 tOv = texture(uOverlayTex, tP / 2048.0);
+    float tLum = dot(tAlb, vec3(0.3, 0.59, 0.11));
+    tAlb = mix(tAlb, vec3(tLum) * 0.75 + 0.05, uOverlayAlpha * 0.85);
+    tAlb = mix(tAlb, tOv.rgb, tOv.a * uOverlayAlpha);
   }
   // Drag-selection rectangle.
   if (uSelColor.a > 0.0 && tP.x > uSel.x && tP.y > uSel.y && tP.x < uSel.z && tP.y < uSel.w) {
@@ -144,6 +153,8 @@ export interface TerrainFx {
   zoneAlpha: { value: number };
   sel: { value: Vector4 };
   selColor: { value: Vector4 };
+  overlayTex: { value: Texture | null };
+  overlayAlpha: { value: number };
 }
 
 export function createTerrainMaterial(tex: TerrainTextures, fx: TerrainFx): MeshStandardMaterial {
@@ -154,6 +165,8 @@ export function createTerrainMaterial(tex: TerrainTextures, fx: TerrainFx): Mesh
     shader.uniforms.uZoneAlpha = fx.zoneAlpha;
     shader.uniforms.uSel = fx.sel;
     shader.uniforms.uSelColor = fx.selColor;
+    shader.uniforms.uOverlayTex = fx.overlayTex;
+    shader.uniforms.uOverlayAlpha = fx.overlayAlpha;
     shader.uniforms.uTerrDiff = { value: tex.diff };
     shader.uniforms.uTerrNor = { value: tex.nor };
     shader.uniforms.uTerrArm = { value: tex.arm };
@@ -167,6 +180,6 @@ export function createTerrainMaterial(tex: TerrainTextures, fx: TerrainFx): Mesh
       .replace('#include <roughnessmap_fragment>', 'float roughnessFactor = clamp(tRough, 0.55, 1.0);')
       .replace('#include <normal_fragment_maps>', NORMAL);
   };
-  mat.customProgramCacheKey = () => 'terrain-splat-v5';
+  mat.customProgramCacheKey = () => 'terrain-splat-v6';
   return mat;
 }

@@ -1,10 +1,18 @@
 import { signal } from '@preact/signals';
 import { emptyReport, type BudgetReport, type Loan } from '../sim/economy/budget';
+import type { OverlayId } from '../render/overlays/dataOverlay';
 import type { RoadType } from '../sim/roads/types';
 import type { Speed } from '../sim/state';
 
 export type ToolId = 'none' | 'road' | 'zone' | 'place' | 'bulldoze';
 export type RoadModeId = 'straight' | 'curve';
+
+/** What the inspect panel shows for the selected building. */
+export interface InspectData {
+  title: string;
+  subtitle: string;
+  rows: Array<[label: string, value: string, tone?: 'good' | 'bad']>;
+}
 
 export interface Hint {
   text: string;
@@ -42,6 +50,10 @@ export const ui = {
   alerts: signal<string[]>([]),
   sandbox: signal(false),
   showBudget: signal(false),
+  happiness: signal(0.5),
+  overlay: signal<OverlayId>('none'),
+  showViews: signal(false),
+  inspect: signal<InspectData | null>(null),
 };
 
 export interface UiActions {
@@ -53,6 +65,8 @@ export interface UiActions {
   setFacility(kind: number): void;
   setTax(zone: number, rate: number): void;
   takeLoan(tier: number): void;
+  setOverlay(id: OverlayId): void;
+  closeInspect(): void;
 }
 
 export const actions: UiActions = {
@@ -64,4 +78,6 @@ export const actions: UiActions = {
   setFacility: () => {},
   setTax: () => {},
   takeLoan: () => {},
+  setOverlay: () => {},
+  closeInspect: () => {},
 };

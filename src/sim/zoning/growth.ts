@@ -137,6 +137,7 @@ export function growthStep(
   rates: readonly number[],
   out: GrowthResult,
   canGrow?: (i: number, j: number) => boolean,
+  landValue?: Float32Array,
 ): void {
   const attempts = Math.min(4, Math.ceil(frontier.length / 12));
   for (let a = 0; a < attempts; a++) {
@@ -170,6 +171,8 @@ export function growthStep(
     const b = s.buildings[rng.int(total)];
     if (!b || b.kind !== 0 || b.progress < 1 || b.level >= 3) continue;
     if (!rng.chance(0.012 * rates[b.zone >> 2]!)) continue;
+    // Better buildings need better land: level 2 from 0.4, level 3 from 0.55.
+    if (landValue && landValue[(b.y + (b.h >> 1)) * MAP + b.x + (b.w >> 1)]! < 0.25 + 0.15 * b.level) continue;
     b.level++;
     b.progress = 0.46;
     s.constructing.push(b.id);
