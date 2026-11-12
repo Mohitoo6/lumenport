@@ -8,7 +8,7 @@ import type { MinistryId } from '../game/council/ministries';
 import type { Lang, Stance } from '../game/council/prompts';
 import type { Post } from '../game/council/voices';
 
-export type SeatState = 'waiting' | 'thinking' | 'spoke' | 'silent' | 'failed';
+export type SeatState = 'waiting' | 'thinking' | 'speaking' | 'spoke' | 'silent' | 'failed';
 
 export interface CouncilMessage {
   key: string;
@@ -52,7 +52,12 @@ export interface CouncilView {
   providers: string[];
   result?: { ok: boolean; text: string };
   lang: Lang;
+  /** The statement being delivered right now, and how long it takes. */
+  speaking?: { key: string; who: MinistryId | 'chief'; seconds: number };
 }
+
+/** Where the council's entrance is: flying to the town hall, in the chamber, or leaving. */
+export type CinemaStage = 'off' | 'approach' | 'inside' | 'leaving';
 
 export interface MinisterRequest {
   issueKey: string;
@@ -125,6 +130,7 @@ export const ui = {
   showViews: signal(false),
   inspect: signal<InspectData | null>(null),
   council: signal<CouncilView | null>(null),
+  cinema: signal<CinemaStage>('off'),
   request: signal<MinisterRequest | null>(null),
   posts: signal<Post[]>([]),
   issues: signal<IssueRow[]>([]),
@@ -140,6 +146,7 @@ export interface UiActions {
   convene(issueKey: string): void;
   startCouncil(note: string, lang: Lang, demo: boolean): void;
   approveOption(id: string): void;
+  skipSpeech(): void;
   closeCouncil(): void;
   dismissRequest(): void;
   lookAt(x: number, z: number): void;
@@ -165,6 +172,7 @@ export const actions: UiActions = {
   convene: () => {},
   startCouncil: () => {},
   approveOption: () => {},
+  skipSpeech: () => {},
   closeCouncil: () => {},
   dismissRequest: () => {},
   lookAt: () => {},

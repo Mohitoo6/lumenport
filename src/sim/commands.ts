@@ -18,7 +18,9 @@ export type Command =
   | { type: 'setTax'; zone: number; rate: number }
   | { type: 'takeLoan'; tier: number }
   | { type: 'setSandbox'; on: boolean }
-  | { type: 'setPolicy'; policy: 'flexHours'; on: boolean };
+  | { type: 'setPolicy'; policy: 'flexHours'; on: boolean }
+  /** Places the town hall, already built, on the best site near the city centre. */
+  | { type: 'foundTownHall' };
 
 export interface CommandResult {
   ok: boolean;

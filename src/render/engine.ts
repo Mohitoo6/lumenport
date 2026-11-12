@@ -132,7 +132,7 @@ export class Engine {
  * subclass whose `texture` getter returns an array. three r187 reads `texture` as a single
  * texture and throws. Swap in a native two-attachment render target with the same layout.
  */
-function patchHalfResTarget(pass: N8AOPostPass): void {
+export function patchHalfResTarget(pass: N8AOPostPass): void {
   const p = pass as unknown as {
     configureHalfResTargets: () => void;
     depthDownsampleTarget: WebGLRenderTarget | null;

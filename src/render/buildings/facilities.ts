@@ -390,6 +390,109 @@ function park(l: Lot): void {
   }
 }
 
+/** Where the town hall's front doors are, in the building's local frame (metres). */
+export const TOWN_HALL_DOOR = { z: 4.02, y: 1.4, width: 3.2, height: 4.3 };
+
+/**
+ * The town hall: a stone civic building on a podium, with a columned portico, a pediment
+ * with a clock, and a copper dome. The front doors are a separate, animated mesh
+ * (see townHallDoors.ts); here the doorway is a dark recess.
+ */
+function townHall(l: Lot): void {
+  const { g, W, D } = l;
+  const stone = mat(Layer.ConcreteWall, [1.42, 1.38, 1.28], 3);
+  const stoneDark = mat(Layer.ConcreteWall, [1.12, 1.08, 1.0], 3);
+  const trim = mat(Layer.Plaster2, [1.38, 1.36, 1.3], 3);
+  const copper = mat(Layer.Metal, [0.55, 1.02, 0.86], 2);
+  const gold = mat(Layer.Metal, [2.2, 1.7, 0.6], 1);
+  ground(l, mat(Layer.Pavement, [1.15, 1.13, 1.08], 3));
+  // Lawns at the sides of the square.
+  g.flat(-W / 2 + 0.6, -D / 2 + 0.6, -12.6, D / 2 - 6, 0.04, LAWN);
+  g.flat(12.6, -D / 2 + 0.6, W / 2 - 0.6, D / 2 - 6, 0.04, LAWN);
+
+  // Podium and front steps.
+  const top = 1.4;
+  g.box(-12.4, -11.4, 12.4, 6.6, 0, top, stoneDark, NO_WIN, stone);
+  for (let k = 0; k < 5; k++) {
+    const y = (top / 5) * (k + 1);
+    g.box(-8 + k * 0.1, 6.6, 8 - k * 0.1, 11.2 - k * 0.9, 0, y, stone);
+  }
+
+  // Main block: two tall storeys with long windows.
+  const z1 = TOWN_HALL_DOOR.z;
+  const roof = 10.6;
+  const wf = win(Style.Punched, 3.1, 4.6, 0.42);
+  const ws = win(Style.Punched, fitBay(14, 3.2), 4.6, 0.42);
+  // Back and sides; the front is built below around the doorway.
+  g.wall(-11, -10, 11, -10, top, roof, stone, wf);
+  g.wall(11, -10, 11, z1, top, roof, stone, ws);
+  g.wall(-11, z1, -11, -10, top, roof, stone, ws);
+  // Front wall in three parts so the doorway stays open.
+  const dw = TOWN_HALL_DOOR.width / 2;
+  g.wall(11, z1, dw, z1, top, roof, stone, win(Style.Punched, fitBay(11 - dw, 3.1), 4.6, 0.42));
+  g.wall(-dw, z1, -11, z1, top, roof, stone, win(Style.Punched, fitBay(11 - dw, 3.1), 4.6, 0.42));
+  g.wall(dw, z1, -dw, z1, top + TOWN_HALL_DOOR.height, roof, stone);
+  // Door surround and the dark recess behind the doors.
+  g.box(-dw - 0.35, z1, dw + 0.35, z1 + 0.25, top + TOWN_HALL_DOOR.height, top + TOWN_HALL_DOOR.height + 0.45, trim);
+  g.box(-dw - 0.35, z1, -dw, z1 + 0.25, top, top + TOWN_HALL_DOOR.height, trim);
+  g.box(dw, z1, dw + 0.35, z1 + 0.25, top, top + TOWN_HALL_DOOR.height, trim);
+  g.wall(dw, z1 - 1.2, -dw, z1 - 1.2, top, top + TOWN_HALL_DOOR.height, mat(Layer.Plaster2, [0.32, 0.24, 0.18], 2));
+  g.wall(-dw, z1 - 1.2, -dw, z1, top, top + TOWN_HALL_DOOR.height, mat(Layer.Plaster2, [0.4, 0.32, 0.24], 2));
+  g.wall(dw, z1, dw, z1 - 1.2, top, top + TOWN_HALL_DOOR.height, mat(Layer.Plaster2, [0.4, 0.32, 0.24], 2));
+  g.flat(-dw, z1 - 1.2, dw, z1, top + 0.02, mat(Layer.Concrete, [0.9, 0.7, 0.5], 2));
+  // Cornice and flat roof.
+  g.box(-11.4, -10.4, 11.4, z1 + 0.4, roof - 0.2, roof + 0.5, trim);
+  flatRoof(g, -11, -10, 11, z1, roof + 0.5, stone, mat(Layer.Concrete, [1.1, 1.1, 1.08], 3), 0.6);
+
+  // Portico: six columns, entablature and a pediment with a clock.
+  const pz0 = z1 + 0.4;
+  const pz1 = z1 + 2.6;
+  for (let k = 0; k < 6; k++) {
+    const x = -7 + k * 2.8;
+    g.box(x - 0.6, pz1 - 1.75, x + 0.6, pz1 - 0.55, top, top + 0.4, stone);
+    g.cyl(x, pz1 - 1.15, 0.5, 0.42, top + 0.4, roof - 0.4, 14, trim, null);
+    g.box(x - 0.6, pz1 - 1.75, x + 0.6, pz1 - 0.55, roof - 0.4, roof, stone);
+  }
+  g.box(-8, pz0, 8, pz1, roof, roof + 1.1, trim, NO_WIN, stone);
+  const apex = roof + 1.1 + 3.4;
+  g.poly([[-8.4, roof + 1.1, pz1], [8.4, roof + 1.1, pz1], [0, apex, pz1]], stone, NO_WIN, false);
+  g.poly([[8.4, roof + 1.1, pz1], [8.4, roof + 1.1, pz0], [0, apex, pz0], [0, apex, pz1]], copper);
+  g.poly([[-8.4, roof + 1.1, pz0], [-8.4, roof + 1.1, pz1], [0, apex, pz1], [0, apex, pz0]], copper);
+  g.poly([[8.4, roof + 1.1, pz0], [-8.4, roof + 1.1, pz0], [0, apex, pz0]], stone, NO_WIN, false);
+  g.wall(1.1, pz1 + 0.06, -1.1, pz1 + 0.06, roof + 1.5, roof + 3.7, mat(Layer.Plaster2, [1.1, 1.0, 0.7], 2), SIGN);
+  g.wall(1.35, pz1 + 0.04, -1.35, pz1 + 0.04, roof + 1.25, roof + 3.95, gold);
+
+  // Drum, dome and lantern.
+  const dz = -3;
+  g.cyl(0, dz, 5.4, 5.4, roof + 0.5, roof + 1.4, 24, trim);
+  g.cyl(0, dz, 4.8, 4.8, roof + 1.4, roof + 4.4, 24, stone, null);
+  for (let k = 0; k < 12; k++) {
+    const a = (k / 12) * Math.PI * 2;
+    g.box(Math.cos(a) * 4.9 - 0.18, dz + Math.sin(a) * 4.9 - 0.18, Math.cos(a) * 4.9 + 0.18, dz + Math.sin(a) * 4.9 + 0.18, roof + 1.4, roof + 4.4, trim, NO_WIN, null);
+  }
+  g.cyl(0, dz, 5.1, 5.1, roof + 4.4, roof + 4.9, 24, trim);
+  const rings = 7;
+  for (let k = 0; k < rings; k++) {
+    const a0 = (k / rings) * (Math.PI / 2);
+    const a1 = ((k + 1) / rings) * (Math.PI / 2);
+    g.cyl(0, dz, Math.cos(a0) * 4.9, Math.cos(a1) * 4.9 + 0.01, roof + 4.9 + Math.sin(a0) * 5.2, roof + 4.9 + Math.sin(a1) * 5.2, 24, copper, null);
+  }
+  const lantern = roof + 4.9 + 5.2;
+  g.cyl(0, dz, 0.95, 0.95, lantern - 0.2, lantern + 1.6, 10, trim);
+  g.cyl(0, dz, 1.1, 0.08, lantern + 1.6, lantern + 3.0, 10, copper, null);
+  g.cyl(0, dz, 0.05, 0.03, lantern + 3.0, lantern + 6.5, 5, mat(Layer.Concrete, [1.8, 1.8, 1.8]), null);
+  slab(g, [[0, lantern + 6.3, dz], [2.2, lantern + 6.3, dz], [2.2, lantern + 5.0, dz], [0, lantern + 5.0, dz]], mat(Layer.Plaster2, [1.6, 0.55, 0.15], 2));
+
+  // The square: flagpoles, trees and lamps.
+  for (const sx of [-1, 1]) {
+    g.cyl(sx * 10, 12.4, 0.08, 0.05, 0, 11, 6, mat(Layer.Concrete, [1.8, 1.8, 1.8]), null);
+    slab(g, [[sx * 10, 10.8, 12.4], [sx * 10 + sx * 2.4, 10.8, 12.4], [sx * 10 + sx * 2.4, 9.3, 12.4], [sx * 10, 9.3, 12.4]], mat(Layer.Plaster2, sx < 0 ? [0.2, 0.4, 1.1] : [1.5, 0.95, 0.2], 2));
+    g.tree(sx * 13.6, -6, 0.75, sx);
+    g.tree(sx * 13.6, 4, 0.7, sx * 2);
+    shrub(g, sx * 9.4, 7.4, 0.7);
+  }
+}
+
 export function facility(l: Lot, kind: number): void {
   switch (kind) {
     case FacilityKind.CoalPlant:
@@ -418,6 +521,9 @@ export function facility(l: Lot, kind: number): void {
       break;
     case FacilityKind.School:
       school(l);
+      break;
+    case FacilityKind.TownHall:
+      townHall(l);
       break;
     default:
       park(l);

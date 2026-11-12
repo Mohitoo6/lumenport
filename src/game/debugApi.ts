@@ -17,7 +17,15 @@ export interface DebugApi {
   council: {
     issues(): Array<{ key: string; kind: string; title: string; severity: number }>;
     convene(kind: string): boolean;
+    /** Shows every statement already received at once. */
+    skip(): void;
+    /** The cinematic's phase: off, enter, inside or exit. */
+    phase(): string;
+    /** Seconds into the cinematic's current phase. */
+    cineTime(): number;
   };
+  /** Founds the town hall if there is none. */
+  townHall(): boolean;
   /** Installs a game state (for tests of save and load). */
   loadState(state: import('../sim/state').GameState): void;
   /** Jumps to a time of day (hours) and holds the clock there. */
@@ -45,10 +53,13 @@ export function installDebugApi(game: Game): void {
       convene: (kind) => {
         const issue = game.council.issues.find((i) => i.kind === kind);
         if (!issue) return false;
-        game.council.convene(issue.key);
-        return true;
+        return game.convene(issue.key);
       },
+      skip: () => game.council.skip(),
+      phase: () => game.cinematic.phase,
+      cineTime: () => game.cinematic.time,
     },
+    townHall: () => game.ensureTownHall(),
     loadState: (state) => game.loadState(state),
     advance: (n) => {
       for (let i = 0; i < n; i++) game.sim.tick();

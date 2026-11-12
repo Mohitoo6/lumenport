@@ -14,6 +14,8 @@ export const enum FacilityKind {
   Clinic = 8,
   School = 9,
   Park = 10,
+  /** The seat of the city council: placed by the game at the start, cannot be removed. */
+  TownHall = 11,
 }
 
 /** Which coverage layer a service facility feeds. */
@@ -43,6 +45,8 @@ export interface FacilitySpec {
   service: Service;
   /** Service reach in cells; coverage falls off linearly to zero at this distance. */
   radius: number;
+  /** A landmark: needs no road, one per city, cannot be demolished or built over. */
+  landmark?: boolean;
 }
 
 export const FACILITIES: Record<number, FacilitySpec> = {
@@ -56,7 +60,12 @@ export const FACILITIES: Record<number, FacilitySpec> = {
   [FacilityKind.Clinic]: { name: 'Clinic', size: 2, cost: 6000, upkeep: 380, power: 0, water: 0, needsShore: false, blurb: 'Healthier, happier residents.', service: Service.Health, radius: 38 },
   [FacilityKind.School]: { name: 'School', size: 3, cost: 7000, upkeep: 420, power: 0, water: 0, needsShore: false, blurb: 'Educated residents; lets homes improve.', service: Service.Education, radius: 38 },
   [FacilityKind.Park]: { name: 'Park', size: 2, cost: 1200, upkeep: 40, power: 0, water: 0, needsShore: false, blurb: 'Raises land value around it.', service: Service.Park, radius: 14 },
+  [FacilityKind.TownHall]: { name: 'Town Hall', size: 4, cost: 0, upkeep: 0, power: 0, water: 0, needsShore: false, blurb: 'Seat of the city council. A civic square that lifts the land around it.', service: Service.Park, radius: 22, landmark: true },
 };
+
+export function isLandmark(kind: number): boolean {
+  return FACILITIES[kind]?.landmark === true;
+}
 
 export const POWER_FACILITIES = [FacilityKind.CoalPlant, FacilityKind.WindTurbine, FacilityKind.SolarFarm] as const;
 export const WATER_FACILITIES = [FacilityKind.WaterTower, FacilityKind.WaterPump] as const;
@@ -148,7 +157,7 @@ export function planFacility(s: PlaceLayers, kind: FacilityKind, ci: number, cj:
       plan.facing = f;
     }
   }
-  if (best === 0) {
+  if (best === 0 && !spec.landmark) {
     plan.reason = 'Must be next to a road';
     return plan;
   }
@@ -170,4 +179,60 @@ export function planFacility(s: PlaceLayers, kind: FacilityKind, ci: number, cj:
   }
   plan.ok = true;
   return plan;
+}
+
+/**
+ * Where the town hall goes: the flattest dry 4 x 4 site near `centre` (cells) with no roads,
+ * zoning or buildings on it. Searches outward in rings; null if nothing fits.
+ */
+export function findTownHallSite(s: PlaceLayers & { zone: Uint8Array }, ci: number, cj: number): { x: number; y: number } | null {
+  const size = FACILITIES[FacilityKind.TownHall]!.size;
+  const found: { best: { x: number; y: number; score: number } | null } = { best: null };
+  for (let r = 0; r <= 90; r += 2) {
+    for (let dj = -r; dj <= r; dj += 2) {
+      for (let di = -r; di <= r; di += 2) {
+        if (Math.max(Math.abs(di), Math.abs(dj)) !== r) continue;
+        const i = ci + di;
+        const j = cj + dj;
+        const plan = planFacility(s, FacilityKind.TownHall, i, j);
+        if (!plan.ok) continue;
+        let clear = true;
+        let lo = Infinity;
+        let hi = -Infinity;
+        for (let y = plan.y - 1; y <= plan.y + size && clear; y++) {
+          for (let x = plan.x - 1; x <= plan.x + size; x++) {
+            if (s.zone[y * MAP + x] !== 0 || s.roadCell[y * MAP + x]! >= 0 || s.buildingCell[y * MAP + x]! >= 0) {
+              clear = false;
+              break;
+            }
+          }
+        }
+        if (!clear) continue;
+        for (let y = plan.y; y <= plan.y + size; y++) {
+          for (let x = plan.x; x <= plan.x + size; x++) {
+            const h = s.heights[y * VERTS + x]!;
+            lo = Math.min(lo, h);
+            hi = Math.max(hi, h);
+          }
+        }
+        if (lo < 1.5) continue;
+        // Keep the civic square well back from the shore.
+        let wet = false;
+        for (let y = Math.max(0, plan.y - 10); y <= Math.min(MAP, plan.y + size + 10) && !wet; y += 2) {
+          for (let x = Math.max(0, plan.x - 10); x <= Math.min(MAP, plan.x + size + 10); x += 2) {
+            if (s.heights[y * VERTS + x]! < 0.8) {
+              wet = true;
+              break;
+            }
+          }
+        }
+        if (wet) continue;
+        const score = (hi - lo) * 12 + r;
+        if (!found.best || score < found.best.score) found.best = { x: i, y: j, score };
+      }
+    }
+    // A close, flat site beats searching further out.
+    if (found.best && found.best.score < r + 4) break;
+  }
+  return found.best ? { x: found.best.x, y: found.best.y } : null;
 }

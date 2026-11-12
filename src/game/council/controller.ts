@@ -1,7 +1,7 @@
 import { Rng } from '../../core/rng';
 import type { Sim } from '../../sim/sim';
 import type { Speed } from '../../sim/state';
-import { ui, type CouncilView, type SeatState } from '../../ui/store';
+import { ui, type CouncilMessage, type CouncilView, type SeatState } from '../../ui/store';
 import { attendees, briefing, type Seat } from './briefs';
 import { detectIssues, type CityIssue } from './issues';
 import { DemoTransport, HttpTransport, aiStatus, type Transport } from './llm';
@@ -18,6 +18,31 @@ const REQUEST_SEVERITY = 0.5;
 const SNOOZE_MS = 3 * 60_000;
 const RESOLVED_MS = 5 * 60_000;
 const LANG_KEY = 'metropolis.councilLang';
+/** Pause between one speaker finishing and the next starting. */
+const GAP = 0.6;
+
+/** How long a statement takes to deliver: roughly reading speed, within limits. */
+export function speechSeconds(text: string): number {
+  return Math.max(4, Math.min(16, text.length / 15));
+}
+
+type Who = MinistryId | 'chief';
+
+/** Something the session produced, waiting its turn to be shown and spoken. */
+interface Queued {
+  msg?: CouncilMessage;
+  backer?: [MinistryId, string];
+  decision?: NonNullable<CouncilView['decision']>;
+  error?: string;
+}
+
+interface Track {
+  inFlight: boolean;
+  queued: number;
+  revealed: boolean;
+  silent: boolean;
+  failed: boolean;
+}
 
 export interface CouncilHost {
   sim: Sim;
@@ -49,10 +74,16 @@ export class CouncilController {
   private session: CouncilSession | null = null;
   private current: { issue: CityIssue; options: CouncilOption[]; seats: Seat[] } | null = null;
   private resumeSpeed: Speed | null = null;
+  private queue: Queued[] = [];
+  private playing: { item: Queued; left: number } | null = null;
+  private gap = 0;
+  private track = new Map<Who, Track>();
+  private backers = new Map<MinistryId, string>();
 
   constructor(private readonly host: CouncilHost) {}
 
   update(dt: number): void {
+    this.play(dt);
     this.checkTimer += dt;
     if (this.checkTimer >= CHECK_EVERY) {
       this.checkTimer = 0;
@@ -134,7 +165,6 @@ export class CouncilController {
       providers: [],
       lang,
     };
-    if (issue.x || issue.z) this.host.lookAt(issue.x, issue.z);
     if (!this.forceDemo) {
       void aiStatus().then((s) => {
         const v = ui.council.value;
@@ -148,9 +178,23 @@ export class CouncilController {
     if (v) ui.council.value = { ...v, ...f(v) };
   }
 
-  private seat(who: MinistryId | 'chief', state: SeatState): void {
+  private trackOf(who: Who): Track {
+    let t = this.track.get(who);
+    if (!t) {
+      t = { inFlight: false, queued: 0, revealed: false, silent: false, failed: false };
+      this.track.set(who, t);
+    }
+    return t;
+  }
+
+  /** Recomputes one seat's state from what is known and what has been shown. */
+  private refresh(who: Who): void {
+    const t = this.trackOf(who);
+    const v = ui.council.value;
+    const state: SeatState =
+      v?.speaking?.who === who ? 'speaking' : t.failed ? 'failed' : t.inFlight || t.queued > 0 ? 'thinking' : t.revealed ? 'spoke' : t.silent ? 'silent' : 'waiting';
     if (who === 'chief') this.patch(() => ({ chief: state }));
-    else this.patch((v) => ({ seats: v.seats.map((s) => (s.id === who ? { ...s, state } : s)) }));
+    else this.patch((x) => ({ seats: x.seats.map((s) => (s.id === who ? { ...s, state } : s)) }));
   }
 
   /** Starts the debate. `demo` uses scripted ministers instead of the AI. */
@@ -165,6 +209,7 @@ export class CouncilController {
     const transport: Transport = demo || this.forceDemo ? new DemoTransport() : new HttpTransport();
     const sim = this.host.sim;
     const briefings = Object.fromEntries(MINISTERS.map((m) => [m.id, briefing(sim, m.id)])) as Record<MinistryId, string[]>;
+    this.resetPlayback();
     this.patch((v) => ({
       phase: 'debate',
       lang,
@@ -176,48 +221,58 @@ export class CouncilController {
       decision: undefined,
       error: undefined,
       result: undefined,
+      speaking: undefined,
       options: v.options.map((o) => ({ ...o, backers: [] })),
     }));
-    const backers = new Map<MinistryId, string>();
-    // Ministers who spoke in round 1 and have nothing to add in round 2 still "have spoken".
-    const spoke = new Set<MinistryId>();
     const onEvent = (e: SessionEvent): void => {
       if (ui.council.value?.issue.key !== cur.issue.key) return;
       switch (e.type) {
         case 'round':
-          this.patch(() => ({ round: e.round }));
+          if (!this.playing && this.queue.length === 0) this.patch(() => ({ round: e.round }));
           break;
         case 'thinking':
-          this.seat(e.who, 'thinking');
+          this.trackOf(e.who).inFlight = true;
+          this.refresh(e.who);
           break;
         case 'said': {
           const st = e.statement;
-          if (st.option !== 'none') backers.set(st.minister, st.option);
-          spoke.add(st.minister);
-          this.seat(st.minister, 'spoke');
-          this.patch((v) => ({
-            messages: [...v.messages, { key: `${st.minister}-${st.round}`, who: st.minister, round: st.round, stance: st.stance, option: st.option, text: st.text, condition: st.condition, provider: e.provider }],
-            options: v.options.map((o) => ({ ...o, backers: [...backers].filter(([, opt]) => opt === o.id).map(([m]) => m) })),
-          }));
+          const t = this.trackOf(st.minister);
+          t.inFlight = false;
+          t.queued++;
+          this.queue.push({
+            msg: { key: `${st.minister}-${st.round}`, who: st.minister, round: st.round, stance: st.stance, option: st.option, text: st.text, condition: st.condition, provider: e.provider },
+            backer: st.option !== 'none' ? [st.minister, st.option] : undefined,
+          });
+          this.refresh(st.minister);
           break;
         }
-        case 'silent':
-          this.seat(e.who, spoke.has(e.who) ? 'spoke' : 'silent');
+        case 'silent': {
+          const t = this.trackOf(e.who);
+          t.inFlight = false;
+          t.silent = true;
+          this.refresh(e.who);
           break;
-        case 'failed':
-          this.seat(e.who, 'failed');
+        }
+        case 'failed': {
+          const t = this.trackOf(e.who);
+          t.inFlight = false;
+          t.failed = true;
+          this.refresh(e.who);
           break;
-        case 'decision':
-          this.seat('chief', 'spoke');
-          this.patch((v) => ({
-            phase: 'decided',
+        }
+        case 'decision': {
+          const t = this.trackOf('chief');
+          t.inFlight = false;
+          t.queued++;
+          this.queue.push({
+            msg: { key: 'chief', who: 'chief', round: 3, option: e.decision.option, text: e.decision.summary, provider: e.provider },
             decision: { option: e.decision.option, summary: e.decision.summary, dissent: e.decision.dissent, conditions: e.decision.conditions },
-            messages: [...v.messages, { key: 'chief', who: 'chief', round: 3, option: e.decision.option, text: e.decision.summary, provider: e.provider }],
-          }));
-          this.host.chime('decision');
+          });
+          this.refresh('chief');
           break;
+        }
         case 'error':
-          this.patch(() => ({ phase: 'error', error: e.message }));
+          this.queue.push({ error: e.message });
           break;
         case 'done':
           this.session = null;
@@ -226,6 +281,85 @@ export class CouncilController {
     };
     this.session = new CouncilSession({ city: this.host.cityName(), issue: cur.issue, options: cur.options, seats: cur.seats, briefings, mayorNote: note.trim().slice(0, 400), lang }, transport, onEvent);
     void this.session.run();
+  }
+
+  private resetPlayback(): void {
+    this.queue = [];
+    this.playing = null;
+    this.gap = 0;
+    this.track.clear();
+    this.backers.clear();
+  }
+
+  /** Shows queued statements one at a time, each for as long as it takes to say. */
+  private play(dt: number): void {
+    if (!ui.council.value) return;
+    if (this.playing) {
+      this.playing.left -= dt;
+      if (this.playing.left > 0) return;
+      const done = this.playing.item;
+      this.playing = null;
+      this.conclude(done);
+      this.gap = GAP;
+    }
+    if (this.gap > 0) {
+      this.gap -= dt;
+      return;
+    }
+    const next = this.queue.shift();
+    if (!next) return;
+    const seconds = this.reveal(next);
+    if (seconds > 0) this.playing = { item: next, left: seconds };
+    else this.conclude(next);
+  }
+
+  /** Puts one item on screen. Returns how long it should hold the floor. */
+  private reveal(item: Queued): number {
+    if (item.error) {
+      this.patch(() => ({ phase: 'error', error: item.error, speaking: undefined }));
+      return 0;
+    }
+    const m = item.msg;
+    if (!m) return 0;
+    if (item.backer) this.backers.set(item.backer[0], item.backer[1]);
+    const t = this.trackOf(m.who);
+    t.queued = Math.max(0, t.queued - 1);
+    t.revealed = true;
+    const seconds = speechSeconds(m.text);
+    this.patch((v) => ({
+      round: Math.max(v.round, Math.min(2, m.round)),
+      messages: [...v.messages, m],
+      speaking: { key: m.key, who: m.who, seconds },
+      options: v.options.map((o) => ({ ...o, backers: [...this.backers].filter(([, opt]) => opt === o.id).map(([id]) => id) })),
+    }));
+    this.refresh(m.who);
+    return seconds;
+  }
+
+  /** After an item has been spoken. */
+  private conclude(item: Queued): void {
+    const who = item.msg?.who;
+    if (ui.council.value?.speaking && ui.council.value.speaking.key === item.msg?.key) this.patch(() => ({ speaking: undefined }));
+    if (who) this.refresh(who);
+    if (item.decision) {
+      this.patch(() => ({ phase: 'decided', decision: item.decision }));
+      this.host.chime('decision');
+    }
+  }
+
+  /** Shows everything already said at once (the mayor's fast-forward). */
+  skip(): void {
+    if (this.playing) {
+      const item = this.playing.item;
+      this.playing = null;
+      this.conclude(item);
+    }
+    while (this.queue.length) {
+      const item = this.queue.shift()!;
+      this.reveal(item);
+      this.conclude(item);
+    }
+    this.gap = 0;
   }
 
   /** Carries out an option: every action through the normal game commands. */
@@ -252,6 +386,7 @@ export class CouncilController {
   close(): void {
     this.session?.cancel();
     this.session = null;
+    this.resetPlayback();
     this.current = null;
     ui.council.value = null;
     if (this.resumeSpeed !== null) {
@@ -260,8 +395,13 @@ export class CouncilController {
     }
   }
 
+  /** Whether the ministers are still being consulted (playback may run on after). */
+  get consulting(): boolean {
+    return this.session !== null;
+  }
+
   /** For tests: whether a meeting is in progress. */
   get busy(): boolean {
-    return this.session !== null;
+    return this.session !== null || this.playing !== null || this.queue.length > 0;
   }
 }

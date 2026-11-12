@@ -28,17 +28,28 @@ function who(id: MinistryId | 'chief'): { name: string; title: string; short: st
   return { name: m.name, title: m.title, short: m.short, color: m.color, looks: m.looks };
 }
 
+const SEAT_LABEL: Record<SeatState, string> = {
+  waiting: 'listening',
+  thinking: 'thinking…',
+  speaking: 'speaking',
+  spoke: 'has spoken',
+  silent: 'no comment',
+  failed: 'unreachable',
+};
+
 function Seat(props: { id: MinistryId | 'chief'; state: SeatState; reason?: string }): JSX.Element {
   const p = who(props.id);
-  const label = props.state === 'thinking' ? 'speaking…' : props.state === 'silent' ? 'no comment' : props.state === 'failed' ? 'unreachable' : props.state === 'spoke' ? 'has spoken' : 'listening';
   return (
     <div class={`seat is-${props.state}`} style={{ '--c': p.color }} title={`${p.name}, ${p.title}${props.reason ? ` · called in because ${props.reason}` : ''}`}>
       <div class="seat-ring">
-        <Portrait looks={p.looks} color={p.color} size={52} title={p.name} />
+        <Portrait looks={p.looks} color={p.color} size={34} title={p.name} />
       </div>
-      <div class="seat-name">{p.name.replace(/^Dr\. /, 'Dr ')}</div>
-      <div class="seat-role">{p.short}</div>
-      <div class="seat-state">{label}</div>
+      <div class="seat-text">
+        <div class="seat-name">{p.name.replace(/^Dr\. /, 'Dr ')}</div>
+        <div class="seat-role">
+          {p.short} · <span class="seat-state">{SEAT_LABEL[props.state]}</span>
+        </div>
+      </div>
     </div>
   );
 }
@@ -70,11 +81,6 @@ function OptionCard(props: { o: CouncilOptionView; recommended: boolean; canAppr
           {o.backers.length === 0 && <span class="muted small">No backers yet</span>}
         </div>
         <div class="opt-btns">
-          {o.x !== undefined && o.z !== undefined && (
-            <button type="button" class="link-btn" onClick={() => actions.lookAt(o.x!, o.z!)}>
-              Show on map
-            </button>
-          )}
           {props.canApprove && (
             <button type="button" class={`btn ${props.recommended ? 'btn-go' : ''}`} onClick={() => actions.approveOption(o.id)}>
               {o.hasActions ? `Approve ${o.id}` : 'Do nothing'}
@@ -172,16 +178,14 @@ function Brief(props: { v: CouncilView }): JSX.Element {
 function Transcript(props: { v: CouncilView }): JSX.Element {
   const { v } = props;
   const end = useRef<HTMLDivElement>(null);
-  const thinking = v.seats.filter((s) => s.state === 'thinking').map((s) => s.id as MinistryId | 'chief');
-  if (v.chief === 'thinking') thinking.push('chief');
   useEffect(() => {
     end.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
-  }, [v.messages.length, thinking.length, v.phase]);
+  }, [v.messages.length, v.phase]);
   const rounds: number[] = [];
   for (const m of v.messages) if (!rounds.includes(m.round)) rounds.push(m.round);
-  if (v.phase === 'debate' && !rounds.includes(v.round)) rounds.push(v.round);
   return (
     <div class="transcript" aria-live="polite">
+      {rounds.length === 0 && <p class="muted small">Nothing said yet. Statements appear here as each minister speaks.</p>}
       {rounds.map((r) => (
         <section key={r}>
           <div class="round-title">{ROUND_TITLE[r]}</div>
@@ -190,114 +194,195 @@ function Transcript(props: { v: CouncilView }): JSX.Element {
             .map((m) => (
               <Message m={m} key={m.key} />
             ))}
-          {r === v.round &&
-            v.phase === 'debate' &&
-            thinking.map((id) => {
-              const p = who(id);
-              return (
-                <div class="msg is-typing" key={`t-${id}`} style={{ '--c': p.color }}>
-                  <Portrait looks={p.looks} color={p.color} size={40} />
-                  <div class="msg-body">
-                    <div class="msg-head">
-                      <strong>{p.name}</strong>
-                      <span class="muted">is speaking</span>
-                    </div>
-                    <div class="dots" aria-hidden="true">
-                      <i />
-                      <i />
-                      <i />
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
         </section>
       ))}
-      {v.phase === 'error' && (
-        <div class="council-alert">
-          <strong>The meeting could not go ahead.</strong> {v.error}
-          <div class="brief-btns">
-            <button type="button" class="btn" onClick={() => actions.startCouncil('', v.lang, true)}>
-              Demo meeting
-            </button>
-          </div>
-        </div>
-      )}
-      {(v.phase === 'decided' || v.phase === 'enacted') && v.decision && (
-        <div class="verdict">
-          <div class="label">Council recommendation</div>
-          <div class="verdict-title">
-            Option {v.decision.option}: {v.options.find((o) => o.id === v.decision!.option)?.title}
-          </div>
-          {v.decision.dissent && <p class="small">Dissent: {v.decision.dissent}</p>}
-          {v.decision.conditions && <p class="small">Conditions: {v.decision.conditions}</p>}
-          {v.phase === 'decided' && <p class="muted small">You are the mayor: approve the recommendation, pick another option on the left, or decide later.</p>}
-        </div>
-      )}
-      {v.result && <div class={`council-result ${v.result.ok ? 'good' : 'bad'}`}>{v.result.text}</div>}
       <div ref={end} />
+    </div>
+  );
+}
+
+/** The statement being delivered, typed out at the pace it is spoken. */
+function Subtitle(props: { v: CouncilView }): JSX.Element | null {
+  const sp = props.v.speaking;
+  const m = sp ? props.v.messages.find((x) => x.key === sp.key) : undefined;
+  const [shown, setShown] = useState(0);
+  useEffect(() => {
+    if (!m || !sp) return;
+    const start = performance.now();
+    const total = m.text.length;
+    setShown(0);
+    const id = window.setInterval(() => {
+      const k = Math.min(1, (performance.now() - start) / 1000 / (sp.seconds * 0.82));
+      setShown(Math.ceil(total * k));
+      if (k >= 1) window.clearInterval(id);
+    }, 40);
+    return () => window.clearInterval(id);
+  }, [sp?.key]);
+  if (!m || !sp) return null;
+  const p = who(m.who);
+  const chief = m.who === 'chief';
+  return (
+    <div class="subtitle panel" style={{ '--c': p.color }} key={sp.key}>
+      <span class="subtitle-ring">
+        <Portrait looks={p.looks} color={p.color} size={52} />
+      </span>
+      <div class="subtitle-body">
+        <div class="msg-head">
+          <strong>{p.name}</strong>
+          <span class="muted">{chief ? p.title : p.title.replace(/^Minister of /, '')}</span>
+          {m.stance && <span class={`stance st-${m.stance}`}>{STANCE_LABEL[m.stance]}</span>}
+          {m.option && m.option !== 'none' && <span class="opt-chip">{chief ? `Recommends ${m.option}` : `Backs ${m.option}`}</span>}
+        </div>
+        <p lang={props.v.lang === 'hi' ? 'hi' : 'en'}>
+          {m.text.slice(0, shown)}
+          <span class="ghost">{m.text.slice(shown)}</span>
+        </p>
+        {m.condition && shown >= m.text.length && <p class="msg-cond">Condition: {m.condition}</p>}
+      </div>
+      <button type="button" class="skip-btn" onClick={() => actions.skipSpeech()} title="Show everything said so far">
+        Skip ›
+      </button>
+    </div>
+  );
+}
+
+/** Between speeches: who is still working out what to say. */
+function Waiting(props: { v: CouncilView }): JSX.Element | null {
+  const { v } = props;
+  const ids: Array<MinistryId | 'chief'> = v.seats.filter((s) => s.state === 'thinking').map((s) => s.id);
+  if (v.chief === 'thinking') ids.push('chief');
+  if (ids.length === 0) return null;
+  return (
+    <div class="waiting panel">
+      <div class="waiting-faces">
+        {ids.map((id) => {
+          const p = who(id);
+          return (
+            <span class="mini" key={id} style={{ '--c': p.color }}>
+              <Portrait looks={p.looks} color={p.color} size={26} />
+            </span>
+          );
+        })}
+      </div>
+      <span>
+        {ids.length === 1 ? `${who(ids[0]!).name} is preparing a statement` : `${ids.length} ministers are preparing their statements`}
+        <span class="dots inline" aria-hidden="true">
+          <i />
+          <i />
+          <i />
+        </span>
+      </span>
+    </div>
+  );
+}
+
+function Verdict(props: { v: CouncilView }): JSX.Element | null {
+  const { v } = props;
+  const d = v.decision;
+  if (!d) return null;
+  const rec = v.options.find((o) => o.id === d.option);
+  return (
+    <div class="verdict panel">
+      <div class="label">Council recommendation · Chief Secretary {CHIEF_SECRETARY.name}</div>
+      <div class="verdict-title">
+        Option {d.option}: {rec?.title}
+      </div>
+      <p class="small">{d.summary}</p>
+      {d.dissent && <p class="small">Dissent: {d.dissent}</p>}
+      {d.conditions && <p class="small">Conditions: {d.conditions}</p>}
+      {v.result && <div class={`council-result ${v.result.ok ? 'good' : 'bad'}`}>{v.result.text}</div>}
+      <div class="verdict-btns">
+        {v.phase === 'decided' && rec && (
+          <button type="button" class="btn btn-go" onClick={() => actions.approveOption(rec.id)}>
+            {rec.hasActions ? `Approve option ${rec.id} · ${costLine(rec)}` : 'Agree: take no action'}
+          </button>
+        )}
+        <button type="button" class="btn" onClick={() => actions.closeCouncil()}>
+          {v.phase === 'enacted' ? 'Back to the city' : 'Decide later'}
+        </button>
+      </div>
+      {v.phase === 'decided' && <p class="muted small">You are the mayor: approve the recommendation, pick another option on the left, or decide later.</p>}
     </div>
   );
 }
 
 export function CouncilChamber(): JSX.Element | null {
   const v = ui.council.value;
-  if (!v) return null;
+  const [showOptions, setShowOptions] = useState(true);
+  const [showLog, setShowLog] = useState(true);
+  if (!v || ui.cinema.value !== 'inside') return null;
   const lead = MINISTER_BY_ID[v.issue.lead];
   const canApprove = v.phase === 'decided' || v.phase === 'error';
   const rec = v.decision?.option;
-  const recOption = v.options.find((o) => o.id === rec);
   return (
-    <div class="council-backdrop">
-      <section class="council panel" role="dialog" aria-modal="true" aria-label={`City council: ${v.issue.title}`}>
-        <header class="council-head">
-          <div>
-            <div class="label">City Council · raised by {lead.name}</div>
-            <h2>{v.issue.title}</h2>
-            <p class="muted">{v.issue.summary}</p>
-          </div>
-          <div class="council-head-side">
-            <span class={`sev ${v.issue.severity > 0.75 ? 'high' : v.issue.severity > 0.45 ? 'mid' : 'low'}`}>{v.issue.severity > 0.75 ? 'Urgent' : v.issue.severity > 0.45 ? 'Serious' : 'Minor'}</span>
-            {(v.issue.x !== 0 || v.issue.z !== 0) && (
-              <button type="button" class="link-btn" onClick={() => actions.lookAt(v.issue.x, v.issue.z)}>
-                Show on map
-              </button>
-            )}
-            <span class="source">{v.source === 'AI' ? 'AI ministers' : v.source}</span>
-            <button type="button" class="icon-btn" aria-label="Close the council" onClick={() => actions.closeCouncil()}>
-              ×
-            </button>
-          </div>
-        </header>
-        <div class="seats">
-          <Seat id="chief" state={v.chief} />
-          <div class="seats-sep" />
-          {v.seats.map((s) => (
-            <Seat id={s.id} state={s.state} reason={s.reason} key={s.id} />
-          ))}
+    <div class="chamber-ui" role="dialog" aria-modal="true" aria-label={`City council: ${v.issue.title}`}>
+      <header class="council-head panel">
+        <div>
+          <div class="label">City Council · raised by {lead.name}</div>
+          <h2>{v.issue.title}</h2>
+          <p class="muted">{v.issue.summary}</p>
         </div>
-        <div class="council-body">
-          <aside class="options" aria-label="Options">
-            <div class="label">Options on the table</div>
+        <div class="council-head-side">
+          <span class={`sev ${v.issue.severity > 0.75 ? 'high' : v.issue.severity > 0.45 ? 'mid' : 'low'}`}>{v.issue.severity > 0.75 ? 'Urgent' : v.issue.severity > 0.45 ? 'Serious' : 'Minor'}</span>
+          <span class="source">{v.source === 'AI' ? 'AI ministers' : v.source}</span>
+          <button type="button" class="icon-btn" aria-label="Leave the council" title="Leave (Esc)" onClick={() => actions.closeCouncil()}>
+            ×
+          </button>
+        </div>
+      </header>
+
+      <aside class={`drawer drawer-left panel${showOptions ? '' : ' is-closed'}`} aria-label="Options">
+        <button type="button" class="drawer-tab" aria-expanded={showOptions} onClick={() => setShowOptions(!showOptions)}>
+          {showOptions ? '‹' : '›'} Options
+        </button>
+        {showOptions && (
+          <div class="drawer-body options">
             {v.options.map((o) => (
               <OptionCard o={o} key={o.id} recommended={o.id === rec} canApprove={canApprove} />
             ))}
-          </aside>
-          <div class="council-main">{v.phase === 'brief' ? <Brief v={v} /> : <Transcript v={v} />}</div>
-        </div>
-        {(v.phase === 'decided' || v.phase === 'enacted') && (
-          <footer class="council-foot">
-            {v.phase === 'decided' && recOption && (
-              <button type="button" class="btn btn-go" onClick={() => actions.approveOption(recOption.id)}>
-                {recOption.hasActions ? `Approve option ${recOption.id} · ${costLine(recOption)}` : 'Agree: take no action'}
-              </button>
-            )}
-            <button type="button" class="btn" onClick={() => actions.closeCouncil()}>
-              {v.phase === 'enacted' ? 'Back to the city' : 'Decide later'}
-            </button>
-          </footer>
+          </div>
         )}
-      </section>
+      </aside>
+
+      <aside class={`drawer drawer-right panel${showLog ? '' : ' is-closed'}`} aria-label="Discussion">
+        <button type="button" class="drawer-tab" aria-expanded={showLog} onClick={() => setShowLog(!showLog)}>
+          Discussion {showLog ? '›' : '‹'}
+        </button>
+        {showLog && (
+          <div class="drawer-body">
+            <div class="seats">
+              <Seat id="chief" state={v.chief} />
+              {v.seats.map((s) => (
+                <Seat id={s.id} state={s.state} reason={s.reason} key={s.id} />
+              ))}
+            </div>
+            {v.phase !== 'brief' && <Transcript v={v} />}
+          </div>
+        )}
+      </aside>
+
+      <div class="stage-bottom">
+        {v.phase === 'brief' && (
+          <div class="brief-card panel">
+            <Brief v={v} />
+          </div>
+        )}
+        {v.phase === 'debate' && (v.speaking ? <Subtitle v={v} /> : <Waiting v={v} />)}
+        {(v.phase === 'decided' || v.phase === 'enacted') && <Verdict v={v} />}
+        {v.phase === 'error' && (
+          <div class="council-alert panel">
+            <strong>The meeting could not go ahead.</strong> {v.error}
+            <div class="brief-btns">
+              <button type="button" class="btn" onClick={() => actions.startCouncil('', v.lang, true)}>
+                Demo meeting
+              </button>
+              <button type="button" class="btn" onClick={() => actions.closeCouncil()}>
+                Back to the city
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

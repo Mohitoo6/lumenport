@@ -12,6 +12,10 @@ import { makeNoiseTexture, makeWaterNormalTexture } from '../render/assets/proce
 import { Atmosphere } from '../render/atmosphere';
 import { RtsCamera, type CameraPose } from '../render/camera/rtsCamera';
 import { BuildingRenderer } from '../render/buildings/buildingRenderer';
+import { TownHallDoors, doorFrame, townHallOf } from '../render/buildings/townHallDoors';
+import { Chamber } from '../render/council/chamber';
+import { Cinematic, type CinePhase } from '../render/council/cinematic';
+import { CHIEF_SECRETARY, MINISTER_BY_ID } from './council/ministries';
 import { createCityMaterial } from '../render/buildings/cityMaterial';
 import { CITY_LAYERS } from '../render/buildings/geo';
 import { Engine } from '../render/engine';
@@ -29,7 +33,7 @@ import { WaterRenderer } from '../render/water/waterRenderer';
 import type { Command, CommandResult } from '../sim/commands';
 import { emptyReport, projectBudget } from '../sim/economy/budget';
 import { capacityOf } from '../sim/economy/capacity';
-import { FACILITIES, Service } from '../sim/facilities';
+import { FACILITIES, FacilityKind, Service } from '../sim/facilities';
 import { POWERED, WATERED } from '../sim/utilities/network';
 import { DENSITY_NAMES, ZONE_NAMES, ZoneType, stageOf, zoneDensity, zoneType } from '../sim/zoning/zones';
 import { CELL, MAP } from '../core/constants';
@@ -88,6 +92,11 @@ export class Game {
   private clockHeld = false;
   readonly audio = new GameAudio();
   council!: CouncilController;
+  doors!: TownHallDoors;
+  cinematic!: Cinematic;
+  /** The council chamber, built the first time the council sits. */
+  private chamber: Chamber | null = null;
+  private readonly lookTmp = new Vector3();
   private autosaveTimer = 0;
   private slowFrames = 0;
   private fastSeconds = 0;
@@ -169,6 +178,14 @@ export class Game {
     engine.scene.add(this.buildings.group);
     this.vehicles = new VehicleRenderer();
     engine.scene.add(this.vehicles.group);
+    this.doors = new TownHallDoors();
+    engine.scene.add(this.doors.group);
+    this.cinematic = new Cinematic(this.canvas.parentElement ?? document.body, this.doors);
+    this.cinematic.onPhase = (p) => this.onCinePhase(p);
+    this.cinematic.onInside = () => {
+      if (this.cinematic.inside) this.chamber?.enterFromDoor();
+      this.onCinePhase(this.cinematic.phase);
+    };
 
     sim.events.on('terrainChanged', (r) => {
       this.terrain.updateRect(r);
@@ -176,7 +193,10 @@ export class Game {
     });
     sim.events.on('treesChanged', (r) => this.trees.updateRect(r));
     sim.events.on('roadsChanged', (c) => this.roads.onChange(c));
-    sim.events.on('buildingsChanged', (c) => this.buildings.onChange(c));
+    sim.events.on('buildingsChanged', (c) => {
+      this.buildings.onChange(c);
+      this.doors.attach(townHallOf(sim.state.buildings));
+    });
     sim.events.on('zonesChanged', (r) => this.zones.update(r));
     sim.events.on('speedChanged', (s) => (ui.speed.value = s as 0 | 1 | 2 | 3));
 
@@ -208,13 +228,11 @@ export class Game {
     });
     this.council.auto = !this.options.shots || this.options.council !== undefined;
     this.council.forceDemo = this.options.council === 'demo';
-    actions.convene = (key) => {
-      this.tools.select('none');
-      this.council.convene(key);
-    };
+    actions.convene = (key) => void this.convene(key);
     actions.startCouncil = (note, lang, demo) => this.council.start(note, lang, demo);
     actions.approveOption = (id) => this.council.approve(id);
-    actions.closeCouncil = () => this.council.close();
+    actions.skipSpeech = () => this.council.skip();
+    actions.closeCouncil = () => this.closeCouncil();
     actions.dismissRequest = () => this.council.dismissRequest();
     actions.lookAt = (x, z) => this.rig.setPose({ x, z });
     actions.setOverlay = (id) => {
@@ -285,6 +303,8 @@ export class Game {
     window.addEventListener('keydown', this.onKey);
     window.addEventListener('resize', this.onResize);
 
+    // Every city has a town hall from the start; screenshot runs found it when they need it.
+    if (!this.options.shots) this.ensureTownHall();
     this.rig.setPose({ x: WORLD * 0.5, z: WORLD * 0.52, yaw: 0.55, pitch: 0.74, dist: 620 }, true);
     ui.cityName.value = state.cityName;
     ui.speed.value = state.speed;
@@ -321,7 +341,7 @@ export class Game {
     if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA')) return;
     // While the council sits, the city is paused and only Escape (close) applies.
     if (ui.council.value) {
-      if (e.code === 'Escape') this.council.close();
+      if (e.code === 'Escape') this.closeCouncil();
       return;
     }
     if (e.metaKey || e.ctrlKey) return;
@@ -363,7 +383,59 @@ export class Game {
     if (w === 0 || h === 0) return;
     this.rig.resize(w / h);
     this.engine.resize();
+    this.chamber?.resize(w, h);
   };
+
+  /** Founds the town hall if the city has none (new cities and saves from before it existed). */
+  ensureTownHall(): boolean {
+    const s = this.sim.state;
+    let ok = s.buildings.some((b) => b && b.kind === FacilityKind.TownHall);
+    if (!ok) ok = this.sim.apply({ type: 'foundTownHall' }).ok;
+    this.doors.attach(townHallOf(s.buildings));
+    return ok;
+  }
+
+  /** Calls the council on an issue: the walk into the town hall, then the briefing. */
+  convene(issueKey: string): boolean {
+    this.tools.select('none');
+    this.council.convene(issueKey);
+    const v = ui.council.value;
+    if (!v || v.issue.key !== issueKey) return false;
+    if (this.cinematic.phase !== 'off') return true;
+    const chamber = this.ensureChamber();
+    const seat = (id: keyof typeof MINISTER_BY_ID) => {
+      const m = MINISTER_BY_ID[id];
+      return { id, name: m.name, role: m.short, color: m.color, looks: m.looks };
+    };
+    chamber.setCast(
+      this.sim.state.cityName,
+      { id: 'chief', name: CHIEF_SECRETARY.name, role: CHIEF_SECRETARY.title, color: CHIEF_SECRETARY.color, looks: CHIEF_SECRETARY.looks },
+      v.seats.map((x) => seat(x.id)),
+    );
+    // Compile the chamber's shaders during the approach so the cut inside does not stall.
+    void this.engine.renderer.compileAsync(chamber.scene, chamber.camera).catch(() => {});
+    const hall = townHallOf(this.sim.state.buildings);
+    const p = this.rig.pose;
+    this.cinematic.enter(hall ? doorFrame(hall) : null, this.rig.camera, this.lookTmp.set(p.x, this.rig.focusY, p.z));
+    return true;
+  }
+
+  closeCouncil(): void {
+    this.council.close();
+    this.cinematic.exit();
+  }
+
+  private ensureChamber(): Chamber {
+    if (!this.chamber) {
+      this.chamber = new Chamber(this.engine.renderer);
+      this.chamber.resize(this.canvas.clientWidth, this.canvas.clientHeight);
+    }
+    return this.chamber;
+  }
+
+  private onCinePhase(p: CinePhase): void {
+    ui.cinema.value = p === 'off' ? 'off' : p === 'exit' ? 'leaving' : this.cinematic.inside || p === 'inside' ? 'inside' : 'approach';
+  }
 
   private loop = (now: number): void => {
     requestAnimationFrame(this.loop);
@@ -387,19 +459,24 @@ export class Game {
     if (ticks === MAX_TICKS_PER_FRAME) this.acc = 0; // fell behind: drop the backlog
     this.simMs = performance.now() - t0;
 
-    this.input?.update(dt);
+    // During the walk into the town hall the cinematic drives the camera.
+    const cine = this.cinematic?.update(dt, this.rig.camera) ?? false;
+    const inside = this.cinematic?.inside ?? false;
     const before = this.rig.pose;
-    const bx = before.x;
-    const bz = before.z;
-    const byaw = before.yaw;
-    const bdist = before.dist;
-    const bpitch = before.pitch;
-    this.rig.update(dt);
-    const moved =
-      Math.abs(before.x - bx) + Math.abs(before.z - bz) > 0.01 ||
-      Math.abs(before.yaw - byaw) + Math.abs(before.pitch - bpitch) > 1e-4 ||
-      Math.abs(before.dist - bdist) > 0.01;
-    this.tools?.update(dt, moved);
+    if (!cine) {
+      this.input?.update(dt);
+      const bx = before.x;
+      const bz = before.z;
+      const byaw = before.yaw;
+      const bdist = before.dist;
+      const bpitch = before.pitch;
+      this.rig.update(dt);
+      const moved =
+        Math.abs(before.x - bx) + Math.abs(before.z - bz) > 0.01 ||
+        Math.abs(before.yaw - byaw) + Math.abs(before.pitch - bpitch) > 1e-4 ||
+        Math.abs(before.dist - bdist) > 0.01;
+      this.tools?.update(dt, moved);
+    }
     this.preview?.update(dt, before.dist);
     if (this.overlay) {
       this.overlay.update(dt);
@@ -417,13 +494,31 @@ export class Game {
     this.council?.update(dt);
     this.atmosphere.update(cam, dt);
     this.roads?.setNight(this.atmosphere.night);
-    this.shadows.update(cam, this.atmosphere.lightDir, this.rig.focusY, this.rig.pose.dist);
+    if (cine) this.shadows.update(cam, this.atmosphere.lightDir, this.cinematic.lookY, this.cinematic.focusDist);
+    else this.shadows.update(cam, this.atmosphere.lightDir, this.rig.focusY, this.rig.pose.dist);
     this.trees?.updateLod(this.camPos);
     this.roads?.update();
     this.buildings?.update();
     // While paused the cars sit at their last tick position.
     this.vehicles?.update(this.sim.traffic, state.speed === 0 ? 1 : Math.min(1, this.acc / TICK_MS), this.atmosphere.night);
-    this.engine.render(dt);
+    if (inside && this.chamber) {
+      const v = ui.council.value;
+      const thinking = new Set<string>();
+      const silent = new Set<string>();
+      if (v) {
+        for (const s of v.seats) {
+          if (s.state === 'thinking') thinking.add(s.id);
+          else if (s.state === 'silent') silent.add(s.id);
+        }
+        if (v.chief === 'thinking') thinking.add('chief');
+      }
+      this.chamber.setState({ speaker: v?.speaking?.who ?? null, speechKey: v?.speaking?.key ?? null, thinking, silent });
+      this.chamber.setNight(this.atmosphere.night);
+      this.chamber.update(dt);
+      this.chamber.render(dt);
+    } else {
+      this.engine.render(dt);
+    }
     this.frameCount++;
 
     this.audio.update(dt, { dist: this.rig.pose.dist, population: state.stats.population, night: this.atmosphere.night, paused: state.speed === 0 });
@@ -507,6 +602,8 @@ export class Game {
     ui.cityName.value = s.cityName;
     ui.speed.value = s.speed;
     if (this.overlay.id !== 'none') this.overlay.refresh(this.sim);
+    if (!this.options.shots) this.ensureTownHall();
+    else this.doors.attach(townHallOf(s.buildings));
   }
 
   private async saveTo(slot: string): Promise<boolean> {

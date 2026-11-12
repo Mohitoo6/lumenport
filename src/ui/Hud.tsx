@@ -552,18 +552,24 @@ function Loading(): JSX.Element {
 }
 
 function Hud(): JSX.Element {
+  // While the council sits (and on the way in and out) the city's HUD steps aside.
+  const city = ui.cinema.value === 'off';
   return (
     <>
-      <TopBar />
-      <Alerts />
-      <BudgetPanel />
-      <Menu />
-      <Inspect />
-      <MinisterRequestCard />
-      <CitizenFeed />
+      {city && (
+        <>
+          <TopBar />
+          <Alerts />
+          <BudgetPanel />
+          <Menu />
+          <Inspect />
+          <MinisterRequestCard />
+          <CitizenFeed />
+          <Toolbar />
+          <Help />
+        </>
+      )}
       <CouncilChamber />
-      <Toolbar />
-      <Help />
       <DevOverlay />
       <Loading />
     </>

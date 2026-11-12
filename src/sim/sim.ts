@@ -5,7 +5,8 @@ import { OK, fail, type Command, type CommandResult } from './commands';
 import { demolishEdge, executePlan, executeUpgrade, planRoad, planUpgrade, type UpgradePlan, type RoadChange, type RoadPlan, type RoadRequest } from './roads/plan';
 import { LOAN_TIERS, loanPayment, projectBudget } from './economy/budget';
 import { economyStep, growthRateFor } from './economy/economy';
-import { planFacility, type FacilityPlan } from './facilities';
+import { FacilityKind, findTownHallSite, isLandmark, planFacility, type FacilityPlan } from './facilities';
+import { ROAD_SPECS } from './roads/types';
 import { Fields } from './fields/fields';
 import { cellMinHeight } from './map/terrain';
 import { Traffic } from './traffic/traffic';
@@ -166,6 +167,28 @@ export class Sim {
     return true;
   }
 
+  /** True if a planned road would run over the town hall. */
+  private roadHitsLandmark(plan: RoadPlan): boolean {
+    const s = this.state;
+    const hw = ROAD_SPECS[plan.type].width / 2;
+    const steps = Math.max(2, Math.ceil(plan.length / 3));
+    for (let k = 0; k <= steps; k++) {
+      const t = k / steps;
+      const u = 1 - t;
+      const x = u * u * plan.ax + 2 * u * t * plan.cx + t * t * plan.bx;
+      const z = u * u * plan.az + 2 * u * t * plan.cz + t * t * plan.bz;
+      for (let j = Math.floor((z - hw) / CELL); j <= Math.floor((z + hw) / CELL); j++) {
+        for (let i = Math.floor((x - hw) / CELL); i <= Math.floor((x + hw) / CELL); i++) {
+          if (i < 0 || j < 0 || i >= MAP || j >= MAP) continue;
+          if (Math.hypot((i + 0.5) * CELL - x, (j + 0.5) * CELL - z) >= hw) continue;
+          const id = s.buildingCell[j * MAP + i]!;
+          if (id >= 0 && isLandmark(s.buildings[id]?.kind ?? 0)) return true;
+        }
+      }
+    }
+    return false;
+  }
+
   /** Dry run of rebuilding a road segment as another type. */
   planUpgrade(edge: number, road: number): UpgradePlan {
     return planUpgrade(this.state.roads, this.state, edge, road);
@@ -279,6 +302,7 @@ export class Sim {
       case 'buildRoad': {
         const plan = planRoad(s.roads, s.heights, cmd);
         if (!plan.ok) return fail(plan.reason);
+        if (this.roadHitsLandmark(plan)) return fail('The town hall is in the way');
         if (!this.charge(plan.cost)) return fail('Not enough money');
         this.roadChanged(executePlan(s.roads, s, plan));
         return { ok: true, cost: plan.cost };
@@ -286,6 +310,7 @@ export class Sim {
       case 'upgradeRoad': {
         const plan = planUpgrade(s.roads, s, cmd.edge, cmd.road);
         if (!plan.ok) return fail(plan.reason);
+        if (plan.displaced.some((id) => isLandmark(s.buildings[id]?.kind ?? 0))) return fail('The town hall is in the way');
         if (!this.charge(plan.cost)) return fail('Not enough money');
         this.roadChanged(executeUpgrade(s.roads, s, cmd.edge, cmd.road));
         return { ok: true, cost: plan.cost };
@@ -316,7 +341,9 @@ export class Sim {
               continue;
             }
             // Re-zoning under a building clears it: the land is being put to a new use.
+            // The town hall is never zoned over.
             const id = s.buildingCell[k]!;
+            if (id >= 0 && isLandmark(s.buildings[id]?.kind ?? 0)) continue;
             if (id >= 0) {
               const b = removeBuilding(s, id);
               if (b) removed.push(b);
@@ -335,6 +362,7 @@ export class Sim {
         return OK;
       }
       case 'bulldozeBuilding': {
+        if (isLandmark(s.buildings[cmd.id]?.kind ?? 0)) return fail('The town hall cannot be demolished');
         const b = removeBuilding(s, cmd.id);
         if (!b) return fail('No building there');
         this.frontier = null;
@@ -342,7 +370,26 @@ export class Sim {
         this.events.emit('buildingsChanged', { changed: [], removed: [b] });
         return OK;
       }
+      case 'foundTownHall': {
+        if (s.buildings.some((b) => b && b.kind === FacilityKind.TownHall)) return fail('The city already has a town hall');
+        const site = findTownHallSite(s, MAP >> 1, MAP >> 1);
+        if (!site) return fail('No flat land for a town hall');
+        const plan = planFacility(s, FacilityKind.TownHall, site.x, site.y);
+        const rng = new Rng(s.rng);
+        const b = spawnBuilding(s, { x: plan.x, y: plan.y, w: plan.size, h: plan.size, facing: plan.facing }, 0, rng, FacilityKind.TownHall);
+        s.rng = rng.state;
+        // It stands from the first day.
+        b.progress = 1;
+        s.constructing = s.constructing.filter((id) => id !== b.id);
+        const r = lotRect(b);
+        this.frontier = null;
+        this.events.emit('terrainChanged', r);
+        this.events.emit('treesChanged', r);
+        this.events.emit('buildingsChanged', { changed: [b.id], removed: [] });
+        return OK;
+      }
       case 'placeFacility': {
+        if (isLandmark(cmd.kind) && s.buildings.some((b) => b && b.kind === cmd.kind)) return fail('The city already has one');
         const plan = planFacility(s, cmd.kind, cmd.x, cmd.y);
         if (!plan.ok) return fail(plan.reason);
         if (!this.charge(plan.cost)) return fail('Not enough money');
