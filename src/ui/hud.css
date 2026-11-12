@@ -1015,3 +1015,16 @@ kbd {
 .shots .loading {
   transition: none;
 }
+
+.seg.seg-wide {
+  display: flex;
+}
+
+.seg.seg-wide button {
+  flex: 1;
+}
+
+.seg.seg-wide button {
+  white-space: nowrap;
+  padding: 5px 6px;
+}

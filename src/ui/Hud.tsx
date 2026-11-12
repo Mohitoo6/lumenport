@@ -31,6 +31,13 @@ import {
   IconWarn,
 } from './icons';
 import { actions, ui } from './store';
+import { QUALITY, type QualityId } from '../render/quality';
+
+const QUALITY_NOTE: Record<QualityId, string> = {
+  saver: 'Lowest heat and battery use: 30 frames a second, lower resolution, simpler shading.',
+  balanced: 'Full detail while you play; fewer frames while the view is still. Recommended for laptops.',
+  high: 'Full detail at all times. Best on desktops or laptops with a fan.',
+};
 
 const SPEEDS: Array<{ speed: Speed; label: string; icon: () => JSX.Element; key: string }> = [
   { speed: 0, label: 'Pause', icon: () => <IconPause />, key: 'Space' },
@@ -290,6 +297,18 @@ function Menu(): JSX.Element | null {
         <button type="button" class="btn btn-wide" onClick={() => actions.newCity(seed ? Number(seed) : Math.floor(Math.random() * 1e9), sandbox)}>
           Start new city
         </button>
+      </section>
+
+      <section>
+        <h3 class="label">Graphics</h3>
+        <div class="seg seg-wide" role="group" aria-label="Graphics quality">
+          {(Object.values(QUALITY) as Array<(typeof QUALITY)[keyof typeof QUALITY]>).map((q) => (
+            <button type="button" key={q.id} class={ui.quality.value === q.id ? 'is-on' : ''} aria-pressed={ui.quality.value === q.id} onClick={() => actions.setQuality(q.id)}>
+              {q.label}
+            </button>
+          ))}
+        </div>
+        <p class="muted menu-note">{QUALITY_NOTE[ui.quality.value]}</p>
       </section>
 
       <section>

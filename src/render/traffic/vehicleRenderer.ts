@@ -58,6 +58,11 @@ export class VehicleRenderer {
     }
   }
 
+  /** Cars cast shadows only when the camera is close enough to see them. */
+  setCastShadow(on: boolean): void {
+    for (const m of this.meshes) m.castShadow = on;
+  }
+
   /** `alpha` is how far the frame is between the previous tick (0) and the current one (1). */
   update(t: Traffic, alpha: number, night = 0): void {
     const fill = this.fill;

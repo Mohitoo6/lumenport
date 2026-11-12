@@ -136,6 +136,7 @@ export class Chamber {
   readonly scene = new Scene();
   readonly camera = new PerspectiveCamera(34, 1, 0.1, 80);
   private readonly composer: EffectComposer;
+  private readonly ao: N8AOPostPass;
   private readonly bloom: BloomEffect;
   private readonly room = new Group();
   private readonly cast = new Group();
@@ -196,6 +197,7 @@ export class Chamber {
     this.composer.autoRenderToScreen = true;
     this.composer.addPass(new RenderPass(this.scene, this.camera));
     const ao = new N8AOPostPass(this.scene, this.camera, 512, 512);
+    this.ao = ao;
     patchHalfResTarget(ao);
     const c = ao.configuration;
     c.aoRadius = 0.55;
@@ -597,6 +599,10 @@ export class Chamber {
     this.camLook.set(0, 1.3, 0);
     this.camera.position.copy(this.camPos);
     this.camera.lookAt(this.camLook);
+  }
+
+  setAo(on: boolean): void {
+    (this.ao as unknown as { enabled: boolean }).enabled = on;
   }
 
   resize(w: number, h: number): void {

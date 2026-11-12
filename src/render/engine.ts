@@ -43,8 +43,10 @@ export class Engine {
   readonly ao: N8AOPostPass;
   readonly bloom: BloomEffect;
   readonly stats: FrameStats = { drawCalls: 0, triangles: 0, geometries: 0, textures: 0 };
-  /** Device pixel ratio cap; lowered by the dynamic resolution logic if frames run long. */
+  /** Device pixel ratio in use; lowered by the dynamic resolution logic if frames run long. */
   pixelRatio: number;
+  /** The most the pixel ratio may be raised to (set by the graphics preset). */
+  maxPixelRatio: number;
   gpuName = 'unknown';
 
   constructor(
@@ -65,7 +67,8 @@ export class Engine {
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = PCFShadowMap;
     renderer.info.autoReset = false;
-    this.pixelRatio = Math.min(window.devicePixelRatio || 1, 1.5);
+    this.maxPixelRatio = Math.min(window.devicePixelRatio || 1, 1.5);
+    this.pixelRatio = this.maxPixelRatio;
     renderer.setPixelRatio(this.pixelRatio);
 
     const gl = renderer.getContext();
@@ -106,6 +109,14 @@ export class Engine {
     const vignette = new VignetteEffect({ offset: 0.32, darkness: 0.42 });
     this.composer.addPass(new EffectPass(camera, this.bloom, tone, vignette));
     this.composer.addPass(new EffectPass(camera, new SMAAEffect({ preset: SMAAPreset.HIGH })));
+  }
+
+  /** Applies a graphics preset's resolution cap and ambient occlusion. */
+  setQuality(maxDpr: number, ao: boolean): void {
+    this.maxPixelRatio = Math.min(window.devicePixelRatio || 1, maxDpr);
+    this.pixelRatio = this.maxPixelRatio;
+    (this.ao as unknown as { enabled: boolean }).enabled = ao;
+    this.resize();
   }
 
   resize(): void {

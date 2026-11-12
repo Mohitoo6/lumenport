@@ -131,6 +131,7 @@ export const ui = {
   inspect: signal<InspectData | null>(null),
   council: signal<CouncilView | null>(null),
   cinema: signal<CinemaStage>('off'),
+  quality: signal<import('../render/quality').QualityId>('balanced'),
   request: signal<MinisterRequest | null>(null),
   posts: signal<Post[]>([]),
   issues: signal<IssueRow[]>([]),
@@ -147,6 +148,7 @@ export interface UiActions {
   startCouncil(note: string, lang: Lang, demo: boolean): void;
   approveOption(id: string): void;
   skipSpeech(): void;
+  setQuality(id: import('../render/quality').QualityId): void;
   closeCouncil(): void;
   dismissRequest(): void;
   lookAt(x: number, z: number): void;
@@ -173,6 +175,7 @@ export const actions: UiActions = {
   startCouncil: () => {},
   approveOption: () => {},
   skipSpeech: () => {},
+  setQuality: () => {},
   closeCouncil: () => {},
   dismissRequest: () => {},
   lookAt: () => {},

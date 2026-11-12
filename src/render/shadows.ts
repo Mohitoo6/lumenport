@@ -1,7 +1,6 @@
 import { Vector3, type DirectionalLight, type PerspectiveCamera } from 'three';
 import { clamp } from '../core/math';
 
-const MAP_SIZE = 4096;
 /** Extra depth on both sides of the fitted sphere so hills and towers still cast into it. */
 const DEPTH_MARGIN = 500;
 
@@ -30,14 +29,30 @@ export class ShadowFitter {
   private radius = 0;
   /** World size of one shadow texel, for debugging and bias tuning. */
   texel = 0;
+  private mapSize = 4096;
+  private readonly lastPos = new Vector3();
 
   constructor(private readonly light: DirectionalLight) {
-    light.shadow.mapSize.set(MAP_SIZE, MAP_SIZE);
+    light.shadow.mapSize.set(this.mapSize, this.mapSize);
     light.shadow.radius = 2.2;
     light.shadow.bias = -0.00012;
   }
 
-  update(camera: PerspectiveCamera, sunDir: Vector3, groundY: number, viewDistance: number): void {
+  /** Changes the shadow map's resolution (the map is recreated on the next render). */
+  setMapSize(n: number): void {
+    if (n === this.mapSize) return;
+    this.mapSize = n;
+    this.light.shadow.mapSize.set(n, n);
+    this.light.shadow.map?.dispose();
+    (this.light.shadow as unknown as { map: null }).map = null;
+    this.radius = 0;
+  }
+
+  /**
+   * Fits the map to the view. Returns true when the light moved or the map was resized,
+   * meaning the shadow map has to be drawn again.
+   */
+  update(camera: PerspectiveCamera, sunDir: Vector3, groundY: number, viewDistance: number): boolean {
     // Where the view frustum meets the ground, limited so a low camera does not ask the
     // map to cover the whole horizon.
     const maxRange = clamp(viewDistance * 3.2, 260, 3200);
@@ -65,7 +80,7 @@ export class ShadowFitter {
     const q = Math.pow(1.12, Math.ceil(Math.log(r) / Math.log(1.12)));
     const radiusChanged = q !== this.radius;
     this.radius = q;
-    this.texel = (2 * q) / MAP_SIZE;
+    this.texel = (2 * q) / this.mapSize;
 
     // Light-space axes, matching the basis three.js builds in lookAt().
     this.axisX.crossVectors(this.up, sunDir).normalize();
@@ -77,6 +92,8 @@ export class ShadowFitter {
     this.centre.set(0, 0, 0).addScaledVector(this.axisX, lx).addScaledVector(this.axisY, ly).addScaledVector(sunDir, lz);
 
     const light = this.light;
+    const moved = this.lastPos.distanceToSquared(this.centre) > 1e-6;
+    this.lastPos.copy(this.centre);
     light.target.position.copy(this.centre);
     light.position.copy(this.centre).addScaledVector(sunDir, q + DEPTH_MARGIN);
     light.target.updateMatrixWorld();
@@ -93,6 +110,7 @@ export class ShadowFitter {
       // Offset along the normal by about a texel and a half hides acne on slopes.
       light.shadow.normalBias = this.texel * 1.6;
     }
+    return moved || radiusChanged;
   }
 
   private readonly scratch = new Float32Array(corners.length * 2);

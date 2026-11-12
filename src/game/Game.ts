@@ -19,6 +19,7 @@ import { CHIEF_SECRETARY, MINISTER_BY_ID } from './council/ministries';
 import { createCityMaterial } from '../render/buildings/cityMaterial';
 import { CITY_LAYERS } from '../render/buildings/geo';
 import { Engine } from '../render/engine';
+import { QUALITY, loadQuality, saveQuality, type Quality, type QualityId } from '../render/quality';
 import { TreeRenderer } from '../render/props/treeRenderer';
 import { createRoadMaterials } from '../render/roads/roadMaterials';
 import { RoadRenderer } from '../render/roads/roadRenderer';
@@ -97,6 +98,16 @@ export class Game {
   /** The council chamber, built the first time the council sits. */
   private chamber: Chamber | null = null;
   private readonly lookTmp = new Vector3();
+  private quality: Quality = QUALITY[loadQuality()];
+  /** The shadow map is redrawn only when something that casts or receives shadows changed. */
+  private shadowDirty = true;
+  private readonly shadowDir = new Vector3();
+  private carShadows = true;
+  private lastInput = 0;
+  private lastMove = 0;
+  private lastFrame = 0;
+  /** Frame rate the loop is pacing itself to right now. */
+  targetFps = 60;
   private autosaveTimer = 0;
   private slowFrames = 0;
   private fastSeconds = 0;
@@ -113,6 +124,7 @@ export class Game {
     this.engine = new Engine(canvas, this.rig.camera);
     this.atmosphere = new Atmosphere(this.engine.renderer, this.engine.scene);
     this.shadows = new ShadowFitter(this.atmosphere.sun);
+    this.engine.renderer.shadowMap.autoUpdate = false;
   }
 
   static async create(canvas: HTMLCanvasElement, options: GameOptions): Promise<Game> {
@@ -187,6 +199,10 @@ export class Game {
       this.onCinePhase(this.cinematic.phase);
     };
 
+    const dirty = (): void => {
+      this.shadowDirty = true;
+    };
+    for (const ev of ['terrainChanged', 'treesChanged', 'roadsChanged', 'buildingsChanged', 'stateReplaced'] as const) sim.events.on(ev, dirty);
     sim.events.on('terrainChanged', (r) => {
       this.terrain.updateRect(r);
       this.water.updateHeights(sim.state.heights);
@@ -301,6 +317,10 @@ export class Game {
       this.hudTimer = 1;
     };
     window.addEventListener('keydown', this.onKey);
+    // Any input counts as activity: the loop runs at full rate for a moment afterwards.
+    for (const ev of ['pointermove', 'pointerdown', 'wheel', 'keydown'] as const) window.addEventListener(ev, this.onActivity, { passive: true });
+    actions.setQuality = (id) => this.applyQuality(id, true);
+    this.applyQuality(this.quality.id, false);
     window.addEventListener('resize', this.onResize);
 
     // Every city has a town hall from the start; screenshot runs found it when they need it.
@@ -377,6 +397,37 @@ export class Game {
     }
   };
 
+  private onActivity = (): void => {
+    this.lastInput = performance.now();
+  };
+
+  /** Switches the graphics preset. */
+  applyQuality(id: QualityId, remember: boolean): void {
+    const q = QUALITY[id];
+    this.quality = q;
+    ui.quality.value = id;
+    if (remember) saveQuality(id);
+    // Screenshot runs keep the settings they were tuned with.
+    if (this.options.shots) return;
+    this.engine.setQuality(q.maxDpr, q.ao);
+    this.shadows.setMapSize(q.shadowMap);
+    this.chamber?.setAo(q.ao);
+    this.shadowDirty = true;
+    this.onResize();
+  }
+
+  /** How many frames per second the current moment needs. */
+  private pickFps(now: number): number {
+    if (this.options.shots || !this.ready) return 60;
+    const q = this.quality;
+    if (!document.hasFocus()) return Math.min(15, q.idleFps);
+    const cine = this.cinematic.phase === 'enter' || this.cinematic.phase === 'exit';
+    if (cine || now - this.lastInput < 1500 || now - this.lastMove < 600) return q.activeFps;
+    // A paused city with nothing moving needs only enough frames for water and trees.
+    if (this.sim.state.speed === 0 && !this.cinematic.inside) return Math.min(20, q.idleFps);
+    return q.idleFps;
+  }
+
   private onResize = (): void => {
     const w = this.canvas.clientWidth;
     const h = this.canvas.clientHeight;
@@ -439,6 +490,10 @@ export class Game {
 
   private loop = (now: number): void => {
     requestAnimationFrame(this.loop);
+    // Skip display refreshes the moment does not need (60 Hz and 120 Hz screens alike).
+    this.targetFps = this.pickFps(now);
+    if (now - this.lastFrame < 1000 / this.targetFps - 3) return;
+    this.lastFrame = now;
     this.step(now);
   };
 
@@ -476,6 +531,7 @@ export class Game {
         Math.abs(before.yaw - byaw) + Math.abs(before.pitch - bpitch) > 1e-4 ||
         Math.abs(before.dist - bdist) > 0.01;
       this.tools?.update(dt, moved);
+      if (moved) this.lastMove = now;
     }
     this.preview?.update(dt, before.dist);
     if (this.overlay) {
@@ -494,8 +550,23 @@ export class Game {
     this.council?.update(dt);
     this.atmosphere.update(cam, dt);
     this.roads?.setNight(this.atmosphere.night);
-    if (cine) this.shadows.update(cam, this.atmosphere.lightDir, this.cinematic.lookY, this.cinematic.focusDist);
-    else this.shadows.update(cam, this.atmosphere.lightDir, this.rig.focusY, this.rig.pose.dist);
+    const viewDist = cine ? this.cinematic.focusDist : this.rig.pose.dist;
+    if (this.shadows.update(cam, this.atmosphere.lightDir, cine ? this.cinematic.lookY : this.rig.focusY, viewDist)) this.shadowDirty = true;
+    // The sun creeps across the sky: redraw shadows once it has moved a fraction of a degree.
+    if (this.shadowDir.angleTo(this.atmosphere.lightDir) > 0.003) {
+      this.shadowDir.copy(this.atmosphere.lightDir);
+      this.shadowDirty = true;
+    }
+    // Cars only cast shadows close up, where they can be seen; then the map follows them.
+    const carShadows = viewDist < 320 && this.sim.traffic.count > 0;
+    if (carShadows !== this.carShadows) {
+      this.carShadows = carShadows;
+      this.vehicles?.setCastShadow(carShadows);
+      this.shadowDirty = true;
+    }
+    if (carShadows && state.speed > 0) this.shadowDirty = true;
+    this.engine.renderer.shadowMap.needsUpdate = this.shadowDirty;
+    this.shadowDirty = false;
     this.trees?.updateLod(this.camPos);
     this.roads?.update();
     this.buildings?.update();
@@ -515,7 +586,10 @@ export class Game {
       this.chamber.setState({ speaker: v?.speaking?.who ?? null, speechKey: v?.speaking?.key ?? null, thinking, silent });
       this.chamber.setNight(this.atmosphere.night);
       this.chamber.update(dt);
+      this.engine.renderer.shadowMap.needsUpdate = true;
       this.chamber.render(dt);
+      // Back outside, the city's map has to be drawn again.
+      this.shadowDirty = true;
     } else {
       this.engine.render(dt);
     }
@@ -647,11 +721,12 @@ export class Game {
   private adaptResolution(dt: number): void {
     if (this.options.shots) return;
     const e = this.engine;
-    const cap = Math.min(window.devicePixelRatio || 1, 1.5);
+    const cap = e.maxPixelRatio;
     this.resCooldown = Math.max(0, this.resCooldown - dt);
-    if (dt > 0.021) this.slowFrames++;
+    // Slow means late against the frame rate the loop is aiming for.
+    if (dt > 1.25 / this.targetFps + 0.002) this.slowFrames++;
     else this.slowFrames = Math.max(0, this.slowFrames - 2);
-    if (this.frameMs < 17.5) this.fastSeconds += dt;
+    if (this.targetFps >= 60 && this.frameMs < 17.5) this.fastSeconds += dt;
     else this.fastSeconds = 0;
     if (this.slowFrames > 45 && e.pixelRatio > 0.75) {
       e.pixelRatio = Math.max(0.75, e.pixelRatio - 0.25);
