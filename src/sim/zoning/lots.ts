@@ -45,6 +45,25 @@ function isRoad(l: LotLayers, i: number, j: number): boolean {
   return i >= 0 && j >= 0 && i < MAP && j < MAP && l.roadCell[j * MAP + i]! >= 0;
 }
 
+/**
+ * True if a road lies within MAX_DEPTH cells of (i, j) straight along one of the four
+ * axes, so a lot facing that road could reach this cell. Only such cells can be zoned:
+ * anything further back could never be built on.
+ */
+export function reachesRoad(l: Pick<LotLayers, 'roadCell'>, i: number, j: number): boolean {
+  for (let f = 0; f < 4; f++) {
+    const dx = FACING_DX[f]!;
+    const dy = FACING_DY[f]!;
+    for (let k = 1; k <= MAX_DEPTH; k++) {
+      const x = i + dx * k;
+      const y = j + dy * k;
+      if (x < 0 || y < 0 || x >= MAP || y >= MAP) break;
+      if (l.roadCell[y * MAP + x]! >= 0) return true;
+    }
+  }
+  return false;
+}
+
 /** The side of cell (i, j) that touches a road, or -1. With several, the pick is stable. */
 export function frontageOf(l: LotLayers, i: number, j: number): Facing | -1 {
   // Prefer the side whose road continues: it is more likely the main frontage.
@@ -128,15 +147,21 @@ export function findLot(l: LotLayers, i: number, j: number, rng: Rng): Lot | nul
   if (zone === 0 || l.buildingCell[j * MAP + i]! >= 0) return null;
   const facing = frontageOf(l, i, j);
   if (facing < 0) return null;
-  const list = shapes(zone);
-  // Usually take the best-fitting preferred shape, sometimes skip ahead for variety.
+  // The shape lists give the preferred frontage widths. The depth is always as deep as the
+  // zoned land allows (up to MAX_DEPTH), so no strip of zoning is left stranded behind a
+  // shallow lot where nothing could ever reach a road.
+  const fronts: number[] = [];
+  for (const [front] of shapes(zone)) if (!fronts.includes(front)) fronts.push(front);
+  // Usually take the best-fitting preferred width, sometimes skip ahead for variety.
   const skip = rng.chance(0.35) ? rng.int(3) : 0;
-  for (let n = 0; n < list.length; n++) {
-    const [front, depth] = list[(n + skip) % list.length]!;
+  for (let n = 0; n < fronts.length; n++) {
+    const front = fronts[(n + skip) % fronts.length]!;
     const start = rng.int(front);
     for (let o = 0; o < front; o++) {
-      const lot = rectFor(i, j, facing as Facing, front, depth, (start + o) % front);
-      if (valid(l, lot, zone)) return lot;
+      for (let depth = MAX_DEPTH; depth >= 1; depth--) {
+        const lot = rectFor(i, j, facing as Facing, front, depth, (start + o) % front);
+        if (valid(l, lot, zone)) return lot;
+      }
     }
   }
   return null;

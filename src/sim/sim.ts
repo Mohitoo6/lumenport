@@ -10,7 +10,7 @@ import { Fields } from './fields/fields';
 import { cellMinHeight } from './map/terrain';
 import { Traffic } from './traffic/traffic';
 import { POWERED, WATERED, computeUtilities, newNetworks, type Networks } from './utilities/network';
-import { frontageOf } from './zoning/lots';
+import { MAX_DEPTH, frontageOf, reachesRoad } from './zoning/lots';
 import { FACING_DX, FACING_DY } from './zoning/zones';
 import { createState, type GameState } from './state';
 import { advanceConstruction, buildFrontier, growthStep, lotRect, removeBuilding, spawnBuilding, type GrowthResult } from './zoning/growth';
@@ -216,7 +216,21 @@ export class Sim {
         }
       }
     }
-    if (zoned) this.events.emit('zonesChanged', { x0, y0, x1, y1 });
+    // Zoning that no longer reaches any road (its road was removed) can never be built on.
+    const r0x = Math.max(0, x0 - MAX_DEPTH);
+    const r0y = Math.max(0, y0 - MAX_DEPTH);
+    const r1x = Math.min(MAP - 1, x1 + MAX_DEPTH);
+    const r1y = Math.min(MAP - 1, y1 + MAX_DEPTH);
+    for (let j = r0y; j <= r1y; j++) {
+      for (let i = r0x; i <= r1x; i++) {
+        const k = j * MAP + i;
+        if (s.zone[k] !== 0 && s.buildingCell[k]! < 0 && !reachesRoad(s, i, j)) {
+          s.zone[k] = 0;
+          zoned = true;
+        }
+      }
+    }
+    if (zoned) this.events.emit('zonesChanged', { x0: r0x, y0: r0y, x1: r1x, y1: r1y });
     if (removed.length > 0) this.events.emit('buildingsChanged', { changed: [], removed });
   }
 
@@ -279,11 +293,16 @@ export class Sim {
         if (cmd.zone < 0 || cmd.zone > 15 || (cmd.zone !== 0 && ((cmd.zone & 3) === 0 || cmd.zone >> 2 === 0))) return fail('Invalid zone');
         const removed: Building[] = [];
         let painted = 0;
+        let tooFar = 0;
         for (let j = y0; j <= y1; j++) {
           for (let i = x0; i <= x1; i++) {
             const k = j * MAP + i;
             if (s.zone[k] === cmd.zone || s.roadCell[k]! >= 0) continue;
             if (cmd.zone !== 0 && cellMinHeight(s.heights, i, j) < 0.5) continue;
+            if (cmd.zone !== 0 && !reachesRoad(s, i, j)) {
+              tooFar++;
+              continue;
+            }
             // Re-zoning under a building clears it: the land is being put to a new use.
             const id = s.buildingCell[k]!;
             if (id >= 0) {
@@ -294,7 +313,10 @@ export class Sim {
             painted++;
           }
         }
-        if (painted === 0) return fail(cmd.zone === 0 ? 'Nothing to clear here' : 'Nothing here can be zoned');
+        if (painted === 0) {
+          if (cmd.zone === 0) return fail('Nothing to clear here');
+          return fail(tooFar > 0 ? `Zone land within ${MAX_DEPTH} cells of a road` : 'Nothing here can be zoned');
+        }
         this.frontier = null;
         this.events.emit('zonesChanged', { x0, y0, x1, y1 });
         if (removed.length > 0) this.events.emit('buildingsChanged', { changed: [], removed });

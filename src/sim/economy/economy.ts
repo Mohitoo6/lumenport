@@ -118,8 +118,11 @@ export function economyStep(buildings: ReadonlyArray<Building | null>, tax: read
   // side so growth does not overshoot while buildings are still going up.
   const plannedLabor = housing * LABOR_SHARE;
   const plannedJobs = plannedC + plannedI;
-  // A happy city attracts people; an unhappy one puts them off.
-  const dR = (plannedJobs * 1.15 + 40 - plannedLabor) / Math.max(60, plannedLabor) + taxEffect(tax[1]!) + (stats.happiness - 0.5) * 0.6;
+  // A very happy city attracts people; a miserable one puts them off. In between, it does
+  // not matter, so a young town is not held back by happiness it has had no chance to earn.
+  const mood = Math.max(0, stats.happiness - 0.6) - Math.max(0, 0.3 - stats.happiness);
+  // The constant lets a starter town of a couple of hundred people grow on shops alone.
+  const dR = (plannedJobs * 1.15 + 100 - plannedLabor) / Math.max(60, plannedLabor) + taxEffect(tax[1]!) + mood * 0.8;
   const targetC = population * 0.22 + 4;
   // Shops suffer when customers are stuck in traffic.
   const dC = (targetC - plannedC) / Math.max(30, targetC) + taxEffect(tax[2]!) - stats.congestion * 0.5;

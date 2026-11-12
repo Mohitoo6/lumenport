@@ -1,7 +1,8 @@
 import { CELL, MAP } from '../../core/constants';
 import { ZONE_RGB } from '../../render/overlays/zoneOverlay';
 import { FACILITIES } from '../../sim/facilities';
-import { frontageOf } from '../../sim/zoning/lots';
+import { STALL_REASON, stalledByDemand } from '../advice';
+import { MAX_DEPTH, frontageOf, reachesRoad } from '../../sim/zoning/lots';
 import { DENSITY_NAMES, FACING_DX, FACING_DY, ZONE_NAMES, ZoneType, zoneCode, type Density } from '../../sim/zoning/zones';
 import type { GroundPoint, Tool, ToolContext } from './tool';
 
@@ -59,7 +60,9 @@ export class ZoneTool implements Tool {
     };
     const city = missing('power') ?? missing('water');
     if (city) return city;
+    if (stalledByDemand(ctx.sim, this.type)) return STALL_REASON[this.type]!;
     if (!cell) return null;
+    if (s.roadCell[cell.j * MAP + cell.i]! < 0 && !reachesRoad(s, cell.i, cell.j)) return `Too far from a road: zone within ${MAX_DEPTH} cells of one`;
     const f: number = frontageOf(s, cell.i, cell.j);
     if (f < 0) return null;
     const net = ctx.sim.net;
@@ -76,7 +79,7 @@ export class ZoneTool implements Tool {
   describe(ctx: ToolContext, cell: Cell | null = this.last): void {
     const why = this.blocker(ctx, cell);
     if (why) ctx.hint(why, 'bad');
-    else ctx.hint(`${this.label()}: drag over land right next to a road`);
+    else ctx.hint(`${this.label()}: drag along a road (up to ${MAX_DEPTH} cells back)`);
   }
 
   private show(ctx: ToolContext, a: Cell, b: Cell): void {

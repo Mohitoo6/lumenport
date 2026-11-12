@@ -48,7 +48,25 @@ describe('zoning', () => {
     expect(z[49 * MAP + 55]).toBe(0); // road
     expect(z[50 * MAP + 55]).toBe(0); // road
     expect(z[60 * MAP + 55]).toBe(0); // water
-    expect(z[64 * MAP + 55]).toBe(R1);
+    expect(z[54 * MAP + 55]).toBe(R1); // four cells back from the road
+    expect(z[55 * MAP + 55]).toBe(0); // five: too far to ever be built on
+    expect(z[64 * MAP + 55]).toBe(0);
+  });
+
+  it('refuses land that no lot could reach from a road', () => {
+    const sim = town();
+    const r = sim.apply({ type: 'zoneRect', x0: 52, y0: 20, x1: 60, y1: 40, zone: R1 });
+    expect(r.ok).toBe(false);
+    expect(r.reason).toMatch(/within 4 cells of a road/);
+  });
+
+  it('clears zoning left stranded when its road is removed', () => {
+    const sim = town();
+    sim.growthRate = 0;
+    sim.apply({ type: 'zoneRect', x0: 52, y0: 45, x1: 60, y1: 54, zone: R1 });
+    expect(sim.state.zone[46 * MAP + 55]).toBe(R1);
+    sim.apply({ type: 'bulldozeRoad', edge: 0 });
+    for (let j = 45; j <= 54; j++) expect(sim.state.zone[j * MAP + 55]).toBe(0);
   });
 
   it('rejects invalid codes and empty paints', () => {
@@ -165,6 +183,25 @@ describe('growth', () => {
     }
     expect(JSON.stringify(a.state.buildings)).toBe(JSON.stringify(b.state.buildings));
     expect(a.state.rng).toBe(b.state.rng);
+  });
+
+  it('builds on every zoned cell along a road, however deep the zoning', () => {
+    const sim = town();
+    // Zone the full four cells on both sides of the street.
+    sim.apply({ type: 'zoneRect', x0: 52, y0: 45, x1: 88, y1: 54, zone: R1 });
+    run(sim, 6000);
+    let zoned = 0;
+    let built = 0;
+    for (let j = 45; j <= 54; j++) {
+      for (let i = 52; i <= 88; i++) {
+        const k = j * MAP + i;
+        if (sim.state.zone[k] === 0) continue;
+        zoned++;
+        if (sim.state.buildingCell[k]! >= 0) built++;
+      }
+    }
+    expect(zoned).toBeGreaterThan(250);
+    expect(built).toBe(zoned);
   });
 
   it('upgrades finished buildings over time', () => {

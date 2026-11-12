@@ -4,6 +4,7 @@ import { GameAudio } from '../audio/audio';
 import { saves } from '../platform/idb';
 import { cloneState, metaOf, validateState } from '../sim/save/serialize';
 import { createState, type GameState } from '../sim/state';
+import { STALL_REASON, stalledZones } from './advice';
 import { CameraInput } from './input';
 import { loadPbr, loadTextureArray, loadWarnings } from '../render/assets/loader';
 import { makeNoiseTexture, makeWaterNormalTexture } from '../render/assets/procedural';
@@ -624,6 +625,9 @@ export class Game {
     if (st.waterSupply === 0) out.push('No water: build a water tower beside a road');
     else if (st.waterDemand > st.waterSupply) out.push('Water shortage');
     else if (st.waterDemand > st.waterSupply * 0.9) out.push('Water nearly at capacity');
+    // Explain demand stalls only when power and water are flowing; otherwise those are the cause.
+    const utilitiesOk = st.powerSupply > 0 && st.waterSupply > 0 && st.powerDemand <= st.powerSupply && st.waterDemand <= st.waterSupply;
+    if (utilitiesOk) for (const t of stalledZones(this.sim)) out.push(STALL_REASON[t]!);
     if (ui.budget.value.net < 0 && s.funds < 15000 && st.population > 0) out.push('The city is losing money');
     return out;
   }
