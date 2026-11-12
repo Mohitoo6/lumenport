@@ -4,6 +4,70 @@ import type { OverlayId } from '../render/overlays/dataOverlay';
 import type { RoadType } from '../sim/roads/types';
 import type { SaveMeta } from '../sim/save/serialize';
 import type { Speed } from '../sim/state';
+import type { MinistryId } from '../game/council/ministries';
+import type { Lang, Stance } from '../game/council/prompts';
+import type { Post } from '../game/council/voices';
+
+export type SeatState = 'waiting' | 'thinking' | 'spoke' | 'silent' | 'failed';
+
+export interface CouncilMessage {
+  key: string;
+  who: MinistryId | 'chief';
+  round: number;
+  stance?: Stance;
+  option?: string;
+  text: string;
+  condition?: string;
+  provider?: string;
+}
+
+export interface CouncilOptionView {
+  id: string;
+  title: string;
+  cost: number;
+  monthly: number;
+  facts: string[];
+  /** Ministers whose latest position backs this option. */
+  backers: MinistryId[];
+  hasActions: boolean;
+  x?: number;
+  z?: number;
+}
+
+/** Everything the council chamber shows. Replaced as a whole on every change. */
+export interface CouncilView {
+  phase: 'brief' | 'debate' | 'decided' | 'enacted' | 'error';
+  issue: { key: string; title: string; summary: string; facts: string[]; lead: MinistryId; severity: number; x: number; z: number };
+  options: CouncilOptionView[];
+  seats: Array<{ id: MinistryId; state: SeatState; reason: string }>;
+  chief: SeatState;
+  messages: CouncilMessage[];
+  round: number;
+  decision?: { option: string; summary: string; dissent: string; conditions: string };
+  error?: string;
+  /** Where the words come from: 'AI' or 'Demo (no AI)'. */
+  source: string;
+  /** False when the server has no AI keys: the brief offers a demo meeting instead. */
+  aiReady: boolean;
+  providers: string[];
+  result?: { ok: boolean; text: string };
+  lang: Lang;
+}
+
+export interface MinisterRequest {
+  issueKey: string;
+  minister: MinistryId;
+  title: string;
+  text: string;
+  severity: number;
+}
+
+export interface IssueRow {
+  key: string;
+  title: string;
+  lead: MinistryId;
+  severity: number;
+}
 
 export type ToolId = 'none' | 'road' | 'zone' | 'place' | 'bulldoze';
 export type RoadModeId = 'straight' | 'curve';
@@ -60,6 +124,11 @@ export const ui = {
   overlay: signal<OverlayId>('none'),
   showViews: signal(false),
   inspect: signal<InspectData | null>(null),
+  council: signal<CouncilView | null>(null),
+  request: signal<MinisterRequest | null>(null),
+  posts: signal<Post[]>([]),
+  issues: signal<IssueRow[]>([]),
+  showIssues: signal(false),
   showMenu: signal(false),
   saves: signal<SaveMeta[]>([]),
   muted: signal(false),
@@ -68,6 +137,12 @@ export const ui = {
 };
 
 export interface UiActions {
+  convene(issueKey: string): void;
+  startCouncil(note: string, lang: Lang, demo: boolean): void;
+  approveOption(id: string): void;
+  closeCouncil(): void;
+  dismissRequest(): void;
+  lookAt(x: number, z: number): void;
   setSpeed(speed: Speed): void;
   selectTool(tool: ToolId): void;
   setRoadType(type: RoadType): void;
@@ -87,6 +162,12 @@ export interface UiActions {
 }
 
 export const actions: UiActions = {
+  convene: () => {},
+  startCouncil: () => {},
+  approveOption: () => {},
+  closeCouncil: () => {},
+  dismissRequest: () => {},
+  lookAt: () => {},
   setSpeed: () => {},
   selectTool: () => {},
   setRoadType: () => {},

@@ -509,3 +509,76 @@ export function edgeAt(net: RoadNetwork, x: number, z: number, slack = 0): numbe
   }
   return best;
 }
+
+export interface UpgradePlan {
+  ok: boolean;
+  reason: string;
+  cost: number;
+  /** Buildings whose lots the wider road would cover; they are demolished. */
+  displaced: number[];
+}
+
+/**
+ * Dry run of rebuilding edge `edgeId` as road type `road`: whether it fits, what it costs
+ * and which buildings the new width would take.
+ */
+export function planUpgrade(net: RoadNetwork, layers: { buildingCell: Int32Array }, edgeId: number, road: RoadType): UpgradePlan {
+  const plan: UpgradePlan = { ok: false, reason: '', cost: 0, displaced: [] };
+  const e = net.edges[edgeId];
+  if (!e) {
+    plan.reason = 'No road there';
+    return plan;
+  }
+  if (e.type === road) {
+    plan.reason = `Already a ${ROAD_SPECS[road].name.toLowerCase()}`;
+    return plan;
+  }
+  const spec = ROAD_SPECS[road];
+  const hw = spec.width / 2;
+  const poly = edgePolyline(net, e);
+  // Other roads (not meeting this one) must stay clear of the new width.
+  for (const o of net.edges) {
+    if (!o || o.id === e.id || o.a === e.a || o.a === e.b || o.b === e.a || o.b === e.b) continue;
+    const op = edgePolyline(net, o);
+    const need = hw + halfWidth(o) - 0.5;
+    if (op.maxX < poly.minX - need || op.minX > poly.maxX + need || op.maxZ < poly.minZ - need || op.minZ > poly.maxZ + need) continue;
+    for (let k = 0; k < op.n; k++) {
+      if (closestOnPolyline(poly, op.x[k]!, op.z[k]!, hit).dist < need) {
+        plan.reason = 'Another road is too close for the wider road';
+        return plan;
+      }
+    }
+  }
+  const seen = new Set<number>();
+  const i0 = Math.max(0, Math.floor((poly.minX - hw) / CELL));
+  const i1 = Math.min(MAP - 1, Math.floor((poly.maxX + hw) / CELL));
+  const j0 = Math.max(0, Math.floor((poly.minZ - hw) / CELL));
+  const j1 = Math.min(MAP - 1, Math.floor((poly.maxZ + hw) / CELL));
+  for (let j = j0; j <= j1; j++) {
+    for (let i = i0; i <= i1; i++) {
+      const id = layers.buildingCell[j * MAP + i]!;
+      if (id < 0 || seen.has(id)) continue;
+      if (closestOnPolyline(poly, (i + 0.5) * CELL, (j + 0.5) * CELL, hit).dist < hw) seen.add(id);
+    }
+  }
+  plan.displaced = [...seen];
+  plan.cost = Math.round(e.length * spec.cost);
+  plan.ok = true;
+  return plan;
+}
+
+/** Rebuilds an edge as another road type: regrades, clears trees and re-rasterises. */
+export function executeUpgrade(net: RoadNetwork, layers: RoadLayers, edgeId: number, road: RoadType): RoadChange {
+  const e = net.edges[edgeId]!;
+  e.type = road;
+  const p = edgePolyline(net, e);
+  const change: RoadChange = { nodes: [e.a, e.b], edges: [e.id], x0: p.minX, z0: p.minZ, x1: p.maxX, z1: p.maxZ, terrain: null, trees: null };
+  const terrain = emptyRect();
+  const trees = emptyRect();
+  levelUnderEdge(layers.heights, layers.roadLock, net, e, terrain);
+  clearTreesUnderEdge(layers.trees, net, e, trees);
+  rasterRoads(layers.roadCell, net, cellRectOf(change.x0, change.z0, change.x1, change.z1, 40));
+  if (terrain.x1 >= terrain.x0) change.terrain = terrain;
+  if (trees.x1 >= trees.x0) change.trees = trees;
+  return change;
+}

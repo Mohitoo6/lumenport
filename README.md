@@ -35,6 +35,17 @@ going on: power, water, traffic, pollution, crime, land value, happiness and cov
 
 Cities are saved in the browser (Menu, M): three slots plus an autosave every two minutes.
 
+## AI city council
+
+Problems in the city (rush-hour jams, shortages, pollution, missing services, deficits)
+bring the responsible minister to you. Call the council and nine AI ministers debate the
+options the game has worked out, in English or Hindi; you approve the result.
+
+To use real AI, copy `.env.example` to `.env`, add one or more OpenAI-compatible providers
+(Gemini, Groq, OpenRouter and similar), and restart `npm run dev`. Without keys you can
+still hold a demo meeting with scripted ministers. Keys stay on your machine and are never
+sent to the browser.
+
 ## Project docs
 
 - `PLAN.md`: architecture, data model, phases and acceptance criteria.

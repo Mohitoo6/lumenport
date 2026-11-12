@@ -13,6 +13,11 @@ export interface DebugApi {
   camera(pose: Partial<CameraPose>, instant?: boolean): void;
   /** Runs `n` simulation ticks immediately, regardless of game speed. */
   advance(n: number): void;
+  /** Council controls for scripted runs. */
+  council: {
+    issues(): Array<{ key: string; kind: string; title: string; severity: number }>;
+    convene(kind: string): boolean;
+  };
   /** Installs a game state (for tests of save and load). */
   loadState(state: import('../sim/state').GameState): void;
   /** Jumps to a time of day (hours) and holds the clock there. */
@@ -35,6 +40,15 @@ export function installDebugApi(game: Game): void {
     exec: (cmd) => game.exec(cmd),
     camera: (pose, instant = true) => game.setCamera(pose, instant),
     time: (hour) => game.setTime(hour),
+    council: {
+      issues: () => game.council.issues.map((i) => ({ key: i.key, kind: i.kind, title: i.title, severity: i.severity })),
+      convene: (kind) => {
+        const issue = game.council.issues.find((i) => i.kind === kind);
+        if (!issue) return false;
+        game.council.convene(issue.key);
+        return true;
+      },
+    },
     loadState: (state) => game.loadState(state),
     advance: (n) => {
       for (let i = 0; i < n; i++) game.sim.tick();

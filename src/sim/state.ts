@@ -2,7 +2,8 @@ import { DAYS_PER_MONTH, MAP, MONTHS_PER_YEAR, START_YEAR, TICKS_PER_DAY, VERTS 
 import { generateHeights } from './map/terrain';
 import { generateTrees } from './map/trees';
 import { emptyNetwork, type RoadNetwork } from './roads/types';
-import { emptyReport, type BudgetReport, type Loan } from './economy/budget';
+import { emptyReport, type BudgetReport, type Loan, type Policies } from './economy/budget';
+export type { Policies } from './economy/budget';
 import { emptyStats, type CityStats } from './economy/economy';
 import type { Building } from './zoning/zones';
 
@@ -49,7 +50,10 @@ export interface GameState {
   /** The books for the last completed month. */
   report: BudgetReport;
   stats: CityStats;
+  /** City policies the council can adopt. Optional so older saves load unchanged. */
+  policies?: Policies;
 }
+
 
 export function createState(seed: number, cityName = 'New Haven'): GameState {
   const heights = generateHeights(seed);
@@ -75,6 +79,7 @@ export function createState(seed: number, cityName = 'New Haven'): GameState {
     loans: [],
     report: emptyReport(),
     stats: emptyStats(),
+    policies: {},
   };
 }
 

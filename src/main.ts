@@ -13,6 +13,7 @@ mountHud(document.getElementById('hud')!);
 Game.create(canvas, {
   seed: Number(params.get('seed') ?? 1337),
   shots: params.has('shots'),
+  council: params.get('council') ?? undefined,
   dev: import.meta.env.DEV || params.has('dev'),
 })
   .then(installDebugApi)

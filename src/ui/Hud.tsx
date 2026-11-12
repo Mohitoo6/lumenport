@@ -2,6 +2,7 @@ import { render, type JSX } from 'preact';
 import { useState } from 'preact/hooks';
 import { LOAN_TIERS, loanPayment } from '../sim/economy/budget';
 import { OVERLAYS } from '../render/overlays/dataOverlay';
+import { CitizenFeed, CouncilChamber, IssuesMenu, MinisterRequestCard } from './council/Council';
 import { FACILITIES, POWER_FACILITIES, SERVICE_FACILITIES, WATER_FACILITIES } from '../sim/facilities';
 import type { Speed } from '../sim/state';
 import {
@@ -356,6 +357,7 @@ function TopBar(): JSX.Element {
         <span class="clock-time">{ui.clock.value}</span>
         <span class="label">{TIME_LABEL[ui.timeMode.value]}</span>
       </button>
+      <IssuesMenu />
       <Views />
       <button
         type="button"
@@ -557,6 +559,9 @@ function Hud(): JSX.Element {
       <BudgetPanel />
       <Menu />
       <Inspect />
+      <MinisterRequestCard />
+      <CitizenFeed />
+      <CouncilChamber />
       <Toolbar />
       <Help />
       <DevOverlay />

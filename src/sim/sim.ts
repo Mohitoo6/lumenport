@@ -2,7 +2,7 @@ import { CELL, DAYS_PER_MONTH, MAP, TICKS_PER_DAY } from '../core/constants';
 import { Rng } from '../core/rng';
 import { Emitter } from '../core/events';
 import { OK, fail, type Command, type CommandResult } from './commands';
-import { demolishEdge, executePlan, planRoad, type RoadChange, type RoadPlan, type RoadRequest } from './roads/plan';
+import { demolishEdge, executePlan, executeUpgrade, planRoad, planUpgrade, type UpgradePlan, type RoadChange, type RoadPlan, type RoadRequest } from './roads/plan';
 import { LOAN_TIERS, loanPayment, projectBudget } from './economy/budget';
 import { economyStep, growthRateFor } from './economy/economy';
 import { planFacility, type FacilityPlan } from './facilities';
@@ -139,7 +139,7 @@ export class Sim {
 
   private settleMonth(month: number): void {
     const s = this.state;
-    projectBudget(s.buildings, s.roads, s.tax, s.loans, s.stats, s.report);
+    projectBudget(s.buildings, s.roads, s.tax, s.loans, s.stats, s.report, s.policies);
     if (!s.sandbox) s.funds += s.report.net;
     for (let i = s.loans.length - 1; i >= 0; i--) {
       if (--s.loans[i]!.monthsLeft <= 0) s.loans.splice(i, 1);
@@ -164,6 +164,11 @@ export class Sim {
     if (s.funds < cost) return false;
     s.funds -= cost;
     return true;
+  }
+
+  /** Dry run of rebuilding a road segment as another type. */
+  planUpgrade(edge: number, road: number): UpgradePlan {
+    return planUpgrade(this.state.roads, this.state, edge, road);
   }
 
   /** Dry run of placing a facility centred on a cell. */
@@ -278,6 +283,13 @@ export class Sim {
         this.roadChanged(executePlan(s.roads, s, plan));
         return { ok: true, cost: plan.cost };
       }
+      case 'upgradeRoad': {
+        const plan = planUpgrade(s.roads, s, cmd.edge, cmd.road);
+        if (!plan.ok) return fail(plan.reason);
+        if (!this.charge(plan.cost)) return fail('Not enough money');
+        this.roadChanged(executeUpgrade(s.roads, s, cmd.edge, cmd.road));
+        return { ok: true, cost: plan.cost };
+      }
       case 'bulldozeRoad': {
         const change = demolishEdge(s.roads, s, cmd.edge);
         if (!change) return fail('No road there');
@@ -365,6 +377,11 @@ export class Sim {
       case 'setSandbox':
         s.sandbox = cmd.on;
         return OK;
+      case 'setPolicy': {
+        if (cmd.policy !== 'flexHours') return fail('Unknown policy');
+        s.policies = { ...(s.policies ?? {}), [cmd.policy]: cmd.on };
+        return OK;
+      }
     }
   }
 }

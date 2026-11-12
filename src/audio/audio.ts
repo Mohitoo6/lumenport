@@ -1,4 +1,4 @@
-export type Sfx = 'click' | 'place' | 'zone' | 'bulldoze' | 'error' | 'cash';
+export type Sfx = 'click' | 'place' | 'zone' | 'bulldoze' | 'error' | 'cash' | 'notify' | 'gavel';
 
 export interface Ambience {
   /** Camera distance from the ground focus, metres. */
@@ -197,6 +197,14 @@ export class GameAudio {
       case 'error':
         this.tone(220, 200, 0.09, 0.07, 'square');
         this.tone(165, 150, 0.14, 0.07, 'square', 0.1);
+        break;
+      case 'notify':
+        this.tone(660, 660, 0.12, 0.06, 'sine');
+        this.tone(990, 990, 0.22, 0.06, 'sine', 0.12);
+        break;
+      case 'gavel':
+        this.burst(2400, 0.06, 0.25);
+        this.tone(220, 120, 0.12, 0.25, 'triangle');
         break;
       case 'cash':
         this.tone(880, 880, 0.07, 0.07, 'triangle');

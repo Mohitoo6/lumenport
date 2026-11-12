@@ -28,12 +28,40 @@ const LANES: Record<number, readonly number[]> = {
   [RoadType.Avenue]: [3.7, 7.15],
 };
 
+/**
+ * How busy the roads are at a time of day, relative to an ordinary midday (1.0). Two
+ * commuter peaks around 9:00 and 18:00, a quiet night.
+ */
+export function rushFactor(hour: number, flexHours = false): number {
+  const h = ((hour % 24) + 24) % 24;
+  const bump = (centre: number, width: number): number => {
+    let d = Math.abs(h - centre);
+    if (d > 12) d = 24 - d;
+    return Math.exp(-(d * d) / (2 * width * width));
+  };
+  // Daytime baseline: low at night, full from mid-morning to evening.
+  const day = 0.18 + 0.82 / (1 + Math.exp(-(h - 6.5) * 2.2)) - 0.65 / (1 + Math.exp(-(h - 21.5) * 2));
+  // Staggered hours spread the same commuters over a longer, lower peak.
+  const peak = flexHours ? 0.45 : 1;
+  const width = flexHours ? 2 : 1;
+  return Math.max(0.12, day + 1.7 * peak * bump(8.75, 1.0 * width) + 1.9 * peak * bump(18, 1.1 * width));
+}
+
+/** Morning trips mostly go to work, evening trips mostly come home. 0..1: share home to work. */
+export function commuteBias(hour: number): number {
+  const h = ((hour % 24) + 24) % 24;
+  if (h >= 6 && h < 11) return 0.85;
+  if (h >= 16 && h < 20.5) return 0.15;
+  return 0.5;
+}
+
 const enum Mode {
   Edge = 0,
   Junction = 1,
 }
 
 export interface TrafficSource {
+  policies?: { flexHours?: boolean };
   roads: RoadNetwork;
   buildings: ReadonlyArray<Building | null>;
   roadCell: Int32Array;
@@ -76,6 +104,11 @@ export class Traffic {
 
   /** Cars on the road per resident. Tests raise it to load the network. */
   carsPerPerson = 0.022;
+  /**
+   * Time of day the player sees, in hours. Set by the game every frame; it drives the
+   * morning and evening rush. It is not part of the saved game, and tests leave it at noon.
+   */
+  hour = 12;
   /** Trips completed since the last reset, and the smoothed share of speed lost to queues. */
   arrived = 0;
   congestion = 0;
@@ -277,9 +310,11 @@ export class Traffic {
   private spawn(): boolean {
     if (this.count >= MAX_CARS || this.homes.length === 0 || this.works.length === 0) return false;
     const r = this.rng.next();
-    // Mostly commutes, in both directions, plus some trips between workplaces.
-    const a = this.pick(r < 0.5 ? this.homes : this.works);
-    const b = this.pick(r < 0.5 || r > 0.9 ? this.works : this.homes);
+    // Mostly commutes (to work in the morning, home in the evening), plus some trips
+    // between workplaces.
+    const toWork = commuteBias(this.hour);
+    const a = this.pick(r < toWork ? this.homes : this.works);
+    const b = this.pick(r < toWork || r > 0.92 ? this.works : this.homes);
     if (!a || !b || a === b) return false;
     const from = this.anchor(a);
     const to = this.anchor(b);
@@ -547,7 +582,7 @@ export class Traffic {
   private wanted(): number {
     let people = 0;
     for (const id of this.homes) people += this.src.buildings[id]?.pop ?? 0;
-    return Math.min(MAX_CARS, Math.round(people * this.carsPerPerson));
+    return Math.min(MAX_CARS, Math.round(people * this.carsPerPerson * rushFactor(this.hour, this.src.policies?.flexHours === true)));
   }
 
   /** Advances all traffic by one simulation tick. */
@@ -557,7 +592,9 @@ export class Traffic {
 
     if (++this.listsAge > 200) this.refreshLists();
     const want = this.wanted();
-    for (let k = 0; k < 3 && this.count < want; k++) this.spawn();
+    // At the start of a rush the roads fill quickly.
+    const burst = want > this.count * 1.3 ? 6 : 3;
+    for (let k = 0; k < burst && this.count < want; k++) this.spawn();
 
     const n = this.count;
     for (let i = 0; i < n; i++) {

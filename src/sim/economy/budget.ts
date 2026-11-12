@@ -3,6 +3,14 @@ import { ROAD_SPECS, type RoadNetwork } from '../roads/types';
 import { ZoneType, zoneType, type Building } from '../zoning/zones';
 import type { CityStats } from './economy';
 
+export interface Policies {
+  /** Staggered office hours: flattens the morning and evening rush. */
+  flexHours?: boolean;
+}
+
+/** Monthly cost of each policy while it is in force. */
+export const POLICY_COST: Record<keyof Policies, number> = { flexHours: 350 };
+
 export interface Loan {
   tier: number;
   /** Fixed monthly payment (principal plus interest). */
@@ -59,6 +67,7 @@ export function projectBudget(
   loans: readonly Loan[],
   stats: CityStats,
   out: BudgetReport,
+  policies: Policies = {},
 ): BudgetReport {
   let workersC = 0;
   let workersI = 0;
@@ -86,6 +95,7 @@ export function projectBudget(
   out.taxI = Math.round(workersI * TAX_BASE.i * tax[3]!);
   out.roads = Math.round(roadCost);
   out.utilities = utilities;
+  if (policies.flexHours) services += POLICY_COST.flexHours;
   out.services = services;
   out.loans = loanCost;
   out.income = out.taxR + out.taxC + out.taxI;

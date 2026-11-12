@@ -7,6 +7,8 @@ export type Command =
   | { type: 'renameCity'; name: string }
   | ({ type: 'buildRoad' } & RoadRequest)
   | { type: 'bulldozeRoad'; edge: number }
+  /** Rebuilds an existing road segment as another type (for example, street to avenue). */
+  | { type: 'upgradeRoad'; edge: number; road: number }
   /** Paints a zone code (0 clears) over a rectangle of cells, inclusive. */
   | { type: 'zoneRect'; x0: number; y0: number; x1: number; y1: number; zone: number }
   | { type: 'bulldozeBuilding'; id: number }
@@ -15,7 +17,8 @@ export type Command =
   /** zone: 1 residential, 2 commercial, 3 industrial. rate in percent, 0..20. */
   | { type: 'setTax'; zone: number; rate: number }
   | { type: 'takeLoan'; tier: number }
-  | { type: 'setSandbox'; on: boolean };
+  | { type: 'setSandbox'; on: boolean }
+  | { type: 'setPolicy'; policy: 'flexHours'; on: boolean };
 
 export interface CommandResult {
   ok: boolean;

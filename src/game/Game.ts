@@ -5,6 +5,7 @@ import { saves } from '../platform/idb';
 import { cloneState, metaOf, validateState } from '../sim/save/serialize';
 import { createState, type GameState } from '../sim/state';
 import { STALL_REASON, stalledZones } from './advice';
+import { CouncilController } from './council/controller';
 import { CameraInput } from './input';
 import { loadPbr, loadTextureArray, loadWarnings } from '../render/assets/loader';
 import { makeNoiseTexture, makeWaterNormalTexture } from '../render/assets/procedural';
@@ -41,6 +42,8 @@ import { ToolManager } from './tools/toolManager';
 
 export interface GameOptions {
   seed: number;
+  /** Council mode from the URL: 'demo' forces scripted ministers and enables auto requests in shots mode. */
+  council?: string;
   /** Screenshot mode: no edge scrolling, no hints, deterministic start. */
   shots: boolean;
   dev: boolean;
@@ -84,6 +87,7 @@ export class Game {
   private hudTimer = 1;
   private clockHeld = false;
   readonly audio = new GameAudio();
+  council!: CouncilController;
   private autosaveTimer = 0;
   private slowFrames = 0;
   private fastSeconds = 0;
@@ -194,6 +198,25 @@ export class Game {
     actions.setRoadMode = (mode) => this.tools.setRoadMode(mode);
     actions.setZone = (type, density) => this.tools.setZone(type as 0 | 1 | 2 | 3, density as 1 | 2 | 3);
     actions.setFacility = (kind) => this.tools.setFacility(kind);
+    this.council = new CouncilController({
+      sim,
+      cityName: () => sim.state.cityName,
+      lookAt: (x, z) => this.rig.setPose({ x, z, dist: Math.max(260, Math.min(this.rig.goal.dist, 700)) }),
+      speed: () => sim.state.speed,
+      setSpeed: (speed) => void sim.apply({ type: 'setSpeed', speed }),
+      chime: (kind) => this.audio.play(kind === 'request' ? 'notify' : 'gavel'),
+    });
+    this.council.auto = !this.options.shots || this.options.council !== undefined;
+    this.council.forceDemo = this.options.council === 'demo';
+    actions.convene = (key) => {
+      this.tools.select('none');
+      this.council.convene(key);
+    };
+    actions.startCouncil = (note, lang, demo) => this.council.start(note, lang, demo);
+    actions.approveOption = (id) => this.council.approve(id);
+    actions.closeCouncil = () => this.council.close();
+    actions.dismissRequest = () => this.council.dismissRequest();
+    actions.lookAt = (x, z) => this.rig.setPose({ x, z });
     actions.setOverlay = (id) => {
       sim.refreshFields();
       this.overlay.set(id, sim);
@@ -296,6 +319,11 @@ export class Game {
   private onKey = (e: KeyboardEvent): void => {
     const t = e.target as HTMLElement | null;
     if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA')) return;
+    // While the council sits, the city is paused and only Escape (close) applies.
+    if (ui.council.value) {
+      if (e.code === 'Escape') this.council.close();
+      return;
+    }
     if (e.metaKey || e.ctrlKey) return;
     switch (e.code) {
       case 'Space': {
@@ -384,6 +412,9 @@ export class Game {
     const cam = this.rig.camera;
     this.camPos.copy(cam.position);
     this.advanceClock(dt);
+    // Traffic follows the clock the player sees: rush hours at 9:00 and 18:00.
+    this.sim.traffic.hour = this.atmosphere.hour;
+    this.council?.update(dt);
     this.atmosphere.update(cam, dt);
     this.roads?.setNight(this.atmosphere.night);
     this.shadows.update(cam, this.atmosphere.lightDir, this.rig.focusY, this.rig.pose.dist);
@@ -422,7 +453,7 @@ export class Game {
       ui.funds.value = Math.floor(state.funds);
       ui.population.value = st.population;
       ui.demand.value = [st.demand[1], st.demand[2], st.demand[3]];
-      ui.budget.value = projectBudget(state.buildings, state.roads, state.tax, state.loans, st, emptyReport());
+      ui.budget.value = projectBudget(state.buildings, state.roads, state.tax, state.loans, st, emptyReport(), state.policies);
       ui.tax.value = [state.tax[1], state.tax[2], state.tax[3]];
       ui.loans.value = state.loans.slice();
       ui.power.value = [st.powerSupply, st.powerDemand];

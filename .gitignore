@@ -4,3 +4,8 @@ test-results/
 playwright-report/
 .DS_Store
 *.log
+
+# Secrets: API keys live here and must never be committed.
+.env
+.env.*
+!.env.example

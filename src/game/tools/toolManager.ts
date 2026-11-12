@@ -186,6 +186,7 @@ export class ToolManager {
   private onKey = (e: KeyboardEvent): void => {
     const t = e.target as HTMLElement | null;
     if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA')) return;
+    if (ui.council.value) return;
     if (e.metaKey || e.ctrlKey || e.altKey) return;
     switch (e.code) {
       case 'Escape':
