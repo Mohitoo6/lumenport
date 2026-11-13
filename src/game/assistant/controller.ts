@@ -3,6 +3,7 @@ import type { Sim } from '../../sim/sim';
 import { MONTH_NAMES } from '../../core/constants';
 import { dateOf } from '../../sim/state';
 import { FACILITIES } from '../../sim/facilities';
+import { emptyReport, projectBudget } from '../../sim/economy/budget';
 import { ui, type AssistantMessage } from '../../ui/store';
 import { assistantSystem, assistantUser, isDevanagari, offlineReply, parseAssistantReply, type AssistantAction, type AssistantReply, type ChatTurn } from './assistant';
 import { gameManual } from './knowledge';
@@ -32,6 +33,14 @@ export interface AssistantHost {
 
 const HISTORY = 6;
 const REFUSALS = 6;
+
+/** The budget in one line, for the offline answer. */
+function moneyLine(sim: Sim): string {
+  const s = sim.state;
+  const b = projectBudget(s.buildings, s.roads, s.tax, s.loans, s.stats, emptyReport(), s.policies, s.metro);
+  const usd = (n: number): string => `${n < 0 ? '-' : ''}$${Math.abs(Math.round(n)).toLocaleString('en-US')}`;
+  return `${usd(s.funds)} in hand, ${usd(b.net)} a month (income ${usd(b.income)}, spending ${usd(b.expense)}; taxes ${s.tax[1]}% / ${s.tax[2]}% / ${s.tax[3]}%)`;
+}
 
 /** What a refused command was trying to do, in words. */
 function describe(cmd: Command): string | null {
@@ -64,6 +73,8 @@ export class AssistantController {
   private readonly history: ChatTurn[] = [];
   private readonly manual = gameManual();
   private nextId = 1;
+  /** Pause before retrying a model that did not answer. */
+  retryMs = 6000;
 
   constructor(
     private readonly host: AssistantHost,
@@ -91,12 +102,17 @@ export class AssistantController {
     const { system, user } = this.prompt(question);
     const issues = this.host.issues();
     let reply: AssistantReply | null = null;
-    for (let attempt = 0; attempt < 2 && !reply; attempt++) {
+    for (let attempt = 0; attempt < 3 && !reply; attempt++) {
       const r = await this.completer(system, user, 1200);
-      if (!r) break;
+      // Free tiers throttle: one pause and a second try before falling back.
+      if (!r) {
+        if (attempt > 0) break;
+        await new Promise((res) => setTimeout(res, this.retryMs));
+        continue;
+      }
       reply = parseAssistantReply(r.text, issues, r.provider);
     }
-    reply ??= offlineReply(cityAlerts(this.host.sim), issues, isDevanagari(question));
+    reply ??= offlineReply(cityAlerts(this.host.sim), issues, isDevanagari(question), question, { money: moneyLine(this.host.sim) });
     this.history.push({ role: 'player', text: question }, { role: 'assistant', text: reply.answer });
     if (this.history.length > HISTORY * 2) this.history.splice(0, this.history.length - HISTORY * 2);
     return reply;

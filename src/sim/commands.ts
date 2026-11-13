@@ -11,6 +11,9 @@ export type Command =
   | { type: 'upgradeRoad'; edge: number; road: number }
   /** Paints a zone code (0 clears) over a rectangle of cells, inclusive. */
   | { type: 'zoneRect'; x0: number; y0: number; x1: number; y1: number; zone: number }
+  /** A metro line between two stations, bent through `via` points ([x, z] in metres). */
+  | { type: 'buildMetro'; a: number; b: number; via: Array<[number, number]> }
+  | { type: 'removeMetro'; line: number }
   /** Zones both sides of these road edges, as deep as lots can reach (or clears them with zone 0). */
   | { type: 'zoneAlong'; edges: number[]; zone: number }
   | { type: 'bulldozeBuilding'; id: number }

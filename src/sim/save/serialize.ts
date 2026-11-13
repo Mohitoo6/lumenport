@@ -20,6 +20,7 @@ export function cloneState(s: GameState): GameState {
     loans: json(s.loans),
     report: { ...s.report },
     policies: { ...(s.policies ?? {}) },
+    metro: json(s.metro ?? { lines: [] }),
     stats: { ...s.stats, demand: [s.stats.demand[0], s.stats.demand[1], s.stats.demand[2], s.stats.demand[3]] },
   };
 }

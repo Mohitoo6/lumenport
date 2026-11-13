@@ -84,7 +84,7 @@ export interface IssueRow {
   severity: number;
 }
 
-export type ToolId = 'none' | 'road' | 'zone' | 'place' | 'bulldoze';
+export type ToolId = 'none' | 'road' | 'zone' | 'place' | 'bulldoze' | 'metro';
 export type RoadModeId = 'straight' | 'curve';
 export type TimeMode = 'auto' | 'day' | 'night';
 

@@ -9,6 +9,7 @@ import { BulldozeTool } from './bulldozeTool';
 import { PlaceTool } from './placeTool';
 import { RoadTool, type RoadMode } from './roadTool';
 import { ZoneTool } from './zoneTool';
+import { MetroTool } from './metroTool';
 import type { Density, ZoneType } from '../../sim/zoning/zones';
 import type { GroundPoint, Tool, ToolContext } from './tool';
 
@@ -24,6 +25,7 @@ export class ToolManager {
   private readonly bulldoze = new BulldozeTool();
   private readonly zone = new ZoneTool();
   private readonly place = new PlaceTool();
+  private readonly metro = new MetroTool();
   private dragging = false;
   private readonly ctx: ToolContext;
   private readonly hit = new Vector3();
@@ -68,7 +70,7 @@ export class ToolManager {
   private pendingHint: { text: string; tone: 'info' | 'ok' | 'bad' } | null = null;
 
   select(id: ToolId): void {
-    const next: Tool | null = id === 'road' ? this.road : id === 'bulldoze' ? this.bulldoze : id === 'zone' ? this.zone : id === 'place' ? this.place : null;
+    const next: Tool | null = id === 'road' ? this.road : id === 'bulldoze' ? this.bulldoze : id === 'zone' ? this.zone : id === 'place' ? this.place : id === 'metro' ? this.metro : null;
     if (next === this.active) return;
     this.active?.deactivate(this.ctx);
     this.dragging = false;

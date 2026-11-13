@@ -11,6 +11,7 @@ export class BulldozeTool implements Tool {
   readonly id = 'bulldoze';
   private edge = -1;
   private building = -1;
+  private line = -1;
 
   activate(ctx: ToolContext): void {
     this.edge = -1;
@@ -19,6 +20,7 @@ export class BulldozeTool implements Tool {
   }
 
   deactivate(ctx: ToolContext): void {
+    ctx.preview.metroPreview?.(null, true);
     ctx.preview.hideRoad();
     ctx.preview.hideCursor();
     ctx.preview.hideRect();
@@ -46,6 +48,27 @@ export class BulldozeTool implements Tool {
     }
     this.edge = edgeAt(net, p.x, p.z, 2);
     const e = this.edge >= 0 ? net.edges[this.edge] : null;
+    // Metro lines run overhead: point at the ground beneath one.
+    this.line = -1;
+    if (!e) {
+      let best = 6;
+      for (const l of s.metro?.lines ?? []) {
+        if (!l) continue;
+        for (let k = 0; k < l.pts.length; k += 2) {
+          const d = Math.hypot(l.pts[k]! - p.x, l.pts[k + 1]! - p.z);
+          if (d < best) {
+            best = d;
+            this.line = l.id;
+          }
+        }
+      }
+      if (this.line >= 0) {
+        ctx.preview.metroPreview?.(s.metro!.lines[this.line]!.pts, false);
+        ctx.hint(`Remove this ${(s.metro!.lines[this.line]!.length / 1000).toFixed(2)} km metro line`, 'bad');
+        return;
+      }
+    }
+    ctx.preview.metroPreview?.(null, true);
     if (!e) {
       ctx.preview.showCursor(p.x, p.z, 4, 'remove');
       ctx.hint('Click a road or building to remove it');
@@ -61,6 +84,7 @@ export class BulldozeTool implements Tool {
   click(ctx: ToolContext, p: GroundPoint): void {
     if (this.building >= 0) ctx.sim.apply({ type: 'bulldozeBuilding', id: this.building });
     else if (this.edge >= 0) ctx.sim.apply({ type: 'bulldozeRoad', edge: this.edge });
+    else if (this.line >= 0) ctx.sim.apply({ type: 'removeMetro', line: this.line });
     else return;
     this.move(ctx, p);
   }

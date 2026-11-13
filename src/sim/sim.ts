@@ -14,6 +14,8 @@ import { POWERED, WATERED, computeUtilities, newNetworks, type Networks } from '
 import { MAX_DEPTH, frontageOf, reachesRoad } from './zoning/lots';
 import { zoneAlongCells } from './zoning/along';
 import { roadAngle } from './zoning/orient';
+import { METRO, activeStations, emptyMetro, planMetro, pruneMetro, type MetroPlan } from './transit/metro';
+import { ZoneType, zoneType } from './zoning/zones';
 import { FACING_DX, FACING_DY } from './zoning/zones';
 import { createState, type GameState } from './state';
 import { advanceConstruction, buildFrontier, growthStep, lotRect, removeBuilding, spawnBuilding, type GrowthResult } from './zoning/growth';
@@ -45,6 +47,8 @@ export type SimEvents = {
   command: { cmd: Command; result: CommandResult };
   /** A whole new state was installed (new game or load). */
   stateReplaced: null;
+  /** Metro lines were added or removed. */
+  metroChanged: null;
 };
 
 /**
@@ -121,13 +125,26 @@ export class Sim {
     }
   }
 
+  /** Checks a metro line without building it (for the tool's preview). */
+  planMetro(a: number, b: number, via: ReadonlyArray<readonly [number, number]>): MetroPlan {
+    return planMetro(this.state, a, b, via);
+  }
+
   /** Recomputes the data layers and the city's average happiness. */
   refreshFields(): void {
     const s = this.state;
     const st = s.stats;
     const labor = st.population * 0.55;
     const unemployment = labor > 0 ? Math.max(0, 1 - st.employed / labor) : 0;
-    st.happiness = this.fields.update(s.buildings, s.roads, s.roadCell, s.heights, this.traffic.density, s.tax, unemployment, st.congestion);
+    st.happiness = this.fields.update(s.buildings, s.roads, s.roadCell, s.heights, this.traffic.density, s.tax, unemployment, st.congestion, activeStations(s));
+    // Residents within reach of a connected station ride instead of driving.
+    const transit = this.fields.coverage[6]!;
+    let riders = 0;
+    for (const b of s.buildings) {
+      if (!b || b.kind !== 0 || b.pop <= 0 || zoneType(b.zone) !== ZoneType.Residential) continue;
+      riders += b.pop * METRO.uptake * transit[(b.y + (b.h >> 1)) * MAP + b.x + (b.w >> 1)]!;
+    }
+    st.metroRiders = Math.round(riders);
   }
 
   /** Recomputes power and water on every road network. */
@@ -142,7 +159,7 @@ export class Sim {
 
   private settleMonth(month: number): void {
     const s = this.state;
-    projectBudget(s.buildings, s.roads, s.tax, s.loans, s.stats, s.report, s.policies);
+    projectBudget(s.buildings, s.roads, s.tax, s.loans, s.stats, s.report, s.policies, s.metro);
     if (!s.sandbox) s.funds += s.report.net;
     for (let i = s.loans.length - 1; i >= 0; i--) {
       if (--s.loans[i]!.monthsLeft <= 0) s.loans.splice(i, 1);
@@ -285,6 +302,8 @@ export class Sim {
   /** Carries out a player command and announces the outcome. */
   apply(cmd: Command): CommandResult {
     const result = this.run(cmd);
+    // A station that was demolished (or built over) takes its lines with it.
+    if (result.ok && pruneMetro(this.state)) this.events.emit('metroChanged', null);
     this.events.emit('command', { cmd, result });
     return result;
   }
@@ -363,6 +382,26 @@ export class Sim {
         this.frontier = null;
         this.events.emit('zonesChanged', { x0, y0, x1, y1 });
         if (removed.length > 0) this.events.emit('buildingsChanged', { changed: [], removed });
+        return OK;
+      }
+      case 'buildMetro': {
+        const plan = planMetro(s, cmd.a, cmd.b, cmd.via ?? []);
+        if (!plan.ok) return fail(plan.reason);
+        if (!s.sandbox && s.funds < plan.cost) return fail(`Not enough money: this line costs $${plan.cost.toLocaleString('en-US')}`);
+        s.metro ??= emptyMetro();
+        const line = { id: s.metro.lines.length, a: cmd.a, b: cmd.b, pts: plan.pts, length: Math.round(plan.length) };
+        s.metro.lines.push(line);
+        if (!s.sandbox) s.funds -= plan.cost;
+        this.refreshFields();
+        this.events.emit('metroChanged', null);
+        return { ok: true, cost: plan.cost };
+      }
+      case 'removeMetro': {
+        const l = s.metro?.lines[cmd.line];
+        if (!l) return fail('No metro line there');
+        s.metro!.lines[cmd.line] = null;
+        this.refreshFields();
+        this.events.emit('metroChanged', null);
         return OK;
       }
       case 'zoneAlong': {

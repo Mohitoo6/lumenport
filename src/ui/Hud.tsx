@@ -4,7 +4,7 @@ import { LOAN_TIERS, loanPayment } from '../sim/economy/budget';
 import { OVERLAYS } from '../render/overlays/dataOverlay';
 import { CitizenFeed, CouncilChamber, IssuesMenu, MinisterRequestCard } from './council/Council';
 import { AssistantButton, AssistantPanel } from './assistant/Assistant';
-import { FACILITIES, POWER_FACILITIES, SERVICE_FACILITIES, WATER_FACILITIES } from '../sim/facilities';
+import { CAMPUS_FACILITIES, FACILITIES, POWER_FACILITIES, SERVICE_FACILITIES, TRANSIT_FACILITIES, WATER_FACILITIES } from '../sim/facilities';
 import type { Speed } from '../sim/state';
 import {
   IconAvenue,
@@ -161,9 +161,11 @@ function BudgetPanel(): JSX.Element | null {
         {row('Residential tax', b.taxR, 1)}
         {row('Commercial tax', b.taxC, 1)}
         {row('Industrial tax', b.taxI, 1)}
+        {(b.fares > 0 || b.transit > 0) && row('Metro fares', b.fares, 1)}
         {row('Road upkeep', b.roads, -1)}
         {row('Utilities', b.utilities, -1)}
         {row('Services', b.services, -1)}
+        {(b.fares > 0 || b.transit > 0) && row('Metro upkeep', b.transit, -1)}
         {row('Loan payments', b.loans, -1)}
         <div class="ledger-row total">
           <span>Net</span>
@@ -460,6 +462,27 @@ function ToolButton(props: { active: boolean; label: string; hotkey?: string; on
   );
 }
 
+function IconTrain(props: { size?: number }): JSX.Element {
+  const s = props.size ?? 18;
+  return (
+    <svg width={s} height={s} viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <rect x="4" y="2.5" width="10" height="10" rx="2.2" />
+      <path d="M4 8h10M6.5 15.5l1.5-3M11.5 15.5l-1.5-3" />
+      <circle cx="6.8" cy="10.3" r="0.6" fill="currentColor" />
+      <circle cx="11.2" cy="10.3" r="0.6" fill="currentColor" />
+    </svg>
+  );
+}
+
+function IconCampus(props: { size?: number }): JSX.Element {
+  const s = props.size ?? 18;
+  return (
+    <svg width={s} height={s} viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M2.5 15.5h13M4 15.5V8.5h3.5v7M10.5 15.5V3h3.5v12.5M5.5 11h.5M12 6h.5M12 9h.5M12 12h.5" />
+    </svg>
+  );
+}
+
 function IconSquare(): JSX.Element {
   return (
     <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-dasharray="2.4 1.8" aria-hidden="true">
@@ -476,10 +499,20 @@ function Toolbar(): JSX.Element {
   const zt = ui.zoneType.value;
   const zd = ui.zoneDensity.value;
   const fk = ui.facility.value;
-  const group = POWER_FACILITIES.includes(fk as never) ? POWER_FACILITIES : WATER_FACILITIES.includes(fk as never) ? WATER_FACILITIES : SERVICE_FACILITIES;
+  const group: readonly number[] = POWER_FACILITIES.includes(fk as never)
+    ? POWER_FACILITIES
+    : WATER_FACILITIES.includes(fk as never)
+      ? WATER_FACILITIES
+      : CAMPUS_FACILITIES.includes(fk as never)
+        ? CAMPUS_FACILITIES
+        : TRANSIT_FACILITIES.includes(fk as never)
+          ? TRANSIT_FACILITIES
+          : SERVICE_FACILITIES;
   const isPower = group === POWER_FACILITIES;
   const isWater = group === WATER_FACILITIES;
   const isService = group === SERVICE_FACILITIES;
+  const isCampus = group === CAMPUS_FACILITIES;
+  const isMetro = tool === 'metro' || (tool === 'place' && group === TRANSIT_FACILITIES);
   const zoneBtn = (type: number, label: string, icon: JSX.Element): JSX.Element => (
     <ToolButton
       tone={ZONE_CLASS[type]}
@@ -530,7 +563,17 @@ function Toolbar(): JSX.Element {
           ))}
         </div>
       )}
-      {tool === 'place' && (
+      {isMetro && (
+        <div class="panel options" role="group" aria-label="Metro">
+          <ToolButton active={tool === 'place'} label={`Station · ${usd(FACILITIES[TRANSIT_FACILITIES[0]]!.cost)}`} onClick={() => actions.setFacility(TRANSIT_FACILITIES[0])}>
+            <span class="opt-dot" aria-hidden="true" />
+          </ToolButton>
+          <ToolButton active={tool === 'metro'} label="Line · $30 / m" onClick={() => actions.selectTool('metro')}>
+            <span class="opt-dot" aria-hidden="true" />
+          </ToolButton>
+        </div>
+      )}
+      {tool === 'place' && !isMetro && (
         <div class="panel options" role="group" aria-label="Facility">
           {group.map((k) => (
             <ToolButton key={k} active={fk === k} label={`${FACILITIES[k]!.name} · ${usd(FACILITIES[k]!.cost)}`} onClick={() => actions.setFacility(k)}>
@@ -560,6 +603,12 @@ function Toolbar(): JSX.Element {
         </ToolButton>
         <ToolButton active={tool === 'place' && isService} label="Services" onClick={() => (tool === 'place' && isService ? actions.selectTool('none') : actions.setFacility(SERVICE_FACILITIES[0]))}>
           <IconShield size={18} />
+        </ToolButton>
+        <ToolButton active={tool === 'place' && isCampus} label="Campus" onClick={() => (tool === 'place' && isCampus ? actions.selectTool('none') : actions.setFacility(CAMPUS_FACILITIES[0]))}>
+          <IconCampus size={18} />
+        </ToolButton>
+        <ToolButton active={isMetro} label="Metro" onClick={() => (isMetro ? actions.selectTool('none') : actions.setFacility(TRANSIT_FACILITIES[0]))}>
+          <IconTrain size={18} />
         </ToolButton>
         <div class="toolbar-sep" />
         <ToolButton danger active={tool === 'bulldoze'} label="Bulldoze" hotkey="X" onClick={() => actions.selectTool(tool === 'bulldoze' ? 'none' : 'bulldoze')}>

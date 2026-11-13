@@ -62,6 +62,7 @@ const enum Mode {
 
 export interface TrafficSource {
   policies?: { flexHours?: boolean };
+  stats?: { metroRiders?: number };
   roads: RoadNetwork;
   buildings: ReadonlyArray<Building | null>;
   roadCell: Int32Array;
@@ -582,6 +583,8 @@ export class Traffic {
   private wanted(): number {
     let people = 0;
     for (const id of this.homes) people += this.src.buildings[id]?.pop ?? 0;
+    // Metro riders leave their cars at home.
+    people = Math.max(0, people - (this.src.stats?.metroRiders ?? 0));
     return Math.min(MAX_CARS, Math.round(people * this.carsPerPerson * rushFactor(this.hour, this.src.policies?.flexHours === true)));
   }
 

@@ -27,7 +27,7 @@ export class Fields {
   private watersideFor: Float32Array | null = null;
 
   constructor() {
-    for (let i = 0; i <= 5; i++) this.coverage.push(new Float32Array(N));
+    for (let i = 0; i <= 6; i++) this.coverage.push(new Float32Array(N));
   }
 
   /** Box blur of radius r, applied horizontally then vertically, `passes` times. */
@@ -99,6 +99,7 @@ export class Fields {
     tax: readonly number[],
     unemployment: number,
     congestion: number,
+    transitActive?: ReadonlySet<number>,
   ): number {
     if (this.watersideFor !== heights) this.computeWaterside(heights);
     for (const c of this.coverage) c.fill(0);
@@ -111,7 +112,9 @@ export class Fields {
       if (!b || b.progress < 1) continue;
       if (b.kind !== 0) {
         const spec = FACILITIES[b.kind]!;
-        if (spec.service !== Service.None) this.stampCoverage(this.coverage[spec.service]!, b, spec.radius);
+        // A metro station only serves anyone once a line connects it to another station.
+        const live = spec.service !== Service.Transit || (transitActive?.has(b.id) ?? false);
+        if (spec.service !== Service.None && live) this.stampCoverage(this.coverage[spec.service]!, b, spec.radius);
         if (b.kind === FacilityKind.CoalPlant) this.stampLot(pol, b, 5);
         continue;
       }
@@ -139,10 +142,11 @@ export class Fields {
     const health = this.coverage[Service.Health]!;
     const edu = this.coverage[Service.Education]!;
     const park = this.coverage[Service.Park]!;
+    const transit = this.coverage[Service.Transit]!;
     const lv = this.landValue;
     for (let k = 0; k < N; k++) {
       lv[k] = clamp(
-        0.42 + 0.22 * this.waterside[k]! + 0.2 * park[k]! + 0.06 * (police[k]! + fire[k]! + health[k]! + edu[k]!) - 0.55 * pol[k]! - 0.35 * crime[k]!,
+        0.42 + 0.22 * this.waterside[k]! + 0.2 * park[k]! + 0.06 * (police[k]! + fire[k]! + health[k]! + edu[k]!) + 0.12 * transit[k]! - 0.55 * pol[k]! - 0.35 * crime[k]!,
         0,
         1,
       );
@@ -163,6 +167,7 @@ export class Fields {
           0.3 * (lv[k]! - 0.42) +
           0.12 * health[k]! +
           0.1 * edu[k]! +
+          0.06 * transit[k]! +
           0.07 * police[k]! +
           0.05 * fire[k]! -
           0.35 * pol[k]! -

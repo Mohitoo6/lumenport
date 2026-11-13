@@ -15,6 +15,7 @@ import { Atmosphere } from '../render/atmosphere';
 import { RtsCamera, type CameraPose } from '../render/camera/rtsCamera';
 import { BuildingRenderer } from '../render/buildings/buildingRenderer';
 import { TownHallDoors, doorFrame, townHallOf } from '../render/buildings/townHallDoors';
+import { MetroRenderer } from '../render/metro/metroRenderer';
 import { Chamber } from '../render/council/chamber';
 import { Cinematic, type CinePhase } from '../render/council/cinematic';
 import { CHIEF_SECRETARY, MINISTER_BY_ID } from './council/ministries';
@@ -97,6 +98,7 @@ export class Game {
   council!: CouncilController;
   assistant!: AssistantController;
   doors!: TownHallDoors;
+  metro!: MetroRenderer;
   cinematic!: Cinematic;
   /** The council chamber, built the first time the council sits. */
   private chamber: Chamber | null = null;
@@ -196,6 +198,14 @@ export class Game {
     engine.scene.add(this.vehicles.group);
     this.doors = new TownHallDoors();
     engine.scene.add(this.doors.group);
+    this.metro = new MetroRenderer();
+    engine.scene.add(this.metro.group);
+    this.metro.rebuild(state);
+    this.preview.metroPreview = (pts, ok) => this.metro.setPreview(this.sim.state, pts, ok);
+    sim.events.on('metroChanged', () => {
+      this.metro.rebuild(this.sim.state);
+      this.shadowDirty = true;
+    });
     this.cinematic = new Cinematic(this.canvas.parentElement ?? document.body, this.doors);
     this.cinematic.onPhase = (p) => this.onCinePhase(p);
     this.cinematic.onInside = () => {
@@ -606,6 +616,7 @@ export class Game {
     this.buildings?.update();
     // While paused the cars sit at their last tick position.
     this.vehicles?.update(this.sim.traffic, state.speed === 0 ? 1 : Math.min(1, this.acc / TICK_MS), this.atmosphere.night);
+    this.metro?.update(dt * Math.min(state.speed, 2), this.atmosphere.night);
     if (inside && this.chamber) {
       const v = ui.council.value;
       const thinking = new Set<string>();
@@ -656,7 +667,7 @@ export class Game {
       ui.funds.value = Math.floor(state.funds);
       ui.population.value = st.population;
       ui.demand.value = [st.demand[1], st.demand[2], st.demand[3]];
-      ui.budget.value = projectBudget(state.buildings, state.roads, state.tax, state.loans, st, emptyReport(), state.policies);
+      ui.budget.value = projectBudget(state.buildings, state.roads, state.tax, state.loans, st, emptyReport(), state.policies, state.metro);
       ui.tax.value = [state.tax[1], state.tax[2], state.tax[3]];
       ui.loans.value = state.loans.slice();
       ui.power.value = [st.powerSupply, st.powerDemand];
@@ -712,6 +723,7 @@ export class Game {
     if (this.overlay.id !== 'none') this.overlay.refresh(this.sim);
     if (!this.options.shots) this.ensureTownHall();
     else this.doors.attach(townHallOf(s.buildings));
+    this.metro.rebuild(s);
   }
 
   private async saveTo(slot: string): Promise<boolean> {

@@ -493,6 +493,138 @@ function townHall(l: Lot): void {
   }
 }
 
+/** Deck height of the elevated metro above the station pad (matches METRO.height). */
+export const METRO_DECK = 19;
+
+/**
+ * A metro station: a glazed ticket hall at street level and an island platform up on the
+ * viaduct, under a long canopy, reached by a covered stair. Lines arrive at its centre.
+ */
+function metroStation(l: Lot): void {
+  const { g, W, D } = l;
+  ground(l, PAVING);
+  const teal: RGB = [0.05, 0.55, 0.62];
+  const steel = mat(Layer.Metal, [1.25, 1.3, 1.36], 2.2);
+  const deck = mat(Layer.Concrete, [1.32, 1.32, 1.3], 3);
+  const hw = W / 2 - 0.6;
+  const hd = D / 2 - 0.6;
+  // Platform slab and the columns that carry it.
+  for (const [x, z] of [
+    [-hw + 1, -hd + 1],
+    [hw - 1, -hd + 1],
+    [-hw + 1, hd - 1],
+    [hw - 1, hd - 1],
+  ] as const) {
+    g.cyl(x, z, 0.55, 0.55, 0, METRO_DECK - 1.2, 12, CONCRETE);
+  }
+  g.box(-hw, -hd, hw, hd, METRO_DECK - 1.2, METRO_DECK - 0.1, deck);
+  // Platform edge strips and benches.
+  g.flat(-hw, -hd, hw, -hd + 0.4, METRO_DECK - 0.08, mat(Layer.Concrete, [2.0, 1.8, 0.4], 3));
+  g.flat(-hw, hd - 0.4, hw, hd, METRO_DECK - 0.08, mat(Layer.Concrete, [2.0, 1.8, 0.4], 3));
+  // Canopy on slender posts.
+  for (const x of [-hw + 1.5, 0, hw - 1.5]) {
+    g.cyl(x, -1.6, 0.14, 0.14, METRO_DECK - 0.1, METRO_DECK + 3.6, 8, steel);
+    g.cyl(x, 1.6, 0.14, 0.14, METRO_DECK - 0.1, METRO_DECK + 3.6, 8, steel);
+  }
+  g.box(-hw - 0.4, -hd + 0.2, hw + 0.4, hd - 0.2, METRO_DECK + 3.6, METRO_DECK + 4.0, mat(Layer.Metal, [1.5, 1.52, 1.55], 2.5));
+  g.box(-hw - 0.4, -0.5, hw + 0.4, 0.5, METRO_DECK + 4.0, METRO_DECK + 4.6, mat(Layer.Plaster2, teal, 3), SIGN, CONCRETE_DARK);
+  // Ticket hall at the front, glazed, with the line colour band.
+  const z1 = D / 2 - 0.8;
+  const z0 = z1 - 5;
+  g.walls(-4.5, z0, 4.5, z1, 0, 4.2, mat(Layer.Concrete, [0.6, 0.62, 0.66], 2), win(Style.Storefront, 1.8, 4.2, 0.5));
+  g.box(-4.8, z0 - 0.2, 4.8, z1 + 0.3, 4.2, 4.8, mat(Layer.Plaster2, teal, 3), NO_WIN, CONCRETE_DARK);
+  signBoard(g, -1.2, 1.2, z1 + 0.3, 4.9, 6.6, teal);
+  // Glazed lift and stair tower from the hall up to the platform.
+  const tx0 = 4.4;
+  const tx1 = W / 2 - 0.4;
+  const tz0 = z0 - 4.5;
+  const tz1 = z0 + 0.5;
+  g.walls(tx0, tz0, tx1, tz1, 0, METRO_DECK + 2.8, mat(Layer.Metal, [0.62, 0.85, 1.0], 2.4), win(Style.Curtain, 1.4, 3.2, 0.7));
+  g.box(tx0 - 0.2, tz0 - 0.2, tx1 + 0.2, tz1 + 0.2, METRO_DECK + 2.8, METRO_DECK + 3.3, mat(Layer.Plaster2, teal, 3), NO_WIN, CONCRETE_DARK);
+  g.tree(-W / 2 + 1.6, D / 2 - 1.6, 0.4, 0.3);
+}
+
+/** An IT park: three glass office towers on a landscaped podium, with parking and a sign. */
+function itPark(l: Lot): void {
+  const { g, r, W, D } = l;
+  ground(l, PAVING);
+  const glassBlue = mat(Layer.Metal, [0.55, 0.78, 1.05], 2.6);
+  const glassGreen = mat(Layer.Metal, [0.5, 0.95, 0.9], 2.6);
+  const frame = mat(Layer.ConcreteWall, [1.25, 1.27, 1.3], 3);
+  const fh = 3.8;
+  const towers: Array<[number, number, number, number, number, Mat]> = [
+    [-W / 2 + 2, -D / 2 + 2, -W / 2 + 13, -D / 2 + 13, 10 + r.int(3), glassBlue],
+    [W / 2 - 12, -D / 2 + 2, W / 2 - 2, -D / 2 + 11, 7 + r.int(3), glassGreen],
+    [W / 2 - 11, -D / 2 + 13.5, W / 2 - 2, -D / 2 + 21, 5 + r.int(2), glassBlue],
+  ];
+  // Podium joining the towers.
+  g.walls(-W / 2 + 2, -D / 2 + 2, W / 2 - 2, -D / 2 + 9, 0, 5, frame, win(Style.Storefront, 3, 5, 0.5));
+  flatRoof(g, -W / 2 + 2, -D / 2 + 2, W / 2 - 2, -D / 2 + 9, 5, frame, mat(Layer.Grass, [0.55, 0.85, 0.45], 4), 0.9);
+  for (const [x0, z0, x1, z1, floors, m] of towers) {
+    const top = floors * fh;
+    g.walls(x0, z0, x1, z1, 0, top, m, win(Style.Curtain, 1.6, fh, 0.6));
+    flatRoof(g, x0, z0, x1, z1, top, frame);
+    rooftop(l, x0, z0, x1, z1, top, frame);
+    // Crown: a slim fin on top of the tallest.
+    if (floors >= 10) g.box(x1 - 2.2, z0 + 1, x1 - 1, z1 - 1, top, top + 5, frame);
+  }
+  // Plaza, the sign and parking at the front.
+  g.flat(-W / 2 + 2, -D / 2 + 13.5, W / 2 - 13, D / 2 - 9, 0.04, mat(Layer.Pavement, [1.25, 1.22, 1.15], 3));
+  const sign: RGB = [0.1, 0.45, 0.95];
+  g.box(-W / 2 + 3, D / 2 - 8.6, -W / 2 + 12, D / 2 - 8.2, 0, 2.2, mat(Layer.Plaster2, sign, 3), SIGN, CONCRETE_DARK);
+  parking(g, -W / 2 + 1, D / 2 - 7.5, W / 2 - 1, D / 2 - 1);
+  for (let k = 0; k < 4; k++) g.tree(-W / 2 + 4 + k * 4.5, -D / 2 + 15 + (k % 2) * 3, 0.5 + r.next() * 0.2, k);
+}
+
+/**
+ * A university: a stone main hall with a clock tower facing a lawn quad, flanked by two
+ * brick teaching wings, with paths and trees.
+ */
+function university(l: Lot): void {
+  const { g, r, W, D } = l;
+  ground(l, LAWN);
+  const stone = mat(Layer.ConcreteWall, [1.5, 1.42, 1.28], 3);
+  const brick = mat(Layer.Brick, [1.15, 0.92, 0.82], 2);
+  const slate = mat(Layer.Roof2, [0.75, 0.78, 0.85], 3);
+  const copper = mat(Layer.Metal, [0.55, 1.02, 0.86], 2);
+  const fh = 4;
+  // Main hall across the back.
+  const hz0 = -D / 2 + 2;
+  const hz1 = hz0 + 10;
+  g.walls(-W / 2 + 5, hz0, W / 2 - 5, hz1, 0, 3 * fh, stone, win(Style.Punched, fitBay(W - 10, 3.2), fh, 0.45));
+  g.gable(-W / 2 + 5, hz0, W / 2 - 5, hz1, 3 * fh, 3.5, true, 0.5, slate, stone);
+  // Clock tower in the middle of the hall.
+  g.box(-2.6, hz1 - 3, 2.6, hz1 + 2.2, 0, 22, stone, win(Style.Punched, 2.6, 4, 0.35), null);
+  g.box(-3, hz1 - 3.4, 3, hz1 + 2.6, 22, 23, stone);
+  g.cyl(0, hz1 - 0.4, 2.6, 0.2, 23, 29, 8, copper, null);
+  g.box(-1.1, hz1 + 2.25, 1.1, hz1 + 2.4, 17, 19.2, mat(Layer.Plaster2, [1.9, 1.85, 1.6], 3), SIGN, null);
+  // Teaching wings down both sides.
+  for (const side of [-1, 1]) {
+    const x0 = side < 0 ? -W / 2 + 2 : W / 2 - 11;
+    const x1 = x0 + 9;
+    const z0 = hz1 + 2;
+    const z1 = D / 2 - 6;
+    g.walls(x0, z0, x1, z1, 0, 2 * fh, brick, win(Style.Punched, 3, fh, 0.45));
+    g.gable(x0, z0, x1, z1, 2 * fh, 2.6, false, 0.4, slate, brick);
+  }
+  // The quad: crossing paths and trees.
+  const qx0 = -W / 2 + 12;
+  const qx1 = W / 2 - 12;
+  g.flat(-1.2, hz1 + 2, 1.2, D / 2 - 0.5, 0.04, PAVING);
+  g.flat(qx0, (hz1 + D / 2) / 2 - 1, qx1, (hz1 + D / 2) / 2 + 1, 0.04, PAVING);
+  for (let k = 0; k < 6; k++) {
+    const x = (k % 2 ? qx1 - 3 : qx0 + 3) + (r.next() - 0.5);
+    const z = hz1 + 6 + Math.floor(k / 2) * 7;
+    g.tree(x, z, 0.6 + r.next() * 0.25, k * 1.3);
+  }
+  // Gate with the name.
+  const navy: RGB = [0.12, 0.18, 0.45];
+  g.box(-5, D / 2 - 1.2, -3.6, D / 2 - 0.4, 0, 3.4, stone);
+  g.box(3.6, D / 2 - 1.2, 5, D / 2 - 0.4, 0, 3.4, stone);
+  g.box(-3.6, D / 2 - 1.1, 3.6, D / 2 - 0.5, 2.6, 3.4, mat(Layer.Plaster2, navy, 3), SIGN, stone);
+  flagpole(g, 7, D / 2 - 2, navy);
+}
+
 export function facility(l: Lot, kind: number): void {
   switch (kind) {
     case FacilityKind.CoalPlant:
@@ -521,6 +653,15 @@ export function facility(l: Lot, kind: number): void {
       break;
     case FacilityKind.School:
       school(l);
+      break;
+    case FacilityKind.MetroStation:
+      metroStation(l);
+      break;
+    case FacilityKind.ItPark:
+      itPark(l);
+      break;
+    case FacilityKind.University:
+      university(l);
       break;
     case FacilityKind.TownHall:
       townHall(l);

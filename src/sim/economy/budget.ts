@@ -1,4 +1,5 @@
-import { FACILITIES, Service } from '../facilities';
+import { METRO, metroLength, type MetroState } from '../transit/metro';
+import { FacilityKind, FACILITIES, Service } from '../facilities';
 import { ROAD_SPECS, type RoadNetwork } from '../roads/types';
 import { ZoneType, zoneType, type Building } from '../zoning/zones';
 import type { CityStats } from './economy';
@@ -43,6 +44,10 @@ export interface BudgetReport {
   roads: number;
   utilities: number;
   services: number;
+  /** Metro stations and lines. */
+  transit: number;
+  /** Metro fares. */
+  fares: number;
   loans: number;
   income: number;
   expense: number;
@@ -50,7 +55,7 @@ export interface BudgetReport {
 }
 
 export function emptyReport(): BudgetReport {
-  return { taxR: 0, taxC: 0, taxI: 0, roads: 0, utilities: 0, services: 0, loans: 0, income: 0, expense: 0, net: 0 };
+  return { taxR: 0, taxC: 0, taxI: 0, roads: 0, utilities: 0, services: 0, transit: 0, fares: 0, loans: 0, income: 0, expense: 0, net: 0 };
 }
 
 /** Monthly tax per resident or worker at a 1% rate. */
@@ -68,17 +73,23 @@ export function projectBudget(
   stats: CityStats,
   out: BudgetReport,
   policies: Policies = {},
+  metro?: MetroState,
 ): BudgetReport {
   let workersC = 0;
   let workersI = 0;
   let utilities = 0;
   let services = 0;
+  let transit = 0;
   for (const b of buildings) {
     if (!b) continue;
     if (b.kind !== 0) {
       const spec = FACILITIES[b.kind]!;
-      if (spec.service === Service.None) utilities += spec.upkeep;
+      const line = spec.budget ?? (spec.service === Service.None ? 'utility' : 'service');
+      if (line === 'utility') utilities += spec.upkeep;
+      else if (line === 'transit') transit += spec.upkeep;
       else services += spec.upkeep;
+      // Office jobs pay better than shop jobs, so they bring in more tax.
+      if (spec.jobs) workersC += b.pop * (b.kind === FacilityKind.ItPark ? 1.8 : 1.2);
     } else if (zoneType(b.zone) === ZoneType.Commercial) {
       workersC += b.pop;
     } else if (zoneType(b.zone) === ZoneType.Industrial) {
@@ -97,9 +108,11 @@ export function projectBudget(
   out.utilities = utilities;
   if (policies.flexHours) services += POLICY_COST.flexHours;
   out.services = services;
+  out.transit = Math.round(transit + metroLength(metro) * METRO.upkeepPerMetre);
+  out.fares = Math.round((stats.metroRiders ?? 0) * METRO.fare);
   out.loans = loanCost;
-  out.income = out.taxR + out.taxC + out.taxI;
-  out.expense = out.roads + out.utilities + out.services + out.loans;
+  out.income = out.taxR + out.taxC + out.taxI + out.fares;
+  out.expense = out.roads + out.utilities + out.services + out.transit + out.loans;
   out.net = out.income - out.expense;
   return out;
 }

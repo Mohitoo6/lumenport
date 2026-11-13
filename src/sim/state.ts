@@ -1,3 +1,4 @@
+import { emptyMetro, type MetroState } from './transit/metro';
 import { DAYS_PER_MONTH, MAP, MONTHS_PER_YEAR, START_YEAR, TICKS_PER_DAY, VERTS } from '../core/constants';
 import { generateHeights } from './map/terrain';
 import { generateTrees } from './map/trees';
@@ -52,6 +53,8 @@ export interface GameState {
   stats: CityStats;
   /** City policies the council can adopt. Optional so older saves load unchanged. */
   policies?: Policies;
+  /** Metro lines. Optional so older saves load unchanged. */
+  metro?: MetroState;
 }
 
 
@@ -80,6 +83,7 @@ export function createState(seed: number, cityName = 'New Haven'): GameState {
     report: emptyReport(),
     stats: emptyStats(),
     policies: {},
+    metro: emptyMetro(),
   };
 }
 

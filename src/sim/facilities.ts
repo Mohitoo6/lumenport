@@ -16,6 +16,9 @@ export const enum FacilityKind {
   Park = 10,
   /** The seat of the city council: placed by the game at the start, cannot be removed. */
   TownHall = 11,
+  ItPark = 12,
+  University = 13,
+  MetroStation = 14,
 }
 
 /** Which coverage layer a service facility feeds. */
@@ -26,6 +29,8 @@ export const enum Service {
   Health = 3,
   Education = 4,
   Park = 5,
+  /** Reach of metro stations that are connected to at least one other station. */
+  Transit = 6,
 }
 
 export interface FacilitySpec {
@@ -47,6 +52,10 @@ export interface FacilitySpec {
   radius: number;
   /** A landmark: needs no road, one per city, cannot be demolished or built over. */
   landmark?: boolean;
+  /** Office or campus jobs it offers once built (filled like shop jobs, taxed at a higher wage). */
+  jobs?: number;
+  /** Where its running cost appears in the budget. Defaults: utility without a service, else service. */
+  budget?: 'utility' | 'service' | 'transit';
 }
 
 export const FACILITIES: Record<number, FacilitySpec> = {
@@ -60,6 +69,9 @@ export const FACILITIES: Record<number, FacilitySpec> = {
   [FacilityKind.Clinic]: { name: 'Clinic', size: 2, cost: 6000, upkeep: 380, power: 0, water: 0, needsShore: false, blurb: 'Healthier, happier residents.', service: Service.Health, radius: 38 },
   [FacilityKind.School]: { name: 'School', size: 3, cost: 7000, upkeep: 420, power: 0, water: 0, needsShore: false, blurb: 'Educated residents; lets homes improve.', service: Service.Education, radius: 38 },
   [FacilityKind.Park]: { name: 'Park', size: 2, cost: 1200, upkeep: 40, power: 0, water: 0, needsShore: false, blurb: 'Raises land value around it.', service: Service.Park, radius: 14 },
+  [FacilityKind.ItPark]: { name: 'IT park', size: 4, cost: 28000, upkeep: 350, power: 0, water: 0, needsShore: false, blurb: 'Well-paid office jobs: draws new residents and raises tax income.', service: Service.None, radius: 0, jobs: 480, budget: 'service' },
+  [FacilityKind.University]: { name: 'University', size: 5, cost: 32000, upkeep: 1100, power: 0, water: 0, needsShore: false, blurb: 'Educates a wide area, lifts land value and offers campus jobs.', service: Service.Education, radius: 90, jobs: 120 },
+  [FacilityKind.MetroStation]: { name: 'Metro station', size: 2, cost: 9000, upkeep: 160, power: 0, water: 0, needsShore: false, blurb: 'Connect two or more with a metro line: fewer cars, higher land value, fare income.', service: Service.Transit, radius: 55, budget: 'transit' },
   [FacilityKind.TownHall]: { name: 'Town Hall', size: 4, cost: 0, upkeep: 0, power: 0, water: 0, needsShore: false, blurb: 'Seat of the city council. A civic square that lifts the land around it.', service: Service.Park, radius: 22, landmark: true },
 };
 
@@ -70,6 +82,8 @@ export function isLandmark(kind: number): boolean {
 export const POWER_FACILITIES = [FacilityKind.CoalPlant, FacilityKind.WindTurbine, FacilityKind.SolarFarm] as const;
 export const WATER_FACILITIES = [FacilityKind.WaterTower, FacilityKind.WaterPump] as const;
 export const SERVICE_FACILITIES = [FacilityKind.Police, FacilityKind.FireStation, FacilityKind.Clinic, FacilityKind.School, FacilityKind.Park] as const;
+export const CAMPUS_FACILITIES = [FacilityKind.ItPark, FacilityKind.University] as const;
+export const TRANSIT_FACILITIES = [FacilityKind.MetroStation] as const;
 
 export interface FacilityPlan {
   ok: boolean;

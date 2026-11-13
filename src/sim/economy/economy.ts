@@ -1,3 +1,4 @@
+import { FACILITIES } from '../facilities';
 import { clamp } from '../../core/math';
 import { POWERED, WATERED } from '../utilities/network';
 import { ZoneType, zoneType, type Building } from '../zoning/zones';
@@ -30,6 +31,8 @@ export interface CityStats {
   vehicles: number;
   /** Resident-weighted average happiness, 0..1. */
   happiness: number;
+  /** Residents who ride the metro instead of driving (optional for older saves). */
+  metroRiders?: number;
 }
 
 export function emptyStats(): CityStats {
@@ -49,6 +52,7 @@ export function emptyStats(): CityStats {
     congestion: 0,
     vehicles: 0,
     happiness: 0.5,
+    metroRiders: 0,
   };
 }
 
@@ -75,7 +79,16 @@ export function economyStep(buildings: ReadonlyArray<Building | null>, tax: read
   let unwatered = 0;
 
   for (const b of buildings) {
-    if (!b || b.kind !== 0) continue;
+    if (!b) continue;
+    if (b.kind !== 0) {
+      // Office and campus jobs count with the shops'.
+      const jobs = FACILITIES[b.kind]?.jobs ?? 0;
+      if (jobs > 0) {
+        plannedC += jobs;
+        if (b.progress >= 1) jobsC += jobs;
+      }
+      continue;
+    }
     const t = zoneType(b.zone);
     const cap = capacityOf(b);
     const done = b.progress >= 1;
@@ -108,7 +121,16 @@ export function economyStep(buildings: ReadonlyArray<Building | null>, tax: read
   const fill = jobs > 0 ? Math.min(1, labor / jobs) : 0;
   let employed = 0;
   for (const b of buildings) {
-    if (!b || b.kind !== 0 || zoneType(b.zone) === ZoneType.Residential) continue;
+    if (!b) continue;
+    if (b.kind !== 0) {
+      const jobs = FACILITIES[b.kind]?.jobs ?? 0;
+      if (jobs > 0) {
+        b.pop = b.progress >= 1 ? Math.round(jobs * fill) : 0;
+        employed += b.pop;
+      }
+      continue;
+    }
+    if (zoneType(b.zone) === ZoneType.Residential) continue;
     const served = b.progress >= 1 && (b.flags & (POWERED | WATERED)) === (POWERED | WATERED);
     b.pop = served ? Math.round(capacityOf(b) * fill) : 0;
     employed += b.pop;

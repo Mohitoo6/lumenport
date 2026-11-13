@@ -3,6 +3,7 @@ import { LOAN_TIERS } from '../../sim/economy/budget';
 import { FACILITIES, FacilityKind } from '../../sim/facilities';
 import { ROAD_SPECS, RoadType } from '../../sim/roads/types';
 import { MAX_DEPTH } from '../../sim/zoning/lots';
+import { METRO } from '../../sim/transit/metro';
 
 /**
  * How the game works, written from the game's own numbers so the assistant's answers
@@ -56,6 +57,17 @@ Traffic
 The city council
 - When a problem lasts, the responsible minister asks for a meeting; the Council button in the top bar lists current problems. The council meets in the town hall, debates real options with costs, and the mayor approves one. Approved options are built automatically.
 
-Views (top right) colour the map by power, water, traffic, pollution, crime, land value, happiness and police/fire/health/education cover.
+Metro (toolbar: Metro)
+- Place Metro stations beside roads (Metro > Station), then draw a line (Metro > Line): click a station, click the ground to bend the line, click another station to build it. Cost ${usd(METRO.baseCost)} per line plus ${usd(METRO.costPerMetre)} per metre; upkeep ${usd(METRO.upkeepPerMetre)} per metre a month plus each station's upkeep.
+- The line runs on a viaduct over roads, houses and small shops, but not through taller buildings or facilities: bend it around them.
+- A station only works once a line joins it to another station. Residents within reach (about ${Math.round(FACILITIES[FacilityKind.MetroStation]!.radius * CELL)} m) ride instead of driving: fewer cars, higher land value and happiness, and fares as income. Bulldoze the ground under a line to remove it.
+
+Campus (toolbar: Campus)
+- IT park: well-paid office jobs (taxed more than shop jobs), which raise demand for homes.
+- University: education cover over a very wide area, higher land value, and campus jobs.
+
+Zoning tip: the Zone tool's "Along road" brush (default) zones both sides of any road you drag along, straight, curved or zigzag; "Area" paints a rectangle.
+
+Views (top right) colour the map by power, water, traffic, pollution, crime, land value, happiness, police/fire/health/education cover and metro reach.
 Controls: WASD or arrows move, Q/E rotate, R/F tilt, scroll zooms, right-drag orbits, Space pauses, 1-3 set speed, Esc cancels a tool, B budget, V views, M menu (save, load, new city, graphics, sound).`;
 }

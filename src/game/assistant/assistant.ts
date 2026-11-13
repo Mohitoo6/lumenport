@@ -26,7 +26,7 @@ export interface ChatTurn {
   text: string;
 }
 
-export const OVERLAY_IDS = ['power', 'water', 'traffic', 'pollution', 'crime', 'landValue', 'happiness', 'police', 'fire', 'health', 'education'] as const;
+export const OVERLAY_IDS = ['power', 'water', 'traffic', 'pollution', 'crime', 'landValue', 'happiness', 'police', 'fire', 'health', 'education', 'transit'] as const;
 
 const FACILITY_LIST = Object.entries(FACILITIES)
   .filter(([k]) => Number(k) !== FacilityKind.TownHall)
@@ -59,11 +59,27 @@ export function assistantSystem(manual: string): string {
   ].join('\n');
 }
 
+export type Script = 'devanagari' | 'hinglish' | 'english';
+
+const HINGLISH = /\b(kya|kyu|kyun|kyon|kaise|kaisa|nahi|nahin|hai|hain|ho|raha|rahe|rahi|karu|karun|karo|karna|kar|mera|meri|mere|paisa|paise|ghar|sadak|bijli|paani|pani|bana|banao|banta|chahiye|abhi|kab|kahan|kidhar|aur|lekin|bhi|yaar)\b/gi;
+
+/** The script the mayor wrote in, so the reply can match it. */
+export function scriptOf(text: string): Script {
+  if (/[\u0900-\u097F]/.test(text)) return 'devanagari';
+  return (text.match(HINGLISH) ?? []).length >= 2 ? 'hinglish' : 'english';
+}
+
+const REPLY_IN: Record<Script, string> = {
+  devanagari: 'Reply in Hindi written in Devanagari script.',
+  hinglish: 'The mayor wrote Hindi in Latin letters (Hinglish). Reply in Hinglish written in Latin letters, like the mayor, NOT in Devanagari. Example style: "Ghar isliye nahi ban rahe kyunki bijli aur paani nahi hai."',
+  english: 'Reply in English.',
+};
+
 export function assistantUser(situation: string, history: readonly ChatTurn[], question: string): string {
   const past = history.length
     ? `EARLIER IN THIS CONVERSATION:\n${history.map((t) => `${t.role === 'player' ? 'Mayor' : 'Assistant'}: ${t.text}`).join('\n')}\n\n`
     : '';
-  return `CITY RIGHT NOW:\n${situation}\n\n${past}THE MAYOR ASKS: ${question}`;
+  return `CITY RIGHT NOW:\n${situation}\n\n${past}THE MAYOR ASKS: ${question}\n\nLANGUAGE: ${REPLY_IN[scriptOf(question)]}`;
 }
 
 /** Keeps only actions that exist and point at real things. */
@@ -96,7 +112,29 @@ export function parseAssistantReply(text: string, issues: readonly KnownIssue[],
  * Without the AI: the same warnings the HUD shows, and the council's top problem. Honest
  * about being limited.
  */
-export function offlineReply(alerts: readonly string[], issues: readonly KnownIssue[], hindi: boolean): AssistantReply {
+export function offlineReply(alerts: readonly string[], issues: readonly KnownIssue[], hindi: boolean, question = '', facts: { money?: string } = {}): AssistantReply {
+  // Pick what the question is about, so the fallback answers it rather than listing everything.
+  const topics: Array<{ ask: RegExp; match: RegExp; money?: boolean }> = [
+    { ask: /money|budget|tax|funds|deficit|paisa|paise|पैस|बजट|टैक्स|loan|कर्ज/i, match: /money|tax|budget|loan/i, money: true },
+    { ask: /traffic|jam|congest|ट्रैफिक|जाम/i, match: /traffic|gridlock|jam/i },
+    { ask: /power|electric|bijli|बिजली/i, match: /power/i },
+    { ask: /water|paani|pani|पानी/i, match: /water/i },
+    { ask: /home|house|ghar|घर|grow|build|bana/i, match: /power|water|homes|grow|road/i },
+  ];
+  const topic = topics.find((t) => t.ask.test(question));
+  if (topic?.money && facts.money) {
+    return {
+      answer: hindi
+        ? `AI अभी उपलब्ध नहीं है। शहर का बजट: ${facts.money}. Budget (B) खोलकर टैक्स और खर्च देखें।`
+        : `The AI is not available right now. The city's budget: ${facts.money}. Open the Budget (B) to check taxes and spending.`,
+      actions: [{ type: 'budget', label: hindi ? 'Budget खोलें' : 'Open the budget' }],
+      source: 'offline',
+    };
+  }
+  if (topic) {
+    alerts = alerts.filter((a) => topic.match.test(a));
+    issues = issues.filter((i) => topic.match.test(i.title));
+  }
   const top = [...issues].sort((a, b) => b.severity - a.severity)[0];
   const parts: string[] = [];
   parts.push(hindi ? 'AI अभी उपलब्ध नहीं है, लेकिन शहर के आंकड़ों से यह दिख रहा है:' : 'The AI is not available right now, but here is what the city data shows:');

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { offlineReply, parseAssistantReply, validActions } from '../../src/game/assistant/assistant';
+import { offlineReply, parseAssistantReply, scriptOf, validActions } from '../../src/game/assistant/assistant';
 import { AssistantController, type Completer } from '../../src/game/assistant/controller';
 import { gameManual } from '../../src/game/assistant/knowledge';
 import { citySituation, zonedLand } from '../../src/game/assistant/situation';
@@ -84,6 +84,24 @@ describe('assistant: what it may offer', () => {
   });
 });
 
+describe('assistant: language and fallback', () => {
+  it('tells Hinglish from English and Hindi', () => {
+    expect(scriptOf('ghar kyu nahi ban rahe? kya karu?')).toBe('hinglish');
+    expect(scriptOf('Why are my homes not being built?')).toBe('english');
+    expect(scriptOf('घर क्यों नहीं बन रहे?')).toBe('devanagari');
+  });
+
+  it('answers the question asked when offline: money gets the budget, not unrelated warnings', () => {
+    const r = offlineReply(['Water shortage'], [{ key: 'water:1', title: 'Water shortage', severity: 0.9 }], false, 'Why is my money going down?', { money: '$4,000 in hand, -$900 a month' });
+    expect(r.answer).toContain('-$900 a month');
+    expect(r.answer).not.toContain('Water');
+    expect(r.actions[0]!.type).toBe('budget');
+    const t = offlineReply(['Water shortage'], [{ key: 'water:1', title: 'Water shortage', severity: 0.9 }, { key: 'traffic:2', title: 'Gridlock on Canal Street', severity: 0.6 }], false, 'traffic is bad');
+    expect(t.answer).toContain('Gridlock');
+    expect(t.actions[0]).toMatchObject({ type: 'council', issue: 'traffic:2' });
+  });
+});
+
 describe('assistant: conversation', () => {
   it('answers through the model, keeps history, and survives a broken reply', async () => {
     const sim = starterTown();
@@ -96,6 +114,7 @@ describe('assistant: conversation', () => {
       return { text: JSON.stringify({ answer: `Answer ${calls}`, actions: [{ type: 'tool', tool: 'place', facility: FacilityKind.WaterTower, label: 'Water tower' }] }), provider: 'test-model' };
     };
     const c = new AssistantController(host(sim), completer);
+    c.retryMs = 0;
     await c.ask('Why are homes not built?');
     expect(ui.assistant.value.messages.map((m) => m.text)).toEqual(['Why are homes not built?', 'Answer 1']);
     expect(ui.assistant.value.messages[1]!.actions![0]!.label).toBe('Water tower');
@@ -103,7 +122,9 @@ describe('assistant: conversation', () => {
     const r = await c.answer('And then?');
     expect(r.answer).toBe('Answer 3');
     expect(seen[2]).toContain('Assistant: Answer 1');
-    const offline = await new AssistantController(host(sim), async () => null).answer('help');
+    const quiet = new AssistantController(host(sim), async () => null);
+    quiet.retryMs = 0;
+    const offline = await quiet.answer('help');
     expect(offline.source).toBe('offline');
   });
 });

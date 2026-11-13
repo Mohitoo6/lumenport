@@ -4,7 +4,7 @@ import { Service } from '../../sim/facilities';
 import type { Sim } from '../../sim/sim';
 import { POWERED, WATERED } from '../../sim/utilities/network';
 
-export type OverlayId = 'none' | 'power' | 'water' | 'traffic' | 'pollution' | 'crime' | 'landValue' | 'happiness' | 'police' | 'fire' | 'health' | 'education';
+export type OverlayId = 'none' | 'power' | 'water' | 'traffic' | 'pollution' | 'crime' | 'landValue' | 'happiness' | 'police' | 'fire' | 'health' | 'education' | 'transit';
 
 export interface OverlayInfo {
   id: OverlayId;
@@ -44,6 +44,7 @@ export const OVERLAYS: OverlayInfo[] = [
   { id: 'fire', name: 'Fire cover', low: 'Edge', high: 'Close', gradient: GOOD },
   { id: 'health', name: 'Health cover', low: 'Edge', high: 'Close', gradient: GOOD },
   { id: 'education', name: 'Education cover', low: 'Edge', high: 'Close', gradient: GOOD },
+  { id: 'transit', name: 'Metro reach', low: 'Edge', high: 'Close', gradient: GOOD },
 ];
 
 const COVERAGE: Partial<Record<OverlayId, Service>> = {
@@ -51,6 +52,7 @@ const COVERAGE: Partial<Record<OverlayId, Service>> = {
   fire: Service.Fire,
   health: Service.Health,
   education: Service.Education,
+  transit: Service.Transit,
 };
 
 function lerp3(a: RGB, b: RGB, t: number, out: Uint8Array, o: number): void {

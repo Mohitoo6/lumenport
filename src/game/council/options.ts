@@ -440,8 +440,8 @@ function budgetOptions(sim: Sim): Draft[] {
   const s = sim.state;
   const out: Draft[] = [];
   const gain = (tax: [number, number, number, number]): number => {
-    const now = projectBudget(s.buildings, s.roads, s.tax, s.loans, s.stats, emptyReport(), s.policies).income;
-    return projectBudget(s.buildings, s.roads, tax, s.loans, s.stats, emptyReport(), s.policies).income - now;
+    const now = projectBudget(s.buildings, s.roads, s.tax, s.loans, s.stats, emptyReport(), s.policies, s.metro).income;
+    return projectBudget(s.buildings, s.roads, tax, s.loans, s.stats, emptyReport(), s.policies, s.metro).income - now;
   };
   const up = (v: number, by: number): number => Math.min(20, v + by);
   const all: [number, number, number, number] = [0, up(s.tax[1], 2), up(s.tax[2], 2), up(s.tax[3], 2)];

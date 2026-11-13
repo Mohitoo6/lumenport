@@ -48,6 +48,8 @@ export class ToolPreview {
   readonly grid = this.fx.grid;
   /** Set by the game: lets the zone tool show land before it is zoned. */
   zoneOverlay: import('../overlays/zoneOverlay').ZoneOverlay | null = null;
+  /** Set by the game: shows a metro line being drawn (null hides it). */
+  metroPreview: ((pts: readonly number[] | null, ok: boolean) => void) | null = null;
   private zoneTarget = 0.16;
   private readonly ribbon: Mesh;
   private readonly ribbonMat: ShaderMaterial;

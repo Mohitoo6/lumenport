@@ -5,6 +5,7 @@ import type { Sim } from '../../sim/sim';
 import { dateOf } from '../../sim/state';
 import { frontageOf } from '../../sim/zoning/lots';
 import { ZoneType } from '../../sim/zoning/zones';
+import { activeStations } from '../../sim/transit/metro';
 import { STALL_REASON, stalledZones } from '../advice';
 
 /** Something the player tried that the game refused, with the game's own reason. */
@@ -38,7 +39,7 @@ export function cityAlerts(sim: Sim): string[] {
   else if (st.waterDemand > st.waterSupply * 0.9) out.push('Water nearly at capacity');
   const utilitiesOk = st.powerSupply > 0 && st.waterSupply > 0 && st.powerDemand <= st.powerSupply && st.waterDemand <= st.waterSupply;
   if (utilitiesOk) for (const t of stalledZones(sim)) out.push(STALL_REASON[t]!);
-  const net = projectBudget(s.buildings, s.roads, s.tax, s.loans, st, emptyReport(), s.policies).net;
+  const net = projectBudget(s.buildings, s.roads, s.tax, s.loans, st, emptyReport(), s.policies, s.metro).net;
   if (net < 0 && s.funds < 15000 && st.population > 0) out.push('The city is losing money');
   return out;
 }
@@ -75,7 +76,7 @@ export function citySituation(sim: Sim, extra: { refusals: readonly Refusal[]; i
   const st = s.stats;
   const d = dateOf(s.tick);
   const usd = (n: number): string => `${n < 0 ? '-' : ''}$${Math.abs(Math.round(n)).toLocaleString('en-US')}`;
-  const budget = projectBudget(s.buildings, s.roads, s.tax, s.loans, st, emptyReport(), s.policies);
+  const budget = projectBudget(s.buildings, s.roads, s.tax, s.loans, st, emptyReport(), s.policies, s.metro);
   const lines: string[] = [];
   lines.push(`City: ${s.cityName}. Date ${d.day} ${MONTH_NAMES[d.month]} ${d.year}, ${String(Math.floor(extra.hour)).padStart(2, '0')}:00. Speed ${s.speed === 0 ? 'paused' : s.speed}.${s.sandbox ? ' Sandbox mode (unlimited money, no utilities needed).' : ''}`);
   lines.push(`Money: ${s.sandbox ? 'unlimited' : usd(s.funds)}; projected monthly ${budget.net >= 0 ? 'surplus' : 'deficit'} ${usd(budget.net)} (income ${usd(budget.income)}, spending ${usd(budget.expense)}: roads ${usd(budget.roads)}, utilities ${usd(budget.utilities)}, services ${usd(budget.services)}, loans ${usd(budget.loans)}). Taxes: homes ${s.tax[1]}%, shops ${s.tax[2]}%, industry ${s.tax[3]}%. Loans: ${s.loans.length}.`);
@@ -85,6 +86,10 @@ export function citySituation(sim: Sim, extra: { refusals: readonly Refusal[]; i
   lines.push(`Power: ${st.powerSupply} MW supplied, ${st.powerDemand.toFixed(1)} MW used; ${st.unpowered} finished buildings without power. Water: ${st.waterSupply} supplied, ${Math.round(st.waterDemand)} used; ${st.unwatered} finished buildings without water.`);
   const roads = s.roads.edges.filter((e) => e).length;
   lines.push(`Roads: ${roads} road segments. Traffic congestion ${Math.round(st.congestion * 100)}%, ${st.vehicles} cars on the road.`);
+  const stations = s.buildings.filter((b) => b && b.kind === FacilityKind.MetroStation).length;
+  const metroLines = (s.metro?.lines ?? []).filter((l) => l);
+  const km = metroLines.reduce((t, l) => t + l!.length, 0) / 1000;
+  lines.push(`Metro: ${stations} station${stations === 1 ? '' : 's'}, ${metroLines.length} line${metroLines.length === 1 ? '' : 's'} (${km.toFixed(1)} km), ${activeStations(s).size} stations connected, ${st.metroRiders ?? 0} daily riders; fares ${usd(budget.fares)}/month, upkeep ${usd(budget.transit)}/month.`);
   const counts = new Map<number, number>();
   let growing = 0;
   let building = 0;
