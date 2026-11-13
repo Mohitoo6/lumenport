@@ -105,6 +105,13 @@ export class ToolManager {
   }
 
   /** Picks a facility to place. */
+  setZoneMode(mode: import('./zoneTool').ZoneMode): void {
+    this.zone.mode = mode;
+    ui.zoneMode.value = mode;
+    this.ctx.preview.zoneOverlay?.clearPreview();
+    if (this.active === this.zone) this.zone.describe(this.ctx);
+  }
+
   setFacility(kind: number): void {
     this.place.kind = kind;
     ui.facility.value = kind;

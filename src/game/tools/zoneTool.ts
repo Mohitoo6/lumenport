@@ -5,6 +5,11 @@ import { STALL_REASON, stalledByDemand } from '../advice';
 import { MAX_DEPTH, frontageOf, reachesRoad } from '../../sim/zoning/lots';
 import { DENSITY_NAMES, FACING_DX, FACING_DY, ZONE_NAMES, ZoneType, zoneCode, type Density } from '../../sim/zoning/zones';
 import type { GroundPoint, Tool, ToolContext } from './tool';
+import { edgeAt } from '../../sim/roads/plan';
+import { zoneAlongCells } from '../../sim/zoning/along';
+import { streetName } from '../council/context';
+
+export type ZoneMode = 'road' | 'area';
 
 interface Cell {
   i: number;
@@ -15,11 +20,18 @@ function cellOf(p: GroundPoint): Cell {
   return { i: Math.max(0, Math.min(MAP - 1, Math.floor(p.x / CELL))), j: Math.max(0, Math.min(MAP - 1, Math.floor(p.z / CELL))) };
 }
 
-/** Paints zones by dragging a rectangle. With type None it clears zoning instead. */
+/**
+ * Paints zones. "Along road" (the default): point at roads and drag along them; both
+ * sides fill as deep as buildings can reach, whatever the road's shape. "Area": drag a
+ * rectangle. With type None it clears zoning instead.
+ */
 export class ZoneTool implements Tool {
   readonly id = 'zone';
   type: ZoneType = ZoneType.Residential;
   density: Density = 1;
+  mode: ZoneMode = 'road';
+  private edges = new Set<number>();
+  private dragging = false;
   private start: Cell | null = null;
   private last: Cell | null = null;
 
@@ -32,6 +44,9 @@ export class ZoneTool implements Tool {
 
   deactivate(ctx: ToolContext): void {
     this.start = null;
+    this.edges.clear();
+    this.dragging = false;
+    ctx.preview.zoneOverlay?.clearPreview();
     ctx.preview.setZoneView(false);
     ctx.preview.setGrid(false);
     ctx.preview.hideRect();
@@ -79,7 +94,64 @@ export class ZoneTool implements Tool {
   describe(ctx: ToolContext, cell: Cell | null = this.last): void {
     const why = this.blocker(ctx, cell);
     if (why) ctx.hint(why, 'bad');
-    else ctx.hint(`${this.label()}: drag along a road (up to ${MAX_DEPTH} cells back)`);
+    else if (this.mode === 'road') ctx.hint(`${this.label()}: point at a road and drag along it; both sides fill in`);
+    else ctx.hint(`${this.label()}: drag a rectangle beside a road (up to ${MAX_DEPTH} cells back)`);
+  }
+
+  private code(): number {
+    return this.type === ZoneType.None ? 0 : zoneCode(this.type, this.density);
+  }
+
+  /** Road mode: the edge under the cursor, with a little slack so it is easy to hit. */
+  private edgeUnder(ctx: ToolContext, p: GroundPoint): number {
+    return edgeAt(ctx.sim.state.roads, p.x, p.z, 14);
+  }
+
+  private previewAlong(ctx: ToolContext): number {
+    const cells = zoneAlongCells(ctx.sim.state, [...this.edges], this.code());
+    ctx.preview.zoneOverlay?.preview(cells, this.code());
+    return cells.length;
+  }
+
+  private alongHint(ctx: ToolContext, cells: number): void {
+    const names = [...new Set([...this.edges].map((e) => streetName(ctx.sim, e)))];
+    const where = names.length === 1 ? names[0]! : `${names.length} road segments`;
+    if (cells === 0) ctx.hint(this.type === ZoneType.None ? `Nothing to clear along ${where}` : `No free land along ${where}`, 'bad');
+    else ctx.hint(`${this.label()} along ${where}  ·  ${cells} cells${this.dragging ? '  ·  keep dragging to add roads' : '  ·  click or drag'}`, 'ok');
+  }
+
+  private moveAlong(ctx: ToolContext, p: GroundPoint | null): void {
+    ctx.preview.hideRect();
+    if (!p) {
+      if (!this.dragging) ctx.preview.zoneOverlay?.clearPreview();
+      return;
+    }
+    ctx.preview.grid.value.x = p.x;
+    ctx.preview.grid.value.y = p.z;
+    const e = this.edgeUnder(ctx, p);
+    if (!this.dragging) this.edges.clear();
+    if (e >= 0) this.edges.add(e);
+    if (this.edges.size === 0) {
+      ctx.preview.zoneOverlay?.clearPreview();
+      const why = this.blocker(ctx, null);
+      ctx.hint(why ?? `${this.label()}: point at a road`, why ? 'bad' : 'info');
+      return;
+    }
+    const n = this.previewAlong(ctx);
+    const why = this.blocker(ctx, null);
+    if (why && !this.dragging) ctx.hint(why, 'bad');
+    else this.alongHint(ctx, n);
+  }
+
+  private commitAlong(ctx: ToolContext): void {
+    this.dragging = false;
+    const edges = [...this.edges];
+    this.edges.clear();
+    ctx.preview.zoneOverlay?.clearPreview();
+    if (edges.length === 0) return;
+    const r = ctx.sim.apply({ type: 'zoneAlong', edges, zone: this.code() });
+    if (!r.ok && r.reason) ctx.toast(r.reason, 'bad');
+    else if (r.ok) ctx.toast(this.type === ZoneType.None ? `Cleared ${r.count} cells` : `Zoned ${r.count} cells`, 'ok');
   }
 
   private show(ctx: ToolContext, a: Cell, b: Cell): void {
@@ -96,6 +168,10 @@ export class ZoneTool implements Tool {
   }
 
   move(ctx: ToolContext, p: GroundPoint | null): void {
+    if (this.mode === 'road') {
+      this.moveAlong(ctx, p);
+      return;
+    }
     if (!p) {
       ctx.preview.hideRect();
       return;
@@ -113,12 +189,22 @@ export class ZoneTool implements Tool {
   }
 
   dragStart(ctx: ToolContext, p: GroundPoint): void {
+    if (this.mode === 'road') {
+      this.dragging = true;
+      this.edges.clear();
+      this.moveAlong(ctx, p);
+      return;
+    }
     this.start = cellOf(p);
     this.last = this.start;
     this.show(ctx, this.start, this.start);
   }
 
   dragMove(ctx: ToolContext, p: GroundPoint | null): void {
+    if (this.mode === 'road') {
+      if (this.dragging) this.moveAlong(ctx, p);
+      return;
+    }
     if (!this.start) return;
     if (p) this.last = cellOf(p);
     const b = this.last ?? this.start;
@@ -131,6 +217,11 @@ export class ZoneTool implements Tool {
   }
 
   dragEnd(ctx: ToolContext, p: GroundPoint | null): void {
+    if (this.mode === 'road') {
+      this.commitAlong(ctx);
+      if (p) this.moveAlong(ctx, p);
+      return;
+    }
     const a = this.start;
     this.start = null;
     if (!a) return;
@@ -149,6 +240,13 @@ export class ZoneTool implements Tool {
   }
 
   cancel(ctx: ToolContext): boolean {
+    if (this.mode === 'road' && this.dragging) {
+      this.dragging = false;
+      this.edges.clear();
+      ctx.preview.zoneOverlay?.clearPreview();
+      this.describe(ctx);
+      return true;
+    }
     if (!this.start) return false;
     this.start = null;
     ctx.preview.hideRect();

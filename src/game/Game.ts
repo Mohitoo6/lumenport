@@ -4,8 +4,10 @@ import { GameAudio } from '../audio/audio';
 import { saves } from '../platform/idb';
 import { cloneState, metaOf, validateState } from '../sim/save/serialize';
 import { createState, type GameState } from '../sim/state';
-import { STALL_REASON, stalledZones } from './advice';
 import { CouncilController } from './council/controller';
+import { AssistantController } from './assistant/controller';
+import { cityAlerts } from './assistant/situation';
+import type { RoadType } from '../sim/roads/types';
 import { CameraInput } from './input';
 import { loadPbr, loadTextureArray, loadWarnings } from '../render/assets/loader';
 import { makeNoiseTexture, makeWaterNormalTexture } from '../render/assets/procedural';
@@ -93,6 +95,7 @@ export class Game {
   private clockHeld = false;
   readonly audio = new GameAudio();
   council!: CouncilController;
+  assistant!: AssistantController;
   doors!: TownHallDoors;
   cinematic!: Cinematic;
   /** The council chamber, built the first time the council sits. */
@@ -164,6 +167,7 @@ export class Game {
     engine.scene.add(this.preview.group);
     this.zones = new ZoneOverlay(state.zone);
     this.preview.fx.zoneTex.value = this.zones.texture;
+    this.preview.zoneOverlay = this.zones;
     this.overlay = new DataOverlay();
     this.preview.fx.overlayTex.value = this.overlay.texture;
     this.preview.fx.overlayAlpha = this.overlay.alpha;
@@ -234,6 +238,7 @@ export class Game {
     actions.setRoadMode = (mode) => this.tools.setRoadMode(mode);
     actions.setZone = (type, density) => this.tools.setZone(type as 0 | 1 | 2 | 3, density as 1 | 2 | 3);
     actions.setFacility = (kind) => this.tools.setFacility(kind);
+    actions.setZoneMode = (mode) => this.tools.setZoneMode(mode);
     this.council = new CouncilController({
       sim,
       cityName: () => sim.state.cityName,
@@ -249,6 +254,34 @@ export class Game {
     actions.approveOption = (id) => this.council.approve(id);
     actions.skipSpeech = () => this.council.skip();
     actions.closeCouncil = () => this.closeCouncil();
+    this.assistant = new AssistantController({
+      sim,
+      issues: () => this.council.issues.map((i) => ({ key: i.key, title: i.title, severity: i.severity })),
+      tool: () => this.toolLabel(),
+      hour: () => this.atmosphere.hour,
+    });
+    actions.askAssistant = (q) => void this.assistant.ask(q);
+    actions.clearAssistant = () => this.assistant.clear();
+    actions.assistantAction = (a) => {
+      switch (a.type) {
+        case 'council':
+          ui.assistant.value = { ...ui.assistant.value, open: false };
+          this.convene(a.issue);
+          break;
+        case 'tool':
+          if (a.tool === 'road' || a.tool === 'avenue') this.tools.setRoadType((a.tool === 'avenue' ? 1 : 0) as RoadType);
+          else if (a.tool === 'zone') this.tools.setZone(a.zone ?? 1, 1);
+          else if (a.tool === 'place' && a.facility) this.tools.setFacility(a.facility);
+          else if (a.tool === 'bulldoze') this.tools.select('bulldoze');
+          break;
+        case 'view':
+          actions.setOverlay(a.overlay as Parameters<typeof actions.setOverlay>[0]);
+          break;
+        case 'budget':
+          ui.showBudget.value = true;
+          break;
+      }
+    };
     actions.dismissRequest = () => this.council.dismissRequest();
     actions.lookAt = (x, z) => this.rig.setPose({ x, z });
     actions.setOverlay = (id) => {
@@ -280,6 +313,7 @@ export class Game {
     ui.muted.value = this.audio.muted;
     sim.events.on('stateReplaced', () => this.onStateReplaced());
     sim.events.on('command', ({ cmd, result }) => {
+      this.assistant?.noteCommand(cmd, result);
       if (!result.ok) {
         if (cmd.type !== 'setTax' && result.reason !== 'Too short') this.audio.play('error');
         return;
@@ -810,29 +844,17 @@ export class Game {
 
   /** Short messages about what is holding the city back, most important first. */
   private alerts(): string[] {
-    const s = this.sim.state;
-    const st = s.stats;
-    const out: string[] = [];
-    if (s.sandbox) return out;
-    let hasRoad = false;
-    for (const e of s.roads.edges) {
-      if (e) {
-        hasRoad = true;
-        break;
-      }
-    }
-    if (!hasRoad) return ['Start by laying a street'];
-    if (st.powerSupply === 0) out.push('No power: build a power plant beside a road');
-    else if (st.powerDemand > st.powerSupply) out.push('Power shortage');
-    else if (st.powerDemand > st.powerSupply * 0.9) out.push('Power nearly at capacity');
-    if (st.waterSupply === 0) out.push('No water: build a water tower beside a road');
-    else if (st.waterDemand > st.waterSupply) out.push('Water shortage');
-    else if (st.waterDemand > st.waterSupply * 0.9) out.push('Water nearly at capacity');
-    // Explain demand stalls only when power and water are flowing; otherwise those are the cause.
-    const utilitiesOk = st.powerSupply > 0 && st.waterSupply > 0 && st.powerDemand <= st.powerSupply && st.waterDemand <= st.waterSupply;
-    if (utilitiesOk) for (const t of stalledZones(this.sim)) out.push(STALL_REASON[t]!);
-    if (ui.budget.value.net < 0 && s.funds < 15000 && st.population > 0) out.push('The city is losing money');
-    return out;
+    return cityAlerts(this.sim);
+  }
+
+  /** The tool in the player's hand, in words, for the assistant. */
+  private toolLabel(): string {
+    const t = ui.tool.value;
+    if (t === 'road') return ui.roadType.value === 1 ? 'Avenue tool' : 'Street tool';
+    if (t === 'zone') return ui.zoneType.value === 0 ? 'De-zone tool' : `Zone tool (${['', 'Homes', 'Shops', 'Industry'][ui.zoneType.value]}, density ${ui.zoneDensity.value})`;
+    if (t === 'place') return `Placing a ${FACILITIES[ui.facility.value]?.name ?? 'facility'}`;
+    if (t === 'bulldoze') return 'Bulldozer';
+    return 'none';
   }
 
   /** Numbers for the dev overlay and automated performance checks. */

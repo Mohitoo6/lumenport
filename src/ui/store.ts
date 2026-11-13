@@ -7,6 +7,16 @@ import type { Speed } from '../sim/state';
 import type { MinistryId } from '../game/council/ministries';
 import type { Lang, Stance } from '../game/council/prompts';
 import type { Post } from '../game/council/voices';
+import type { AssistantAction } from '../game/assistant/assistant';
+
+export interface AssistantMessage {
+  id: number;
+  role: 'player' | 'assistant';
+  text: string;
+  actions?: AssistantAction[];
+  /** Which model answered, or 'offline'. */
+  source?: string;
+}
 
 export type SeatState = 'waiting' | 'thinking' | 'speaking' | 'spoke' | 'silent' | 'failed';
 
@@ -106,6 +116,8 @@ export const ui = {
   /** Zone brush: 0 clears zoning, 1-3 are residential, commercial, industrial. */
   zoneType: signal(1),
   zoneDensity: signal(1),
+  /** Zone brush: along roads (default) or a rectangle. */
+  zoneMode: signal<'road' | 'area'>('road'),
   /** Facility being placed (a FacilityKind). */
   facility: signal(1),
   funds: signal(0),
@@ -131,6 +143,7 @@ export const ui = {
   inspect: signal<InspectData | null>(null),
   council: signal<CouncilView | null>(null),
   cinema: signal<CinemaStage>('off'),
+  assistant: signal<{ open: boolean; busy: boolean; messages: AssistantMessage[] }>({ open: false, busy: false, messages: [] }),
   quality: signal<import('../render/quality').QualityId>('balanced'),
   request: signal<MinisterRequest | null>(null),
   posts: signal<Post[]>([]),
@@ -148,6 +161,9 @@ export interface UiActions {
   startCouncil(note: string, lang: Lang, demo: boolean): void;
   approveOption(id: string): void;
   skipSpeech(): void;
+  askAssistant(question: string): void;
+  assistantAction(action: AssistantAction): void;
+  clearAssistant(): void;
   setQuality(id: import('../render/quality').QualityId): void;
   closeCouncil(): void;
   dismissRequest(): void;
@@ -157,6 +173,7 @@ export interface UiActions {
   setRoadType(type: RoadType): void;
   setRoadMode(mode: RoadModeId): void;
   setZone(type: number, density: number): void;
+  setZoneMode(mode: 'road' | 'area'): void;
   setFacility(kind: number): void;
   setTax(zone: number, rate: number): void;
   takeLoan(tier: number): void;
@@ -175,6 +192,9 @@ export const actions: UiActions = {
   startCouncil: () => {},
   approveOption: () => {},
   skipSpeech: () => {},
+  askAssistant: () => {},
+  assistantAction: () => {},
+  clearAssistant: () => {},
   setQuality: () => {},
   closeCouncil: () => {},
   dismissRequest: () => {},
@@ -184,6 +204,7 @@ export const actions: UiActions = {
   setRoadType: () => {},
   setRoadMode: () => {},
   setZone: () => {},
+  setZoneMode: () => {},
   setFacility: () => {},
   setTax: () => {},
   takeLoan: () => {},

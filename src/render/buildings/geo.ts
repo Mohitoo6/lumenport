@@ -130,6 +130,28 @@ export class Geo {
     this.xz = -this.zx;
   }
 
+  /** Like `frame`, but facing any direction: +z points along (zx, zz), a unit vector. */
+  frameDir(cx: number, y: number, cz: number, zx: number, zz: number): void {
+    this.ox = cx;
+    this.oy = y;
+    this.oz = cz;
+    this.zx = zx;
+    this.zz = zz;
+    this.xx = zz;
+    this.xz = -zx;
+  }
+
+  /** Runs `draw` in another facing (same origin), then restores the current one. */
+  withFacing(zx: number, zz: number, draw: () => void): void {
+    const saved = [this.xx, this.xz, this.zx, this.zz] as const;
+    this.zx = zx;
+    this.zz = zz;
+    this.xx = zz;
+    this.xz = -zx;
+    draw();
+    [this.xx, this.xz, this.zx, this.zz] = saved;
+  }
+
   private v(x: number, y: number, z: number, nx: number, ny: number, nz: number, u: number, w: number, m: Mat, fu: number, fv: number, wn: Win): number {
     this.pos.push(this.ox + x * this.xx + z * this.zx, this.oy + y, this.oz + x * this.xz + z * this.zz);
     this.nor.push(nx * this.xx + nz * this.zx, ny, nx * this.xz + nz * this.zz);

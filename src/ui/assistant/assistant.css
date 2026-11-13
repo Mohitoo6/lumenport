@@ -1,0 +1,148 @@
+/* The mayor's assistant: a top-bar button and a chat panel on the right. */
+
+.assistant-btn {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 14px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.assistant-btn:hover,
+.assistant-btn.is-on {
+  color: var(--text);
+}
+
+.assistant {
+  position: absolute;
+  top: 76px;
+  right: 14px;
+  bottom: 96px;
+  width: 360px;
+  display: flex;
+  flex-direction: column;
+  padding: 12px 0 0;
+  z-index: 7;
+}
+
+.assistant .panel-head {
+  padding: 0 14px 10px;
+  border-bottom: 1px solid var(--hairline);
+  align-items: flex-start;
+}
+
+.assistant-head-btns {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.assistant-log {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.assistant-empty p {
+  margin: 0 0 10px;
+  line-height: 1.5;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.chip {
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--hairline-strong);
+  font-size: 12px;
+  color: var(--text);
+  text-align: left;
+}
+
+.chip:hover {
+  border-color: var(--accent);
+}
+
+.bubble {
+  max-width: 92%;
+  padding: 9px 12px;
+  border-radius: 12px;
+  line-height: 1.5;
+  animation: post-in 0.25s ease;
+}
+
+.bubble p {
+  margin: 0;
+  white-space: pre-wrap;
+  font-size: 13.5px;
+}
+
+.bubble p[lang='hi'] {
+  font-size: 14.5px;
+  line-height: 1.65;
+}
+
+.bubble.is-player {
+  align-self: flex-end;
+  background: rgba(255, 180, 84, 0.16);
+  border-bottom-right-radius: 4px;
+}
+
+.bubble.is-assistant {
+  align-self: flex-start;
+  background: rgba(255, 255, 255, 0.06);
+  border-bottom-left-radius: 4px;
+}
+
+.bubble.is-busy {
+  padding: 12px 14px;
+}
+
+.bubble-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 9px;
+}
+
+.bubble-note {
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--faint);
+}
+
+.assistant-form {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+  padding: 10px 12px 12px;
+  border-top: 1px solid var(--hairline);
+}
+
+.assistant-form textarea {
+  flex: 1;
+  resize: none;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--hairline-strong);
+  background: rgba(0, 0, 0, 0.3);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.assistant-form textarea:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}

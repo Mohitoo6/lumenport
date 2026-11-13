@@ -12,6 +12,8 @@ import { cellMinHeight } from './map/terrain';
 import { Traffic } from './traffic/traffic';
 import { POWERED, WATERED, computeUtilities, newNetworks, type Networks } from './utilities/network';
 import { MAX_DEPTH, frontageOf, reachesRoad } from './zoning/lots';
+import { zoneAlongCells } from './zoning/along';
+import { roadAngle } from './zoning/orient';
 import { FACING_DX, FACING_DY } from './zoning/zones';
 import { createState, type GameState } from './state';
 import { advanceConstruction, buildFrontier, growthStep, lotRect, removeBuilding, spawnBuilding, type GrowthResult } from './zoning/growth';
@@ -149,7 +151,7 @@ export class Sim {
   }
 
   /** True if the street in front of cell (i, j) has spare power and water. */
-  private served = (i: number, j: number): boolean => {
+  readonly served = (i: number, j: number): boolean => {
     const f: number = frontageOf(this.state, i, j);
     if (f < 0) return false;
     const c = this.net.comp[(j + FACING_DY[f as 0]!) * MAP + i + FACING_DX[f as 0]!]!;
@@ -210,6 +212,8 @@ export class Sim {
     if (result.spawned.length > 0) this.utilDirty = true;
     s.rng = rng.state;
     for (const b of result.spawned) {
+      const dir = roadAngle(s.roads, s.roadCell, b);
+      if (dir !== undefined) b.dir = dir;
       const r = lotRect(b);
       this.events.emit('terrainChanged', r);
       this.events.emit('treesChanged', r);
@@ -360,6 +364,34 @@ export class Sim {
         this.events.emit('zonesChanged', { x0, y0, x1, y1 });
         if (removed.length > 0) this.events.emit('buildingsChanged', { changed: [], removed });
         return OK;
+      }
+      case 'zoneAlong': {
+        if (cmd.zone < 0 || cmd.zone > 15 || (cmd.zone !== 0 && ((cmd.zone & 3) === 0 || cmd.zone >> 2 === 0))) return fail('Invalid zone');
+        const cells = zoneAlongCells(s, cmd.edges, cmd.zone);
+        if (cells.length === 0) return fail(cmd.zone === 0 ? 'Nothing to clear along this road' : 'No free land along this road');
+        const removed: Building[] = [];
+        let x0 = MAP;
+        let y0 = MAP;
+        let x1 = 0;
+        let y1 = 0;
+        for (const k of cells) {
+          const id = s.buildingCell[k]!;
+          if (id >= 0) {
+            const b = removeBuilding(s, id);
+            if (b) removed.push(b);
+          }
+          s.zone[k] = cmd.zone;
+          const i = k % MAP;
+          const j = (k / MAP) | 0;
+          if (i < x0) x0 = i;
+          if (i > x1) x1 = i;
+          if (j < y0) y0 = j;
+          if (j > y1) y1 = j;
+        }
+        this.frontier = null;
+        this.events.emit('zonesChanged', { x0, y0, x1, y1 });
+        if (removed.length > 0) this.events.emit('buildingsChanged', { changed: [], removed });
+        return { ok: true, cost: 0, count: cells.length };
       }
       case 'bulldozeBuilding': {
         if (isLandmark(s.buildings[cmd.id]?.kind ?? 0)) return fail('The town hall cannot be demolished');

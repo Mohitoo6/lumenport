@@ -46,6 +46,8 @@ export class ToolPreview {
     overlayAlpha: { value: 0 },
   };
   readonly grid = this.fx.grid;
+  /** Set by the game: lets the zone tool show land before it is zoned. */
+  zoneOverlay: import('../overlays/zoneOverlay').ZoneOverlay | null = null;
   private zoneTarget = 0.16;
   private readonly ribbon: Mesh;
   private readonly ribbonMat: ShaderMaterial;

@@ -55,6 +55,11 @@ export interface Building {
   w: number;
   h: number;
   facing: Facing;
+  /**
+   * When the road is not on the grid: the angle the building is drawn facing (facing
+   * vector (sin a, cos a)). The lot itself stays on the grid.
+   */
+  dir?: number;
   /** 1..3. Higher levels are bigger and better appointed. */
   level: number;
   /** Construction progress, 0..1. 1 means finished. */

@@ -3,6 +3,7 @@ import { useState } from 'preact/hooks';
 import { LOAN_TIERS, loanPayment } from '../sim/economy/budget';
 import { OVERLAYS } from '../render/overlays/dataOverlay';
 import { CitizenFeed, CouncilChamber, IssuesMenu, MinisterRequestCard } from './council/Council';
+import { AssistantButton, AssistantPanel } from './assistant/Assistant';
 import { FACILITIES, POWER_FACILITIES, SERVICE_FACILITIES, WATER_FACILITIES } from '../sim/facilities';
 import type { Speed } from '../sim/state';
 import {
@@ -377,6 +378,7 @@ function TopBar(): JSX.Element {
         <span class="label">{TIME_LABEL[ui.timeMode.value]}</span>
       </button>
       <IssuesMenu />
+      <AssistantButton />
       <Views />
       <button
         type="button"
@@ -458,6 +460,14 @@ function ToolButton(props: { active: boolean; label: string; hotkey?: string; on
   );
 }
 
+function IconSquare(): JSX.Element {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-dasharray="2.4 1.8" aria-hidden="true">
+      <rect x="2.5" y="2.5" width="11" height="11" rx="1" />
+    </svg>
+  );
+}
+
 function Toolbar(): JSX.Element {
   const tool = ui.tool.value;
   const road = ui.roadType.value;
@@ -494,6 +504,16 @@ function Toolbar(): JSX.Element {
           </ToolButton>
           <ToolButton active={mode === 'curve'} label="Curved" hotkey="C" onClick={() => actions.setRoadMode('curve')}>
             <IconCurve />
+          </ToolButton>
+        </div>
+      )}
+      {tool === 'zone' && (
+        <div class="panel options" role="group" aria-label="Zone brush">
+          <ToolButton active={ui.zoneMode.value === 'road'} label="Along road" onClick={() => actions.setZoneMode('road')}>
+            <IconCurve />
+          </ToolButton>
+          <ToolButton active={ui.zoneMode.value === 'area'} label="Area" onClick={() => actions.setZoneMode('area')}>
+            <IconSquare />
           </ToolButton>
         </div>
       )}
@@ -584,6 +604,7 @@ function Hud(): JSX.Element {
           <Inspect />
           <MinisterRequestCard />
           <CitizenFeed />
+          <AssistantPanel />
           <Toolbar />
           <Help />
         </>

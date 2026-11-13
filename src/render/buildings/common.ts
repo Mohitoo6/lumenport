@@ -10,6 +10,11 @@ export interface Lot {
   D: number;
   level: number;
   density: number;
+  /**
+   * Set when the building is turned to face a diagonal road: the grid lot's facing and
+   * full size, so ground finishes still cover the whole lot.
+   */
+  grid?: { zx: number; zz: number; W: number; D: number };
 }
 
 // Finishes shared by every archetype. Tints multiply dark scans, so values above 1 are normal.
@@ -57,7 +62,9 @@ export function roofFinish(r: Rng): Mat {
 
 /** Covers the whole lot with one ground finish. */
 export function ground(l: Lot, m: Mat, y = 0.02): void {
-  l.g.flat(-l.W / 2, -l.D / 2, l.W / 2, l.D / 2, y, m);
+  const grid = l.grid;
+  if (grid) l.g.withFacing(grid.zx, grid.zz, () => l.g.flat(-grid.W / 2, -grid.D / 2, grid.W / 2, grid.D / 2, y, m));
+  else l.g.flat(-l.W / 2, -l.D / 2, l.W / 2, l.D / 2, y, m);
 }
 
 /** A panel on a front-facing (+z) wall, standing a few centimetres proud of it. */

@@ -26,6 +26,45 @@ export class ZoneOverlay {
     this.update({ x0: 0, y0: 0, x1: MAP - 1, y1: MAP - 1 });
   }
 
+  private shown: number[] = [];
+
+  /**
+   * Tints `cells` as they would look once zoned (brighter than real zoning), or red where
+   * zoning would be cleared. Replaces any previous preview.
+   */
+  preview(cells: readonly number[], zone: number): void {
+    this.clearPreview();
+    const c = zone === 0 ? [235, 70, 60] : ZONE_RGB[zoneType(zone)]![zoneDensity(zone)]!;
+    const lift = zone === 0 ? 0 : 0.45;
+    for (const k of cells) {
+      const o = k * 4;
+      this.data[o] = c[0] + (255 - c[0]) * lift;
+      this.data[o + 1] = c[1] + (255 - c[1]) * lift;
+      this.data[o + 2] = c[2] + (255 - c[2]) * lift;
+      this.data[o + 3] = 255;
+    }
+    this.shown = cells.slice();
+    this.texture.needsUpdate = true;
+  }
+
+  clearPreview(): void {
+    if (this.shown.length === 0) return;
+    let x0 = MAP;
+    let y0 = MAP;
+    let x1 = 0;
+    let y1 = 0;
+    for (const k of this.shown) {
+      const i = k % MAP;
+      const j = (k / MAP) | 0;
+      x0 = Math.min(x0, i);
+      x1 = Math.max(x1, i);
+      y0 = Math.min(y0, j);
+      y1 = Math.max(y1, j);
+    }
+    this.shown = [];
+    this.update({ x0, y0, x1, y1 });
+  }
+
   setSource(zone: Uint8Array): void {
     this.zone = zone;
     this.update({ x0: 0, y0: 0, x1: MAP - 1, y1: MAP - 1 });

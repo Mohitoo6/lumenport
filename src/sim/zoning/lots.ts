@@ -117,25 +117,35 @@ function valid(l: LotLayers, lot: Lot, zone: number): boolean {
   }
   if (lo < MIN_HEIGHT || hi - lo > MAX_RELIEF) return false;
 
-  // Most of the front row must actually face road.
+  // At least half the front row must face road. On a diagonal or curved road the road
+  // steps away from some front cells, so a road one or two cells ahead (straight or on
+  // the diagonal) counts too: the lot then has a small forecourt instead of failing.
   const dx = FACING_DX[lot.facing]!;
   const dy = FACING_DY[lot.facing]!;
+  const near = (i: number, j: number): boolean => {
+    for (let k = 1; k <= 2; k++) {
+      const x = i + dx * k;
+      const y = j + dy * k;
+      if (isRoad(l, x, y) || isRoad(l, x + dy, y + dx) || isRoad(l, x - dy, y - dx)) return true;
+    }
+    return false;
+  };
   let front = 0;
   let touching = 0;
   if (dy !== 0) {
     const j = dy < 0 ? lot.y : lot.y + lot.h - 1;
     for (let i = lot.x; i < lot.x + lot.w; i++) {
       front++;
-      if (isRoad(l, i, j + dy)) touching++;
+      if (near(i, j)) touching++;
     }
   } else {
     const i = dx < 0 ? lot.x : lot.x + lot.w - 1;
     for (let j = lot.y; j < lot.y + lot.h; j++) {
       front++;
-      if (isRoad(l, i + dx, j)) touching++;
+      if (near(i, j)) touching++;
     }
   }
-  return touching * 3 >= front * 2;
+  return touching * 2 >= front;
 }
 
 /**
