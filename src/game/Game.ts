@@ -261,7 +261,7 @@ export class Game {
     this.council.forceDemo = this.options.council === 'demo';
     actions.convene = (key) => void this.convene(key);
     actions.startCouncil = (note, lang, demo) => this.council.start(note, lang, demo);
-    actions.approveOption = (id) => this.council.approve(id);
+    actions.approveOption = (id, withLoan) => this.council.approve(id, withLoan);
     actions.skipSpeech = () => this.council.skip();
     actions.closeCouncil = () => this.closeCouncil();
     this.assistant = new AssistantController({
@@ -406,6 +406,8 @@ export class Game {
     // While the council sits, the city is paused and only Escape (close) applies.
     if (ui.council.value) {
       if (e.code === 'Escape') this.closeCouncil();
+      // The AI inspector can be opened at any point of a meeting.
+      else if (e.code === 'KeyI' && !e.metaKey && !e.ctrlKey) actions.toggleInspector();
       return;
     }
     if (e.metaKey || e.ctrlKey) return;

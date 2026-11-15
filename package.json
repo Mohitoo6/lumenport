@@ -20,7 +20,8 @@
     "n8ao": "2.0.1",
     "postprocessing": "6.39.6",
     "preact": "11.2.0",
-    "three": "0.187.0"
+    "three": "0.187.0",
+    "zod": "4.6.7"
   },
   "devDependencies": {
     "@playwright/test": "1.65.0",

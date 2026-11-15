@@ -1,5 +1,6 @@
 import type { CameraPose } from '../render/camera/rtsCamera';
 import type { Command, CommandResult } from '../sim/commands';
+import { ui } from '../ui/store';
 import type { Game } from './Game';
 
 /**
@@ -23,6 +24,10 @@ export interface DebugApi {
     phase(): string;
     /** Seconds into the cinematic's current phase. */
     cineTime(): number;
+    /** Opens or closes the AI inspector panel. */
+    inspector(open: boolean): void;
+    /** The current meeting's telemetry trace. */
+    trace(): import('./council/telemetry').CouncilTrace | null;
   };
   /** Founds the town hall if there is none. */
   townHall(): boolean;
@@ -58,6 +63,8 @@ export function installDebugApi(game: Game): void {
       skip: () => game.council.skip(),
       phase: () => game.cinematic.phase,
       cineTime: () => game.cinematic.time,
+      inspector: (open) => (ui.inspector.value = open),
+      trace: () => ui.trace.value,
     },
     townHall: () => game.ensureTownHall(),
     loadState: (state) => game.loadState(state),

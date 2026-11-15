@@ -1,19 +1,68 @@
-import { MINISTER_BY_ID, type MinistryId } from './ministries';
+import type { FiscalLimits } from './effects';
+import type { MinistryId } from './ministries';
 import type { CouncilOption } from './options';
-import type { Lang, Stance } from './prompts';
+import { policyTurn, policyVerdict, type Lang } from './policy';
+import { extractJson } from './schemas';
+import { hashText, readJson, type KV } from './storage';
 
 export interface LlmRequest {
   system: string;
   user: string;
   maxTokens: number;
-  /** Who is speaking. The real transport ignores it; the demo transport uses it. */
-  meta: { role: 'minister' | 'chief'; minister?: MinistryId; round?: 1 | 2; lead?: boolean; options: readonly CouncilOption[]; lang: Lang; reason?: string; backed?: string };
+  /** JSON Schema of the reply, sent to providers that can enforce one. */
+  schema?: Record<string, unknown>;
+  schemaName?: string;
+  /** Who is speaking, with the structured view of the meeting. The model never sees this; the offline agents and tests use it. */
+  meta: {
+    role: 'minister' | 'chief';
+    minister?: MinistryId;
+    round?: 1 | 2;
+    lead?: boolean;
+    options: readonly CouncilOption[];
+    lang: Lang;
+    reason?: string;
+    /** The best-backed option so far. */
+    backed?: string;
+    limits?: FiscalLimits;
+    /** Where each minister stands so far. */
+    positions?: ReadonlyMap<MinistryId, string>;
+    tally?: Record<string, MinistryId[]>;
+  };
+}
+
+export interface LlmUsage {
+  prompt: number;
+  completion: number;
+  reasoning: number;
 }
 
 export interface LlmReply {
   text: string;
   /** Which provider and model answered, for the transparency line in the UI. */
   provider: string;
+  /** Token counts from the provider's own response, when it sent them. */
+  usage?: LlmUsage;
+  /** Time spent in the provider call, as measured by the server. */
+  latencyMs?: number;
+  /** The reply came from the local cache: no request was made. */
+  cached?: boolean;
+  /** The reply came from the deterministic agents, not a model. */
+  offline?: boolean;
+  /** Why the model stopped ("length" means it ran out of output budget). */
+  finish?: string;
+}
+
+/** A failed model call, with what the caller needs to decide whether to try again. */
+export class LlmError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+    /** Every provider refused for rate limits or overload: trying again now is pointless. */
+    readonly rateLimited: boolean,
+  ) {
+    super(message);
+    this.name = 'LlmError';
+  }
 }
 
 export interface Transport {
@@ -33,99 +82,97 @@ export class HttpTransport implements Transport {
     const res = await fetch('/api/llm', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ system: req.system, user: req.user, maxTokens: req.maxTokens, json: true }),
+      body: JSON.stringify({ system: req.system, user: req.user, maxTokens: req.maxTokens, json: true, schema: req.schema, schemaName: req.schemaName }),
       signal,
     });
-    const data = (await res.json().catch(() => ({}))) as { text?: string; provider?: string; error?: string };
-    if (!res.ok || typeof data.text !== 'string') throw new Error(data.error ?? `The AI server answered ${res.status}`);
-    return { text: data.text, provider: data.provider ?? 'unknown' };
+    const data = (await res.json().catch(() => ({}))) as { text?: string; provider?: string; error?: string; usage?: LlmUsage; latencyMs?: number; finish?: string; rateLimited?: boolean };
+    if (!res.ok || typeof data.text !== 'string') throw new LlmError(data.error ?? `The AI server answered ${res.status}`, res.status, data.rateLimited === true || res.status === 429);
+    return { text: data.text, provider: data.provider ?? 'unknown', usage: data.usage, latencyMs: data.latencyMs, finish: data.finish };
   }
 }
 
-/** Whether the server has any AI provider configured. */
-export async function aiStatus(): Promise<{ ready: boolean; providers: string[] }> {
+export interface ProviderHealth {
+  name: string;
+  /** Milliseconds until a rate-limited or failing provider is tried first again; 0 when healthy. */
+  restingMs: number;
+}
+
+export interface AiStatus {
+  ready: boolean;
+  providers: string[];
+  health: ProviderHealth[];
+}
+
+/** Whether the server has any AI provider configured, and which are resting after a rate limit. */
+export async function aiStatus(): Promise<AiStatus> {
   try {
     const res = await fetch('/api/llm/status');
-    if (!res.ok) return { ready: false, providers: [] };
-    return (await res.json()) as { ready: boolean; providers: string[] };
+    if (!res.ok) return { ready: false, providers: [], health: [] };
+    const data = (await res.json()) as Partial<AiStatus>;
+    return { ready: data.ready === true, providers: data.providers ?? [], health: data.health ?? [] };
   } catch {
-    return { ready: false, providers: [] };
+    return { ready: false, providers: [], health: [] };
   }
 }
 
+const CACHE_KEY = 'metropolis.ai.cache.v1';
+const CACHE_SIZE = 48;
+
 /**
- * Offline stand-in for the model: produces plausible, rule-based statements from the
- * option facts. Used by tests and the screenshot runs, and labelled "Demo" in the UI so a
- * player never mistakes it for the real thing.
+ * An exact-match response cache in front of any transport. The key is a hash of the whole
+ * prompt, so a hit is only possible when an agent is asked exactly the same thing about
+ * exactly the same city: re-running a meeting, or resuming one that was cut off by a rate
+ * limit. A hit costs no request and no tokens. Kept in local storage, newest first.
+ */
+export class CachedTransport implements Transport {
+  readonly label: string;
+  private entries: Array<{ key: string; text: string; provider: string }>;
+
+  constructor(
+    private readonly inner: Transport,
+    private readonly kv: KV,
+  ) {
+    this.label = inner.label;
+    this.entries = readJson(kv, CACHE_KEY, [] as Array<{ key: string; text: string; provider: string }>);
+  }
+
+  async complete(req: LlmRequest, signal?: AbortSignal): Promise<LlmReply> {
+    const key = `${hashText(req.system)}${hashText(req.user)}:${req.system.length + req.user.length}`;
+    const hit = this.entries.find((e) => e.key === key);
+    if (hit) return { text: hit.text, provider: hit.provider, cached: true };
+    const reply = await this.inner.complete(req, signal);
+    // Only real model output is worth keeping; the offline agents are free to recompute.
+    if (!reply.offline) {
+      this.entries = [{ key, text: reply.text, provider: reply.provider }, ...this.entries.filter((e) => e.key !== key)].slice(0, CACHE_SIZE);
+      this.kv.set(CACHE_KEY, JSON.stringify(this.entries));
+    }
+    return reply;
+  }
+}
+
+const NO_LIMITS: FiscalLimits = { sandbox: true, treasury: 0, monthlyNet: 0, loanHeadroom: 0, spendCeiling: Infinity, runwayMonths: null };
+
+/**
+ * The offline council: every turn is taken by the deterministic policy agents
+ * (`policy.ts`). Used by the offline mode, by tests and by the screenshot runs, and
+ * labelled as such in the UI so a player never mistakes it for the model.
  */
 export class DemoTransport implements Transport {
-  readonly label = 'Demo (no AI)';
+  readonly label = 'Offline (no AI)';
 
   async complete(req: LlmRequest): Promise<LlmReply> {
     await new Promise((r) => setTimeout(r, 40));
     const { meta } = req;
-    const opts = meta.options.filter((o) => o.actions.length > 0);
-    const none = meta.options[meta.options.length - 1]!;
-    const hi = meta.lang === 'hi';
-    if (meta.role === 'chief') {
-      const pick = meta.backed && meta.backed !== 'none' ? meta.backed : (opts[0]?.id ?? none.id);
-      const o = meta.options.find((x) => x.id === pick) ?? none;
-      return {
-        provider: 'demo',
-        text: JSON.stringify({
-          option: o.id,
-          summary: hi
-            ? `परिषद का बहुमत विकल्प ${o.id} (${o.title}) के पक्ष में है। यह समस्या का सीधा समाधान है और उठाई गई आपत्तियों को ध्यान में रखता है।`
-            : `The council mostly backs option ${o.id}, ${o.title.toLowerCase()}. It deals with the problem directly and the concerns raised can be managed.`,
-          dissent: '',
-          conditions: '',
-        }),
-      };
-    }
-    const id = meta.minister!;
-    const m = MINISTER_BY_ID[id];
-    const lead = meta.lead === true;
-    // Rule of thumb per portfolio: which option this minister would back and why.
-    const score = (o: CouncilOption): number => {
-      let v = o.actions.length > 0 ? 10 : 0;
-      const im = o.impact;
-      if (id === 'finance') v -= o.cost / 1000 + o.monthly / 50;
-      if (id === 'welfare' || id === 'planning') v -= im.displacedResidents / 5;
-      if (id === 'health') v -= (im.clinicM < 300 ? 6 : 0) + (im.pollutes ? 8 : 0);
-      if (id === 'education') v -= im.schoolM < 250 ? 6 : 0;
-      if (id === 'environment') v += (im.green ? 4 : 0) - (im.pollutes ? 10 : 0) - im.treesCleared / 5;
-      if (id === 'energy') v -= im.powerCut ? 10 : 0;
-      return v;
-    };
-    const best = [...meta.options].sort((a, b) => score(b) - score(a))[0]!;
-    const worst = [...opts].sort((a, b) => score(a) - score(b))[0];
-    const concerned = !lead && worst && score(worst) < 4 && worst.id !== best.id;
-    if (!lead && meta.round === 2 && !concerned) return { provider: 'demo', text: JSON.stringify({ speak: false, stance: 'neutral', option: best.id, statement: '', condition: '' }) };
-    const stance: Stance = lead ? 'propose' : concerned ? 'concern' : 'support';
-    const text = hi
-      ? lead
-        ? `मेयर साहब, ${m.short} विभाग की ओर से मेरा प्रस्ताव है विकल्प ${best.id}: ${best.title}। ${best.facts[0] ?? ''}`
-        : concerned
-          ? `मुझे विकल्प ${worst!.id} पर आपत्ति है, यह हमारे ${m.short} दायित्व पर असर डालता है। मैं विकल्प ${best.id} का समर्थन करता हूँ।`
-          : `${m.short} की दृष्टि से विकल्प ${best.id} ठीक है।`
-      : lead
-        ? `Mayor, I propose option ${best.id}, ${best.title.toLowerCase()}. ${best.facts[0] ?? ''}`
-        : concerned
-          ? `I have a concern with option ${worst!.id}: it cuts against ${m.mandate.toLowerCase().replace(/\.$/, '')}. I would back option ${best.id} instead.`
-          : `From the ${m.short.toLowerCase()} side, option ${best.id} is acceptable.`;
-    return { provider: 'demo', text: JSON.stringify({ speak: true, stance, option: best.id, statement: text, condition: '' }) };
+    const limits = meta.limits ?? NO_LIMITS;
+    const body =
+      meta.role === 'chief'
+        ? policyVerdict(meta.options, meta.tally ?? (meta.backed && meta.backed !== 'none' ? { [meta.backed]: [] } : {}), meta.lang)
+        : policyTurn(meta.minister!, meta.round ?? 1, meta.lead === true, { options: meta.options, limits, lang: meta.lang, positions: meta.positions });
+    return { provider: 'deterministic policy', text: JSON.stringify(body), offline: true };
   }
 }
 
 /** Pulls the first JSON object out of a model reply, tolerating code fences and chatter. */
 export function parseJsonReply(text: string): Record<string, unknown> | null {
-  const start = text.indexOf('{');
-  const end = text.lastIndexOf('}');
-  if (start < 0 || end <= start) return null;
-  try {
-    const v = JSON.parse(text.slice(start, end + 1)) as unknown;
-    return v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : null;
-  } catch {
-    return null;
-  }
+  return extractJson(text)?.value ?? null;
 }

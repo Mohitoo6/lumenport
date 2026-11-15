@@ -2,11 +2,51 @@ import type { JSX } from 'preact';
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { CHIEF_SECRETARY, MINISTER_BY_ID, MINISTERS, type MinistryId } from '../../game/council/ministries';
 import type { Lang, Stance } from '../../game/council/prompts';
+import type { StateDelta } from '../../game/council/effects';
 import { actions, ui, type CouncilMessage, type CouncilOptionView, type CouncilView, type SeatState } from '../store';
+import { Inspector } from './Inspector';
 import { Portrait } from './Portrait';
 import './council.css';
 
 const usd = (n: number): string => `${n < 0 ? '-' : ''}$${Math.abs(Math.round(n)).toLocaleString('en-US')}`;
+const signed = (n: number): string => `${n < 0 ? '−' : '+'}$${Math.abs(Math.round(n)).toLocaleString('en-US')}`;
+
+interface Chip {
+  text: string;
+  tone: 'good' | 'bad' | 'plain';
+}
+
+/**
+ * An option's measured payload as chips: what approving it does to the city. Money is
+ * always shown; the rest only where the option changes it.
+ */
+function effectChips(e: StateDelta): Chip[] {
+  const out: Chip[] = [];
+  out.push({ text: e.budgetDelta === 0 ? 'Free now' : `${signed(e.budgetDelta)} now`, tone: e.budgetDelta < 0 ? 'bad' : e.budgetDelta > 0 ? 'good' : 'plain' });
+  if (e.monthlyNetDelta !== 0) out.push({ text: `${signed(e.monthlyNetDelta)}/mo`, tone: e.monthlyNetDelta < 0 ? 'bad' : 'good' });
+  if (e.taxRateDelta.some((d) => d !== 0)) out.push({ text: `Tax ${e.taxRateDelta.map((d) => (d > 0 ? `+${d}` : String(d))).join('/')} pts`, tone: 'bad' });
+  if (e.debtDelta > 0) out.push({ text: `Debt +${usd(e.debtDelta)}`, tone: 'bad' });
+  if (e.residentsDisplaced > 0) out.push({ text: `${e.residentsDisplaced} residents displaced`, tone: 'bad' });
+  if (e.jobsLost > 0) out.push({ text: `${e.jobsLost} jobs lost`, tone: 'bad' });
+  if (e.powerSupplyDelta !== 0) out.push({ text: `Power ${e.powerSupplyDelta > 0 ? '+' : '−'}${Math.abs(e.powerSupplyDelta)} MW`, tone: e.powerSupplyDelta > 0 ? 'good' : 'bad' });
+  if (e.waterSupplyDelta !== 0) out.push({ text: `Water ${e.waterSupplyDelta > 0 ? '+' : '−'}${Math.abs(e.waterSupplyDelta).toLocaleString('en-US')}`, tone: e.waterSupplyDelta > 0 ? 'good' : 'bad' });
+  if (e.trafficImpact.rushPeakFactor !== 1) out.push({ text: `Rush peak ${Math.round(e.trafficImpact.rushPeakFactor * 100)}%`, tone: e.trafficImpact.rushPeakFactor < 1 ? 'good' : 'bad' });
+  if (e.trafficImpact.capacityDelta !== 0) out.push({ text: `Road capacity ${e.trafficImpact.capacityDelta > 0 ? '+' : '−'}${Math.abs(e.trafficImpact.capacityDelta)}`, tone: e.trafficImpact.capacityDelta > 0 ? 'good' : 'bad' });
+  if (e.approvalDelta !== 0) out.push({ text: `Happiness ${e.approvalDelta > 0 ? '+' : '−'}${Math.abs(e.approvalDelta)} pts`, tone: e.approvalDelta > 0 ? 'good' : 'bad' });
+  return out;
+}
+
+function Chips(props: { list: Chip[] }): JSX.Element {
+  return (
+    <div class="fx-chips">
+      {props.list.map((c) => (
+        <span class={`fx-chip tone-${c.tone}`} key={c.text}>
+          {c.text}
+        </span>
+      ))}
+    </div>
+  );
+}
 
 function costLine(o: CouncilOptionView): string {
   const now = o.cost > 0 ? `${usd(o.cost)} now` : o.cost < 0 ? `+${usd(-o.cost)} now` : 'No upfront cost';
@@ -54,6 +94,36 @@ function Seat(props: { id: MinistryId | 'chief'; state: SeatState; reason?: stri
   );
 }
 
+/**
+ * The mayor's approval, shaped by the money rules: an option the treasury cannot cover is
+ * offered together with the loan that pays for it, and one beyond even that cannot be
+ * approved at all.
+ */
+function ApproveButton(props: { o: CouncilOptionView; primary: boolean; short?: boolean }): JSX.Element {
+  const { o } = props;
+  const cls = `btn ${props.primary ? 'btn-go' : ''}`;
+  const status = o.feasibility.status;
+  if (status === 'unaffordable' || status === 'blocked' || (status === 'needs_loan' && !o.financing)) {
+    return (
+      <button type="button" class={cls} disabled title={o.feasibility.reason}>
+        {status === 'blocked' ? 'Not possible' : 'Cannot afford'}
+      </button>
+    );
+  }
+  if (status === 'needs_loan' && o.financing) {
+    return (
+      <button type="button" class={cls} title={o.feasibility.reason} onClick={() => actions.approveOption(o.id, true)}>
+        {props.short ? `Approve ${o.id} with loan` : `Approve option ${o.id} with a ${usd(o.financing.amount)} loan`}
+      </button>
+    );
+  }
+  return (
+    <button type="button" class={cls} onClick={() => actions.approveOption(o.id)}>
+      {props.short ? (o.hasActions ? `Approve ${o.id}` : 'Do nothing') : o.hasActions ? `Approve option ${o.id} · ${costLine(o)}` : 'Agree: take no action'}
+    </button>
+  );
+}
+
 function OptionCard(props: { o: CouncilOptionView; recommended: boolean; canApprove: boolean }): JSX.Element {
   const { o } = props;
   return (
@@ -66,11 +136,21 @@ function OptionCard(props: { o: CouncilOptionView; recommended: boolean; canAppr
         </div>
       </header>
       {props.recommended && <div class="opt-ribbon">Council recommends</div>}
-      <ul class="opt-facts">
-        {o.facts.map((f) => (
-          <li key={f}>{f}</li>
-        ))}
-      </ul>
+      <p class="opt-gist">{o.gist}</p>
+      <Chips list={effectChips(o.effects)} />
+      {o.feasibility.status !== 'ok' && (
+        <p class={`opt-block ${o.feasibility.status === 'needs_loan' ? 'is-warn' : 'is-bad'}`} role="note">
+          {o.feasibility.reason}
+        </p>
+      )}
+      <details class="opt-more">
+        <summary>Full brief</summary>
+        <ul class="opt-facts">
+          {o.facts.map((f) => (
+            <li key={f}>{f}</li>
+          ))}
+        </ul>
+      </details>
       <footer>
         <div class="opt-backers" aria-label={`Backed by ${o.backers.length}`}>
           {o.backers.map((m) => (
@@ -81,11 +161,7 @@ function OptionCard(props: { o: CouncilOptionView; recommended: boolean; canAppr
           {o.backers.length === 0 && <span class="muted small">No backers yet</span>}
         </div>
         <div class="opt-btns">
-          {props.canApprove && (
-            <button type="button" class={`btn ${props.recommended ? 'btn-go' : ''}`} onClick={() => actions.approveOption(o.id)}>
-              {o.hasActions ? `Approve ${o.id}` : 'Do nothing'}
-            </button>
-          )}
+          {props.canApprove && <ApproveButton o={o} primary={props.recommended} short />}
         </div>
       </footer>
     </article>
@@ -104,9 +180,19 @@ function Message(props: { m: CouncilMessage }): JSX.Element {
           <span class="muted">{p.short === 'Chair' ? p.title : p.short}</span>
           {props.m.stance && <span class={`stance st-${props.m.stance}`}>{STANCE_LABEL[props.m.stance]}</span>}
           {props.m.option && props.m.option !== 'none' && <span class="opt-chip">{chief ? `Recommends ${props.m.option}` : `Backs ${props.m.option}`}</span>}
+          {props.m.standIn && (
+            <span class="opt-chip is-standin" title="The AI could not answer for this seat, so its rule-based stand-in spoke. No tokens were spent.">
+              Offline stand-in
+            </span>
+          )}
         </div>
         <p lang={ui.council.value?.lang === 'hi' ? 'hi' : 'en'}>{props.m.text}</p>
         {props.m.condition && <p class="msg-cond">Condition: {props.m.condition}</p>}
+        {props.m.flags?.map((f) => (
+          <p class="msg-flag" key={f} title="Checked by code against the facts this minister was shown">
+            Unverified figure: {f}
+          </p>
+        ))}
       </div>
     </div>
   );
@@ -131,9 +217,34 @@ function Brief(props: { v: CouncilView }): JSX.Element {
           <li key={f}>{f}</li>
         ))}
       </ul>
-      <p class="muted small">
-        Called in: {v.seats.map((s) => MINISTER_BY_ID[s.id].short).join(', ')}.{others.length ? ` Not affected, so not attending: ${others.map((m) => m.short).join(', ')}.` : ''}
-      </p>
+      <h3 class="label">Who is called in · scored by each department</h3>
+      <ul class="triage">
+        {v.triage
+          .filter((t) => t.role !== 'standby')
+          .map((t) => {
+            const m = MINISTER_BY_ID[t.ministry];
+            return (
+              <li key={t.ministry} style={{ '--c': m.color }} title={`${m.name}: ${t.kpi}`}>
+                <span class="triage-name">{m.short}</span>
+                <span class="triage-bar" aria-label={`Urgency ${Math.round(t.urgency * 100)}%`}>
+                  <i style={{ width: `${Math.round(t.urgency * 100)}%` }} />
+                </span>
+                <span class="triage-why">{t.role === 'lead' ? 'raised the issue' : t.reason}</span>
+              </li>
+            );
+          })}
+      </ul>
+      {others.length > 0 && <p class="muted small">Not affected enough to attend: {others.map((m) => m.short).join(', ')}.</p>}
+      {v.memory.length > 0 && (
+        <>
+          <h3 class="label">The council remembers</h3>
+          <ul class="brief-memory">
+            {v.memory.map((m) => (
+              <li key={m}>{m}</li>
+            ))}
+          </ul>
+        </>
+      )}
       <label class="note">
         <span>Your instructions to the council (optional)</span>
         <textarea
@@ -154,9 +265,9 @@ function Brief(props: { v: CouncilView }): JSX.Element {
           </button>
         </div>
         <div class="brief-btns">
-          {!v.aiReady && (
-            <button type="button" class="btn" onClick={() => actions.startCouncil(note, lang, true)}>
-              Demo meeting
+          {v.source === 'AI' && (
+            <button type="button" class="btn" title="Rule-based ministers argue from the same figures. No AI call, no tokens." onClick={() => actions.startCouncil(note, lang, true)}>
+              Hold it offline · 0 tokens
             </button>
           )}
           <button type="button" class="btn btn-go" disabled={!v.aiReady && v.source === 'AI'} onClick={() => actions.startCouncil(note, lang, v.source !== 'AI')}>
@@ -167,8 +278,8 @@ function Brief(props: { v: CouncilView }): JSX.Element {
       {v.source === 'AI' && (
         <p class="muted small">
           {v.aiReady
-            ? `Ministers speak through ${v.providers[0] ?? 'the AI'}${v.providers.length > 1 ? ` (falls back to ${v.providers.slice(1).join(', ')})` : ''}. The city is paused during the meeting.`
-            : 'No AI keys found: add them to .env and restart the game, or hold a demo meeting with scripted ministers.'}
+            ? `Ministers speak through ${v.providers[0] ?? 'the AI'}${v.providers.length > 1 ? ` (falls back to ${v.providers.slice(1).join(', ')})` : ''}: at most ${v.seats.length * 2} short calls. If the AI is rate-limited mid-meeting, the offline council takes over. The city is paused.`
+            : 'No AI keys found: add them to .env and restart the game, or hold the meeting offline with rule-based ministers.'}
         </p>
       )}
     </div>
@@ -276,6 +387,38 @@ function Waiting(props: { v: CouncilView }): JSX.Element | null {
   );
 }
 
+/**
+ * What code found when it checked the recommendation: the hard rules of the game (the
+ * option exists, the game accepts it, the city can pay) and whether the figures quoted
+ * were in the facts shown. No second model is involved.
+ */
+function Checks(props: { v: CouncilView }): JSX.Element | null {
+  const g = props.v.decision?.guardrail;
+  if (!g) return null;
+  const failed = g.findings.filter((f) => !f.passed);
+  const passed = g.findings.length - failed.length;
+  return (
+    <div class={`checks is-${g.status}`}>
+      <div class="checks-head">
+        <span class="checks-badge">{g.status === 'pass' ? 'Checked' : g.status === 'flagged' ? 'Checked, with notes' : 'Corrected by the rules'}</span>
+        <span>
+          {passed} of {g.findings.length} checks passed, by code
+        </span>
+        <button type="button" class="link-btn" onClick={() => (ui.inspector.value = true)}>
+          See how
+        </button>
+      </div>
+      {g.overrideReason && <p class="small">{g.overrideReason}</p>}
+      {g.status !== 'overridden' &&
+        failed.map((f) => (
+          <p class="small" key={f.check}>
+            {f.detail}
+          </p>
+        ))}
+    </div>
+  );
+}
+
 function Verdict(props: { v: CouncilView }): JSX.Element | null {
   const { v } = props;
   const d = v.decision;
@@ -290,13 +433,24 @@ function Verdict(props: { v: CouncilView }): JSX.Element | null {
       <p class="small">{d.summary}</p>
       {d.dissent && <p class="small">Dissent: {d.dissent}</p>}
       {d.conditions && <p class="small">Conditions: {d.conditions}</p>}
-      {v.result && <div class={`council-result ${v.result.ok ? 'good' : 'bad'}`}>{v.result.text}</div>}
+      <Checks v={v} />
+      {v.result && (
+        <div class={`council-result ${v.result.ok ? 'good' : 'bad'}`}>
+          {v.result.text}
+          {v.result.ok && v.result.observed && (
+            <>
+              <Chips list={effectChips(v.result.observed).filter((c) => !c.text.startsWith('Happiness'))} />
+              <div class="result-note">
+                {v.result.drift?.length
+                  ? `Differs from the option card in ${v.result.drift.map((x) => x.field).join(', ')}.`
+                  : 'Measured in the city after the change: exactly what the option card promised.'}
+              </div>
+            </>
+          )}
+        </div>
+      )}
       <div class="verdict-btns">
-        {v.phase === 'decided' && rec && (
-          <button type="button" class="btn btn-go" onClick={() => actions.approveOption(rec.id)}>
-            {rec.hasActions ? `Approve option ${rec.id} · ${costLine(rec)}` : 'Agree: take no action'}
-          </button>
-        )}
+        {v.phase === 'decided' && rec && <ApproveButton o={rec} primary />}
         <button type="button" class="btn" onClick={() => actions.closeCouncil()}>
           {v.phase === 'enacted' ? 'Back to the city' : 'Decide later'}
         </button>
@@ -312,10 +466,11 @@ export function CouncilChamber(): JSX.Element | null {
   const [showLog, setShowLog] = useState(true);
   if (!v || ui.cinema.value !== 'inside') return null;
   const lead = MINISTER_BY_ID[v.issue.lead];
-  const canApprove = v.phase === 'decided' || v.phase === 'error';
+  const canApprove = v.phase === 'decided';
   const rec = v.decision?.option;
+  const inspecting = ui.inspector.value;
   return (
-    <div class="chamber-ui" role="dialog" aria-modal="true" aria-label={`City council: ${v.issue.title}`}>
+    <div class={`chamber-ui${inspecting ? ' has-inspector' : ''}`} role="dialog" aria-modal="true" aria-label={`City council: ${v.issue.title}`}>
       <header class="council-head panel">
         <div>
           <div class="label">City Council · raised by {lead.name}</div>
@@ -325,6 +480,15 @@ export function CouncilChamber(): JSX.Element | null {
         <div class="council-head-side">
           <span class={`sev ${v.issue.severity > 0.75 ? 'high' : v.issue.severity > 0.45 ? 'mid' : 'low'}`}>{v.issue.severity > 0.75 ? 'Urgent' : v.issue.severity > 0.45 ? 'Serious' : 'Minor'}</span>
           <span class="source">{v.source === 'AI' ? 'AI ministers' : v.source}</span>
+          <button type="button" class={`inspect-btn${inspecting ? ' is-on' : ''}`} aria-pressed={inspecting} title="AI inspector: the agent graph, prompts, JSON, latency and tokens (I)" onClick={() => actions.toggleInspector()}>
+            <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="3" cy="8" r="1.8" />
+              <circle cx="13" cy="3.5" r="1.8" />
+              <circle cx="13" cy="12.5" r="1.8" />
+              <path d="M4.7 7.2 11.3 4.2M4.7 8.8l6.6 3" />
+            </svg>
+            Inspector
+          </button>
           <button type="button" class="icon-btn" aria-label="Leave the council" title="Leave (Esc)" onClick={() => actions.closeCouncil()}>
             ×
           </button>
@@ -361,10 +525,17 @@ export function CouncilChamber(): JSX.Element | null {
         )}
       </aside>
 
+      {inspecting && <Inspector />}
+
       <div class="stage-bottom">
         {v.phase === 'brief' && (
           <div class="brief-card panel">
             <Brief v={v} />
+          </div>
+        )}
+        {v.notice && v.phase !== 'brief' && (
+          <div class="council-notice panel" role="status">
+            {v.notice}
           </div>
         )}
         {v.phase === 'debate' && (v.speaking ? <Subtitle v={v} /> : <Waiting v={v} />)}
@@ -374,7 +545,7 @@ export function CouncilChamber(): JSX.Element | null {
             <strong>The meeting could not go ahead.</strong> {v.error}
             <div class="brief-btns">
               <button type="button" class="btn" onClick={() => actions.startCouncil('', v.lang, true)}>
-                Demo meeting
+                Hold it offline
               </button>
               <button type="button" class="btn" onClick={() => actions.closeCouncil()}>
                 Back to the city
@@ -471,6 +642,22 @@ export function IssuesMenu(): JSX.Element {
               </button>
             );
           })}
+          <button
+            type="button"
+            role="menuitem"
+            class="issue-row inspect-row"
+            onClick={() => {
+              ui.showIssues.value = false;
+              ui.inspector.value = true;
+            }}
+          >
+            <span class="issue-text">
+              <span>AI inspector</span>
+              <span class="muted small">
+                {ui.aiStats.value.meetings ? `${ui.aiStats.value.meetings} meeting${ui.aiStats.value.meetings > 1 ? 's' : ''} · ${ui.aiStats.value.llmCalls} model calls · ${(ui.aiStats.value.promptTokens + ui.aiStats.value.completionTokens).toLocaleString('en-US')} tokens` : 'Agent graph, prompts, tokens and guardrails'}
+              </span>
+            </span>
+          </button>
         </div>
       )}
     </div>

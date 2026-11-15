@@ -8,6 +8,10 @@ import type { MinistryId } from '../game/council/ministries';
 import type { Lang, Stance } from '../game/council/prompts';
 import type { Post } from '../game/council/voices';
 import type { AssistantAction } from '../game/assistant/assistant';
+import type { Drift, Feasibility, FiscalLimits, StateDelta } from '../game/council/effects';
+import type { VerdictReport } from '../game/council/guardrails';
+import { EMPTY_STATS, type AiStats, type CouncilTrace, type TurnSource } from '../game/council/telemetry';
+import type { TriageEntry } from '../game/council/triage';
 
 export interface AssistantMessage {
   id: number;
@@ -29,14 +33,24 @@ export interface CouncilMessage {
   text: string;
   condition?: string;
   provider?: string;
+  /** A deterministic stand-in spoke because the model could not. */
+  standIn?: boolean;
+  /** What the guardrails flagged in this statement. */
+  flags?: string[];
 }
 
 export interface CouncilOptionView {
   id: string;
   title: string;
+  gist: string;
   cost: number;
   monthly: number;
   facts: string[];
+  /** The measured state-mutation payload, and whether the city can pay for it. */
+  effects: StateDelta;
+  feasibility: Feasibility;
+  /** A loan that would cover the shortfall, when the treasury alone cannot pay. */
+  financing?: { amount: number };
   /** Ministers whose latest position backs this option. */
   backers: MinistryId[];
   hasActions: boolean;
@@ -53,14 +67,22 @@ export interface CouncilView {
   chief: SeatState;
   messages: CouncilMessage[];
   round: number;
-  decision?: { option: string; summary: string; dissent: string; conditions: string };
+  decision?: { option: string; summary: string; dissent: string; conditions: string; guardrail: VerdictReport; source: TurnSource };
   error?: string;
-  /** Where the words come from: 'AI' or 'Demo (no AI)'. */
+  /** Where the words come from: 'AI' or 'Offline (no AI)'. */
   source: string;
+  /** Every ministry's triage score: who was seated and why. */
+  triage: TriageEntry[];
+  /** The city's money limits every agent argues within. */
+  limits: FiscalLimits;
+  /** Past decisions the council was reminded of. */
+  memory: string[];
+  /** Something about how the meeting is being run (for example, a fall back to offline). */
+  notice?: string;
   /** False when the server has no AI keys: the brief offers a demo meeting instead. */
   aiReady: boolean;
   providers: string[];
-  result?: { ok: boolean; text: string };
+  result?: { ok: boolean; text: string; observed?: StateDelta; drift?: Drift[] };
   lang: Lang;
   /** The statement being delivered right now, and how long it takes. */
   speaking?: { key: string; who: MinistryId | 'chief'; seconds: number };
@@ -142,6 +164,12 @@ export const ui = {
   showViews: signal(false),
   inspect: signal<InspectData | null>(null),
   council: signal<CouncilView | null>(null),
+  /** The live trace of the current (or last) meeting, the last few meetings, and lifetime numbers. */
+  trace: signal<CouncilTrace | null>(null),
+  traces: signal<CouncilTrace[]>([]),
+  aiStats: signal<AiStats>(EMPTY_STATS),
+  /** Whether the AI inspector panel is open. */
+  inspector: signal(false),
   cinema: signal<CinemaStage>('off'),
   assistant: signal<{ open: boolean; busy: boolean; messages: AssistantMessage[] }>({ open: false, busy: false, messages: [] }),
   quality: signal<import('../render/quality').QualityId>('balanced'),
@@ -159,7 +187,8 @@ export const ui = {
 export interface UiActions {
   convene(issueKey: string): void;
   startCouncil(note: string, lang: Lang, demo: boolean): void;
-  approveOption(id: string): void;
+  approveOption(id: string, withLoan?: boolean): void;
+  toggleInspector(): void;
   skipSpeech(): void;
   askAssistant(question: string): void;
   assistantAction(action: AssistantAction): void;
@@ -191,6 +220,9 @@ export const actions: UiActions = {
   convene: () => {},
   startCouncil: () => {},
   approveOption: () => {},
+  toggleInspector: () => {
+    ui.inspector.value = !ui.inspector.value;
+  },
   skipSpeech: () => {},
   askAssistant: () => {},
   assistantAction: () => {},

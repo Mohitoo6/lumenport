@@ -45,13 +45,79 @@ interface CompleteRequest {
   user: string;
   maxTokens?: number;
   json?: boolean;
+  /** JSON Schema the reply must fit. Sent as a structured-output constraint where supported. */
+  schema?: Record<string, unknown>;
+  schemaName?: string;
 }
 
-const TIMEOUT_MS = 50_000;
-/** Provider index -> time until which it is skipped. */
-const resting = new Map<number, number>();
+/** Token counts as the provider reported them. */
+export interface Usage {
+  prompt: number;
+  completion: number;
+  /** Hidden reasoning tokens (billed, not shown). */
+  reasoning: number;
+}
 
-async function callProvider(p: Provider, req: CompleteRequest, withJsonMode: boolean): Promise<{ status: number; text?: string; error?: string }> {
+export interface Completion {
+  text: string;
+  provider: string;
+  usage?: Usage;
+  /** Time inside the provider call that answered, in milliseconds. */
+  latencyMs: number;
+  /** Why the model stopped; "length" means the output budget ran out. */
+  finish?: string;
+  /** Provider calls made for this one request, counting fall backs. */
+  attempts: number;
+}
+
+/**
+ * How strictly a provider can be asked for JSON, strongest first: a full JSON Schema
+ * (the reply is constrained to the contract), plain JSON mode, or nothing but the prompt.
+ */
+type JsonMode = 'schema' | 'object' | 'none';
+
+/**
+ * How long one provider may take before the next is tried. A meeting is interactive: a
+ * provider that hangs must not stall it while a faster fallback is waiting.
+ */
+const TIMEOUT_MS = 20_000;
+/**
+ * Used when a provider has no REASONING_EFFORT in .env. Council replies are two sentences
+ * of JSON; hidden reasoning was measured at over 90% of the output tokens without this.
+ */
+const DEFAULT_EFFORT = 'low';
+/** Providers that refused the default reasoning effort: it is not sent to them again. */
+const noEffort = new Set<string>();
+const keyOf = (p: Provider): string => `${p.baseUrl}|${p.model}`;
+/** Provider -> time until which it is tried last. */
+const resting = new Map<string, number>();
+/** Provider -> the strongest JSON mode it has accepted, so a rejected mode is not sent twice. */
+const jsonModes = new Map<string, JsonMode>();
+
+interface ProviderResult {
+  status: number;
+  text?: string;
+  error?: string;
+  usage?: Usage;
+  finish?: string;
+  latencyMs: number;
+}
+
+interface ChatResponse {
+  choices?: Array<{ message?: { content?: unknown }; finish_reason?: string }>;
+  usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number; completion_tokens_details?: { reasoning_tokens?: number } };
+  error?: { message?: string } | string;
+}
+
+function usageOf(u: ChatResponse['usage']): Usage | undefined {
+  if (!u || typeof u.prompt_tokens !== 'number') return undefined;
+  const completion = u.completion_tokens ?? 0;
+  // Some providers put reasoning in the details; others only show it as a gap in the total.
+  const reasoning = u.completion_tokens_details?.reasoning_tokens ?? Math.max(0, (u.total_tokens ?? 0) - u.prompt_tokens - completion);
+  return { prompt: u.prompt_tokens, completion, reasoning };
+}
+
+async function callProvider(p: Provider, req: CompleteRequest, mode: JsonMode, timeoutMs = TIMEOUT_MS): Promise<ProviderResult> {
   const body: Record<string, unknown> = {
     model: p.model,
     messages: [
@@ -60,10 +126,13 @@ async function callProvider(p: Provider, req: CompleteRequest, withJsonMode: boo
     ],
     max_tokens: Math.min(4000, Math.max(200, req.maxTokens ?? 1200)),
   };
-  if (req.json && withJsonMode) body.response_format = { type: 'json_object' };
-  if (p.effort) body.reasoning_effort = p.effort;
+  if (mode === 'schema' && req.schema) body.response_format = { type: 'json_schema', json_schema: { name: req.schemaName ?? 'reply', strict: true, schema: req.schema } };
+  else if (mode !== 'none' && req.json) body.response_format = { type: 'json_object' };
+  const effort = p.effort ?? (noEffort.has(keyOf(p)) ? undefined : DEFAULT_EFFORT);
+  if (effort) body.reasoning_effort = effort;
   const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+  const t0 = Date.now();
   try {
     const res = await fetch(`${p.baseUrl}/chat/completions`, {
       method: 'POST',
@@ -72,46 +141,82 @@ async function callProvider(p: Provider, req: CompleteRequest, withJsonMode: boo
       signal: ctrl.signal,
     });
     const raw = await res.text();
-    let data: { choices?: Array<{ message?: { content?: unknown } }>; error?: { message?: string } | string } = {};
+    const latencyMs = Date.now() - t0;
+    let data: ChatResponse = {};
     try {
-      data = JSON.parse(raw) as typeof data;
+      data = JSON.parse(raw) as ChatResponse;
     } catch {
       // Some errors come back as plain text.
     }
     if (!res.ok) {
       const msg = typeof data.error === 'string' ? data.error : (data.error?.message ?? raw.slice(0, 200));
-      return { status: res.status, error: msg };
+      return { status: res.status, error: msg, latencyMs };
     }
-    const content = data.choices?.[0]?.message?.content;
-    if (typeof content !== 'string' || content.trim() === '') return { status: 502, error: 'empty reply' };
-    return { status: 200, text: content };
+    const choice = data.choices?.[0];
+    const content = choice?.message?.content;
+    const usage = usageOf(data.usage);
+    if (typeof content !== 'string' || content.trim() === '') return { status: 502, error: choice?.finish_reason === 'length' ? 'empty reply: the output budget ran out' : 'empty reply', latencyMs, usage };
+    return { status: 200, text: content, usage, finish: choice?.finish_reason, latencyMs };
   } catch (err) {
-    return { status: 504, error: ctrl.signal.aborted ? 'timed out' : err instanceof Error ? err.message : String(err) };
+    return { status: 504, error: ctrl.signal.aborted ? 'timed out' : err instanceof Error ? err.message : String(err), latencyMs: Date.now() - t0 };
   } finally {
     clearTimeout(timer);
   }
 }
 
-export async function complete(providers: Provider[], req: CompleteRequest): Promise<{ text: string; provider: string } | { error: string }> {
+const WEAKER: Record<JsonMode, JsonMode | null> = { schema: 'object', object: 'none', none: null };
+
+export async function complete(providers: Provider[], req: CompleteRequest, timeoutMs = TIMEOUT_MS): Promise<Completion | { error: string; rateLimited: boolean }> {
   const errors: string[] = [];
   const now = Date.now();
+  let attempts = 0;
+  let limited = 0;
   // Rested providers are tried last rather than never, in case all of them are resting.
-  const order = providers.map((_, i) => i).sort((a, b) => Number((resting.get(a) ?? 0) > now) - Number((resting.get(b) ?? 0) > now));
+  const order = providers.map((_, i) => i).sort((a, b) => Number((resting.get(keyOf(providers[a]!)) ?? 0) > now) - Number((resting.get(keyOf(providers[b]!)) ?? 0) > now));
   for (const i of order) {
     const p = providers[i]!;
-    let r = await callProvider(p, req, true);
-    // Some models reject JSON mode: ask again without it (the prompt still asks for JSON).
-    if (r.status === 400 && /response_format|json/i.test(r.error ?? '')) r = await callProvider(p, req, false);
+    const key = keyOf(p);
+    let mode: JsonMode | null = jsonModes.get(key) ?? (req.schema ? 'schema' : 'object');
+    if (mode === 'schema' && !req.schema) mode = 'object';
+    let r: ProviderResult = { status: 0, latencyMs: 0 };
+    // Not every model accepts a schema, or JSON mode at all: step down once per rejection
+    // and remember what worked (the prompt still asks for JSON either way).
+    while (mode) {
+      attempts++;
+      r = await callProvider(p, req, mode, timeoutMs);
+      if (r.status !== 400) break;
+      if (/response_format|json|schema/i.test(r.error ?? '')) {
+        mode = WEAKER[mode];
+        continue;
+      }
+      // Any other rejection may be the default reasoning effort, which not every model
+      // takes: ask once more without it, and never send it to this provider again.
+      if (!p.effort && !noEffort.has(key)) {
+        noEffort.add(key);
+        continue;
+      }
+      break;
+    }
     if (r.status === 200 && r.text) {
-      resting.delete(i);
-      return { text: r.text, provider: `${p.name} · ${p.model}` };
+      resting.delete(key);
+      if (mode && (req.schema || mode !== 'schema')) jsonModes.set(key, mode);
+      return { text: r.text, provider: `${p.name} · ${p.model}`, usage: r.usage, latencyMs: r.latencyMs, finish: r.finish, attempts };
     }
     // Overloaded or rate-limited providers stay that way for a while: rest them, not just skip once.
-    const rest = r.status === 401 || r.status === 403 || r.status === 404 ? 10 * 60_000 : r.status === 429 || r.status === 503 ? 180_000 : 60_000;
-    resting.set(i, Date.now() + rest);
+    // A provider that hangs is rested as long as a misconfigured one: each retry costs the full timeout.
+    const rest = r.status === 401 || r.status === 403 || r.status === 404 ? 10 * 60_000 : r.status === 504 ? 5 * 60_000 : r.status === 429 || r.status === 503 ? 180_000 : 60_000;
+    if (r.status === 429 || r.status === 503) limited++;
+    resting.set(key, Date.now() + rest);
     errors.push(`${p.name} ${p.model}: ${r.status} ${r.error ?? ''}`.trim());
   }
-  return { error: providers.length ? `All AI providers failed. ${errors.join(' | ')}` : 'No AI provider is configured: add LLM_BASE_URL, LLM_MODEL and LLM_API_KEY to .env.' };
+  if (providers.length === 0) return { error: 'No AI provider is configured: add LLM_BASE_URL, LLM_MODEL and LLM_API_KEY to .env.', rateLimited: false };
+  return { error: `All AI providers failed. ${errors.join(' | ')}`, rateLimited: limited === providers.length };
+}
+
+/** Which providers are resting after a failure, and for how much longer. */
+export function providerHealth(providers: Provider[]): Array<{ name: string; restingMs: number }> {
+  const now = Date.now();
+  return providers.map((p) => ({ name: `${p.name} · ${p.model}`, restingMs: Math.max(0, (resting.get(keyOf(p)) ?? 0) - now) }));
 }
 
 function send(res: ServerResponse, status: number, body: unknown): void {
@@ -142,7 +247,7 @@ export function llmProxy(env: Record<string, string | undefined>): Plugin {
   const handler = async (req: IncomingMessage, res: ServerResponse, next: () => void): Promise<void> => {
     const url = req.url ?? '';
     if (url === '/api/llm/status' && req.method === 'GET') {
-      send(res, 200, { ready: providers.length > 0, providers: providers.map((p) => `${p.name} · ${p.model}`) });
+      send(res, 200, { ready: providers.length > 0, providers: providers.map((p) => `${p.name} · ${p.model}`), health: providerHealth(providers) });
       return;
     }
     if (url !== '/api/llm') return next();
@@ -151,7 +256,7 @@ export function llmProxy(env: Record<string, string | undefined>): Plugin {
       const body = JSON.parse(await readBody(req, 256_000)) as CompleteRequest;
       if (typeof body.system !== 'string' || typeof body.user !== 'string') return send(res, 400, { error: 'system and user are required' });
       const out = await complete(providers, body);
-      if ('error' in out) send(res, 502, out);
+      if ('error' in out) send(res, out.rateLimited ? 429 : 502, out);
       else send(res, 200, out);
     } catch (err) {
       send(res, 400, { error: err instanceof Error ? err.message : 'Bad request' });

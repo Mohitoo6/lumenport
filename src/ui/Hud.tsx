@@ -3,6 +3,7 @@ import { useState } from 'preact/hooks';
 import { LOAN_TIERS, loanPayment } from '../sim/economy/budget';
 import { OVERLAYS } from '../render/overlays/dataOverlay';
 import { CitizenFeed, CouncilChamber, IssuesMenu, MinisterRequestCard } from './council/Council';
+import { Inspector } from './council/Inspector';
 import { AssistantButton, AssistantPanel } from './assistant/Assistant';
 import { CAMPUS_FACILITIES, FACILITIES, POWER_FACILITIES, SERVICE_FACILITIES, TRANSIT_FACILITIES, WATER_FACILITIES } from '../sim/facilities';
 import type { Speed } from '../sim/state';
@@ -656,6 +657,8 @@ function Hud(): JSX.Element {
           <AssistantPanel />
           <Toolbar />
           <Help />
+          {/* Outside a meeting the inspector shows the last few meetings' traces. */}
+          {!ui.council.value && <Inspector />}
         </>
       )}
       <CouncilChamber />

@@ -20,6 +20,7 @@ import {
   nearestHome,
   streetName,
 } from './context';
+import { baselineOf, feasibility, fiscalLimits, project, type Feasibility, type StateDelta } from './effects';
 import type { CityIssue } from './issues';
 
 /** What an option would do to the things ministers care about. Drives who speaks. */
@@ -45,6 +46,8 @@ export interface CouncilOption {
   /** A, B, C... in the order presented. */
   id: string;
   title: string;
+  /** One sentence every agent is shown: what this does about the problem. */
+  gist: string;
   cost: number;
   /** Change to monthly spending (upkeep, loan payment) or income (negative = more income). */
   monthly: number;
@@ -52,6 +55,14 @@ export interface CouncilOption {
   /** Exactly what the game does if the mayor approves this option. */
   actions: Command[];
   impact: Impact;
+  /**
+   * The state-mutation payload: what approving this changes, measured by running `actions`
+   * on a fork of the city. Agents quote it, the guardrails check against it, and the
+   * mayor's approval is reconciled with it afterwards.
+   */
+  effects: StateDelta;
+  /** Whether the city can pay for it and the game accepts it, by the game's own rules. */
+  feasibility: Feasibility;
   /** Where to look on the map, if anywhere. */
   x?: number;
   z?: number;
@@ -72,7 +83,7 @@ const NO_IMPACT: Impact = {
   powerCut: false,
 };
 
-type Draft = Omit<CouncilOption, 'id'>;
+type Draft = Omit<CouncilOption, 'id' | 'effects' | 'feasibility'>;
 
 // ---------------------------------------------------------------------------------------
 // Roads
@@ -171,6 +182,7 @@ function reliefRoad(sim: Sim, edgeId: number): Draft | null {
   const joins = plan.vias.filter((v) => v.node >= 0 || v.splitEdge >= 0).length;
   return {
     title: `New relief street parallel to ${name}`,
+    gist: `A second route: a ${Math.round(plan.length)} m street ${best.offset} m ${side} of ${name}, joined to the network at ${joins} points.`,
     cost: plan.cost,
     monthly: Math.round(plan.length * ROAD_SPECS[RoadType.Street].upkeep),
     facts: [
@@ -207,6 +219,7 @@ function widenRoad(sim: Sim, edgeId: number): Draft | null {
   const extra = Math.round(e.length * (ROAD_SPECS[RoadType.Avenue].upkeep - ROAD_SPECS[RoadType.Street].upkeep));
   return {
     title: `Widen ${name} to a four-lane avenue`,
+    gist: `Roughly doubles the capacity of this ${Math.round(e.length)} m segment, and draws more traffic onto it.`,
     cost: plan.cost,
     monthly: extra,
     facts: [
@@ -231,6 +244,7 @@ function flexHours(sim: Sim): Draft | null {
   if (sim.state.policies?.flexHours) return null;
   return {
     title: 'Staggered office hours (policy)',
+    gist: 'Cuts the rush-hour peak by about a third by spreading it out; nothing is built and it can be dropped later.',
     cost: 0,
     monthly: POLICY_COST.flexHours,
     facts: [
@@ -315,6 +329,7 @@ function facilityOption(sim: Sim, kind: FacilityKind, sites: Site[], purpose: st
   }
   return {
     title: n > 1 ? `Build ${n} ${spec.name.toLowerCase()}s` : `Build a ${spec.name.toLowerCase()}`,
+    gist: `${purpose} Nearest homes ${metres(homesM)}.`,
     cost: spec.cost * n,
     monthly: spec.upkeep * n,
     facts,
@@ -399,6 +414,7 @@ function pollutionOptions(sim: Sim, issue: CityIssue): Draft[] {
     const people = describeBuildings(sim, worst.map((w) => w.b.id));
     out.push({
       title: 'Re-zone the worst-hit homes for shops',
+      gist: `Moves ${people.residents} residents out of the worst air instead of cleaning it; shops replace their homes.`,
       cost: 0,
       monthly: 0,
       facts: [
@@ -417,6 +433,7 @@ function pollutionOptions(sim: Sim, issue: CityIssue): Draft[] {
     const after = st.powerSupply - FACILITIES[FacilityKind.CoalPlant]!.power;
     out.push({
       title: 'Close the coal power plant',
+      gist: `Removes the biggest polluter; power supply falls to ${after.toFixed(0)} MW against ${st.powerDemand.toFixed(1)} MW of demand${after < st.powerDemand ? ' (a shortage)' : ''}.`,
       cost: 0,
       monthly: -FACILITIES[FacilityKind.CoalPlant]!.upkeep,
       facts: [
@@ -448,6 +465,7 @@ function budgetOptions(sim: Sim): Draft[] {
   const g1 = gain(all);
   out.push({
     title: 'Raise all taxes by 2 points',
+    gist: `About ${money(g1)} more a month; slows growth in every zone and lowers happiness.`,
     cost: 0,
     monthly: -g1,
     facts: [
@@ -461,6 +479,7 @@ function budgetOptions(sim: Sim): Draft[] {
   const g2 = gain(biz);
   out.push({
     title: 'Raise business taxes by 3 points',
+    gist: `About ${money(g2)} more a month from shops and industry; slows job growth, homes untouched.`,
     cost: 0,
     monthly: -g2,
     facts: [
@@ -475,6 +494,7 @@ function budgetOptions(sim: Sim): Draft[] {
     const t = LOAN_TIERS[tier]!;
     out.push({
       title: `Take a ${money(t.amount)} loan`,
+      gist: `${money(t.amount)} now, repaid at ${money(loanPayment(t))} a month for ${t.months} months: buys time, deepens the monthly deficit.`,
       cost: -t.amount,
       monthly: loanPayment(t),
       facts: [`Adds ${money(t.amount)} now; repaid at ${money(loanPayment(t))} a month for ${t.months} months (${Math.round(t.rate * 100)}% interest).`, 'Buys time, but makes the monthly deficit worse until it is repaid.'],
@@ -552,6 +572,7 @@ function zoneOption(sim: Sim, site: ZoneSite, type: ZoneType, density: 1 | 2, wh
   const label = type === ZoneType.Residential ? 'homes' : type === ZoneType.Commercial ? 'shops and offices' : 'industry';
   return {
     title: `Zone new land for ${label}`,
+    gist: `About ${site.cells} empty plots ${describePlace(sim, cx, cz)} for ${label}. ${why}`,
     cost: 0,
     monthly: 0,
     facts: [
@@ -629,11 +650,27 @@ export function optionsFor(sim: Sim, issue: CityIssue): CouncilOption[] {
   }
   drafts.push({
     title: 'Take no action for now',
+    gist: 'Nothing is built or changed; the problem is likely to continue.',
     cost: 0,
     monthly: 0,
     facts: ['Nothing is built or changed. The problem is likely to continue.'],
     actions: [],
     impact: { ...NO_IMPACT },
   });
-  return drafts.slice(0, 5).map((d, i) => ({ ...d, id: String.fromCharCode(65 + i) }));
+  // Measure every option on a fork of the city. An option the game would refuse never
+  // reaches the table, so the council can only ever debate things that can be carried out.
+  const limits = fiscalLimits(sim);
+  const baseline = baselineOf(sim, true);
+  const out: CouncilOption[] = [];
+  for (const d of drafts.slice(0, 5)) {
+    const p = project(sim, d.actions, { unlimitedFunds: true, withApproval: true, baseline });
+    if (!p.ok) continue;
+    // The fork is the source of truth for money. Where it disagrees with the estimate the
+    // option was drafted with (demolished shops and homes stop paying tax), say so.
+    const cost = -p.delta.budgetDelta;
+    const monthly = -p.delta.monthlyNetDelta;
+    const facts = Math.abs(monthly - d.monthly) > 1 ? [...d.facts, `Counting the tax lost from what it demolishes, the monthly balance changes by ${money(-monthly)} in all.`] : d.facts;
+    out.push({ ...d, cost, monthly, facts, id: String.fromCharCode(65 + out.length), effects: p.delta, feasibility: feasibility(limits, p) });
+  }
+  return out;
 }

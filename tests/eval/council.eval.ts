@@ -2,7 +2,9 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { it } from 'vitest';
 import { type Provider } from '../../server/llmProxy';
 import { evalProviders, patient } from './providers';
-import { attendees, briefing, type Seat } from '../../src/game/council/briefs';
+import { briefing } from '../../src/game/council/briefs';
+import { fiscalLimits } from '../../src/game/council/effects';
+import { attendees, type Seat } from '../../src/game/council/triage';
 import { detectIssues, type CityIssue } from '../../src/game/council/issues';
 import { DemoTransport, type LlmRequest, type Transport } from '../../src/game/council/llm';
 import { MINISTERS, type MinistryId } from '../../src/game/council/ministries';
@@ -71,7 +73,7 @@ function speakerTransport(providers: Provider[], calls: Map<string, string>): Tr
     label: 'eval',
     complete: async (req: LlmRequest) => {
       // EVAL_DEMO=1 runs the whole pipeline on the scripted ministers (a smoke test, no quota).
-      const r = process.env.EVAL_DEMO === '1' ? await new DemoTransport().complete(req) : await patient(providers, { system: req.system, user: req.user, maxTokens: req.maxTokens, json: true });
+      const r = process.env.EVAL_DEMO === '1' ? await new DemoTransport().complete(req) : await patient(providers, { system: req.system, user: req.user, maxTokens: req.maxTokens, json: true, schema: req.schema, schemaName: req.schemaName });
       if ('error' in r) throw new Error(r.error);
       // What this speaker saw, for the grounding check.
       const key = req.meta.role === 'chief' ? 'chief-3' : `${req.meta.minister}-${req.meta.round}`;
@@ -122,7 +124,7 @@ async function meeting(spec: MeetingSpec, providers: Provider[]): Promise<Meetin
     seconds: 0,
   };
   const t0 = Date.now();
-  await new CouncilSession({ city: 'New Haven', issue, options, seats, briefings, mayorNote: note, lang }, speakerTransport(providers, calls), (e) => {
+  await new CouncilSession({ city: 'New Haven', issue, options, seats, briefings, limits: fiscalLimits(sim), mayorNote: note, lang }, speakerTransport(providers, calls), (e) => {
     if (e.type === 'said') {
       const s = e.statement;
       const seen = calls.get(`${s.minister}-${s.round}`) ?? '';

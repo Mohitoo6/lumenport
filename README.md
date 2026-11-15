@@ -42,12 +42,44 @@ bring the responsible minister to you. Call the council and nine AI ministers de
 options the game has worked out, in English or Hindi; you approve the result.
 
 To use real AI, copy `.env.example` to `.env`, add one or more OpenAI-compatible providers
-(Gemini, Groq, OpenRouter and similar), and restart `npm run dev`. Without keys you can
-still hold a demo meeting with scripted ministers. Keys stay on your machine and are never
-sent to the browser.
+(Gemini, Groq, OpenRouter and similar), and restart `npm run dev`. Without keys, or when a
+free tier is rate-limited, the meeting runs offline with rule-based ministers at no cost.
+Keys stay on your machine and are never sent to the browser.
+
+### How the council works
+
+The council is a multi-agent decision-support pipeline with the game as the source of
+truth. The model argues; code decides what is possible, checks what was said, and carries
+out what the mayor approves.
+
+```
+detect -> triage -> round 1 -> [round 2] -> chair -> guardrails -> mayor -> execute
+ code      code      model      model       model      code        human     code
+```
+
+| Stage | What happens |
+|---|---|
+| Detect | Detectors in the simulation raise an issue with a severity and measured facts. |
+| Triage | All nine ministries score how urgent it is for them; the lead and top three are seated. |
+| Options | The game drafts valid options and runs each on a copy of the city to measure its effect. |
+| Debate | Each minister sees only its own department and its slice of each option. Round 2 runs only if they disagree. |
+| Chair | The Chief Secretary recommends one option, as schema-checked JSON. |
+| Guardrails | Code checks the recommendation: it exists, the game accepts it, the city can pay, the figures quoted were in the facts shown. |
+| Mayor | You approve, overrule or defer. |
+| Execute | The option runs as one transaction and the city is compared with what the option card promised. |
+
+A meeting is capped at 8 model calls (typically 4 or 5). Press **I** in the chamber, or open
+Council > AI inspector, to watch it: the pipeline state, each agent's prompt and JSON,
+latency, token counts, schema results and guardrail findings. Past decisions are
+remembered per city and shown to the ministers they concern.
+
+`docs/GENAI_GUIDE.md` explains the design, the trade-offs and the numbers in full.
+`npm test` covers all of it without calling a model; `REAL_COUNCIL=1 npx vitest run
+tests/game/zz-real.test.ts` holds one real meeting and prints its telemetry.
 
 ## Project docs
 
 - `PLAN.md`: architecture, data model, phases and acceptance criteria.
 - `PROGRESS.md`: what is done, what is next, known issues and decisions.
+- `docs/GENAI_GUIDE.md`: the AI council explained end to end, with interview questions.
 - `ASSETS.md`: every third-party asset and its licence (all CC0).

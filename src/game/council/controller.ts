@@ -1,14 +1,19 @@
+import { MONTH_NAMES } from '../../core/constants';
 import { Rng } from '../../core/rng';
+import type { Command } from '../../sim/commands';
 import type { Sim } from '../../sim/sim';
-import type { Speed } from '../../sim/state';
+import { dateOf, type Speed } from '../../sim/state';
 import { ui, type CouncilMessage, type CouncilView, type SeatState } from '../../ui/store';
-import { attendees, briefing, type Seat } from './briefs';
+import { execute, financing } from './effects';
+import { GraphState } from './graph';
 import { detectIssues, type CityIssue } from './issues';
-import { DemoTransport, HttpTransport, aiStatus, type Transport } from './llm';
-import { MINISTERS, type MinistryId } from './ministries';
-import { optionsFor, type CouncilOption } from './options';
+import { CachedTransport, DemoTransport, HttpTransport, aiStatus, type Transport } from './llm';
+import { EpisodicMemory, decisionRecord } from './memory';
+import type { MinistryId } from './ministries';
 import type { Lang } from './prompts';
-import { CouncilSession, type SessionEvent } from './session';
+import { CouncilSession, prepareMeeting, type Meeting, type SessionEvent } from './session';
+import { browserKV, type KV } from './storage';
+import { Recorder, addToStats, loadStats, loadTraces, saveStats, saveTrace, type Attribution } from './telemetry';
 import { makePost, requestText } from './voices';
 
 const CHECK_EVERY = 2;
@@ -53,11 +58,26 @@ export interface CouncilHost {
   setSpeed(s: Speed): void;
   /** Plays a short sound for council moments. */
   chime(kind: 'request' | 'decision'): void;
+  /** Where memory, cache and telemetry persist. Defaults to the browser's local storage. */
+  kv?: KV;
+}
+
+/** One meeting in progress: what was computed for it, and where it is in the graph. */
+interface Current {
+  meeting: Meeting;
+  graph: GraphState;
+  recorder: Recorder;
+  memory: { chair: string[]; byMinister: Partial<Record<MinistryId, string[]>> };
+  /** The first minister to back each option, for attribution. */
+  firstBacker: Map<string, MinistryId>;
+  recommended?: string;
 }
 
 /**
- * Watches the city for problems, lets residents talk about them, has the responsible
- * minister ask the mayor for a meeting, and runs the meeting itself.
+ * The council's orchestrator. It owns the two ends of the pipeline that are not the
+ * model's business: detecting triggers in the simulation and handing a recommendation to
+ * the mayor, then executing what the mayor approves. The debate in between is
+ * `CouncilSession`; the stages and the moves between them are `graph.ts`.
  */
 export class CouncilController {
   issues: CityIssue[] = [];
@@ -72,7 +92,10 @@ export class CouncilController {
   private readonly snoozed = new Map<string, number>();
   private readonly rng = new Rng(0x5eed);
   private session: CouncilSession | null = null;
-  private current: { issue: CityIssue; options: CouncilOption[]; seats: Seat[] } | null = null;
+  private current: Current | null = null;
+  private readonly kv: KV;
+  private memory: EpisodicMemory | null = null;
+  private memoryCity = '';
   private resumeSpeed: Speed | null = null;
   private queue: Queued[] = [];
   private playing: { item: Queued; left: number } | null = null;
@@ -80,7 +103,29 @@ export class CouncilController {
   private track = new Map<Who, Track>();
   private backers = new Map<MinistryId, string>();
 
-  constructor(private readonly host: CouncilHost) {}
+  constructor(private readonly host: CouncilHost) {
+    this.kv = host.kv ?? browserKV();
+    ui.aiStats.value = loadStats(this.kv);
+    ui.traces.value = loadTraces(this.kv);
+    ui.trace.value = ui.traces.value[0] ?? null;
+  }
+
+  /** This city's decision memory. A different city (another seed) has its own. */
+  private memoryFor(sim: Sim, today: number): EpisodicMemory {
+    const city = String(sim.state.seed);
+    if (!this.memory || this.memoryCity !== city) {
+      this.memory = new EpisodicMemory(this.kv, city);
+      this.memoryCity = city;
+    }
+    // A loaded older save, or a new city on the same seed, has not made those decisions.
+    this.memory.rewindTo(today);
+    return this.memory;
+  }
+
+  private when(): { day: number; date: string } {
+    const d = dateOf(this.host.sim.state.tick);
+    return { day: d.totalDays, date: `${d.day} ${MONTH_NAMES[d.month]} ${d.year}` };
+  }
 
   update(dt: number): void {
     this.play(dt);
@@ -132,16 +177,47 @@ export class CouncilController {
     ui.request.value = null;
   }
 
-  /** Opens the council chamber on an issue: the brief, before anyone speaks. */
+  /**
+   * Opens the council chamber on an issue: the brief, before anyone speaks. Everything
+   * here is code: the options and their measured effects, the triage that decides who is
+   * seated, the money limits and the memory to recall. No model has been called yet.
+   */
   convene(issueKey: string): void {
     const issue = this.issues.find((i) => i.key === issueKey) ?? detectIssues(this.host.sim).find((i) => i.key === issueKey);
     if (!issue) return;
+    const requested = ui.request.value?.issueKey === issueKey;
     ui.request.value = null;
     ui.showIssues.value = false;
     const sim = this.host.sim;
-    const options = optionsFor(sim, issue);
-    const seats = attendees(sim, issue, options);
-    this.current = { issue, options, seats };
+    const meeting = prepareMeeting(sim, issue);
+    const { options, seats, limits } = meeting;
+    const when = this.when();
+    const store = this.memoryFor(sim, when.day);
+    const moneyAtStake = options.some((o) => o.cost > 0);
+    const chair = store.recall(issue, when.day, { moneyAtStake, limit: 3 }).map((r) => r.line);
+    const byMinister: Partial<Record<MinistryId, string[]>> = {};
+    for (const seat of seats) {
+      const lines = store.recall(issue, when.day, { moneyAtStake, limit: 2, ministry: seat.id }).map((r) => r.line);
+      if (lines.length) byMinister[seat.id] = lines;
+    }
+    const mode = this.forceDemo ? 'offline' : 'live';
+    const recorder = new Recorder(
+      {
+        mode,
+        issue: { key: issue.key, kind: issue.kind, title: issue.title, severity: issue.severity, lead: issue.lead },
+        day: when.day,
+        trigger: `${issue.title}: severity ${Math.round(issue.severity * 100)}%, seen in ${this.seen.get(issue.key) ?? 1} consecutive checks; ${requested ? 'the lead minister asked for a meeting' : 'the mayor called the council'}`,
+        triage: meeting.triage,
+        limits,
+        options: options.map((o) => ({ id: o.id, title: o.title, effects: o.effects, feasibility: o.feasibility })),
+        memory: chair,
+      },
+      (trace) => (ui.trace.value = trace),
+    );
+    const graph = new GraphState();
+    graph.go('triage', recorder.trace.trigger);
+    recorder.graph(graph.node, graph.history);
+    this.current = { meeting, graph, recorder, memory: { chair, byMinister }, firstBacker: new Map() };
     if (this.resumeSpeed === null) {
       this.resumeSpeed = this.host.speed();
       this.host.setSpeed(0);
@@ -155,12 +231,18 @@ export class CouncilController {
     ui.council.value = {
       phase: 'brief',
       issue: { key: issue.key, title: issue.title, summary: issue.summary, facts: issue.facts, lead: issue.lead, severity: issue.severity, x: issue.x, z: issue.z },
-      options: options.map((o) => ({ id: o.id, title: o.title, cost: o.cost, monthly: o.monthly, facts: o.facts, backers: [], hasActions: o.actions.length > 0, x: o.x, z: o.z })),
+      options: options.map((o) => {
+        const loan = o.feasibility.status === 'needs_loan' ? financing(sim, o.feasibility.shortfall) : null;
+        return { id: o.id, title: o.title, gist: o.gist, cost: o.cost, monthly: o.monthly, facts: o.facts, effects: o.effects, feasibility: o.feasibility, financing: loan ? { amount: loan.amount } : undefined, backers: [], hasActions: o.actions.length > 0, x: o.x, z: o.z };
+      }),
       seats: seats.map((s) => ({ id: s.id, state: 'waiting', reason: s.reason })),
       chief: 'waiting',
       messages: [],
       round: 0,
-      source: this.forceDemo ? 'Demo (no AI)' : 'AI',
+      source: this.forceDemo ? 'Offline (no AI)' : 'AI',
+      triage: meeting.triage,
+      limits,
+      memory: chair,
       aiReady: true,
       providers: [],
       lang,
@@ -197,7 +279,7 @@ export class CouncilController {
     else this.patch((x) => ({ seats: x.seats.map((s) => (s.id === who ? { ...s, state } : s)) }));
   }
 
-  /** Starts the debate. `demo` uses scripted ministers instead of the AI. */
+  /** Starts the debate. `demo` runs it offline: deterministic agents, no model, no tokens. */
   start(note: string, lang: Lang, demo: boolean): void {
     const cur = this.current;
     if (!cur || this.session) return;
@@ -206,9 +288,20 @@ export class CouncilController {
     } catch {
       // Not remembered; fine.
     }
-    const transport: Transport = demo || this.forceDemo ? new DemoTransport() : new HttpTransport();
-    const sim = this.host.sim;
-    const briefings = Object.fromEntries(MINISTERS.map((m) => [m.id, briefing(sim, m.id)])) as Record<MinistryId, string[]>;
+    const offline = demo || this.forceDemo;
+    // Live calls go through the exact-match cache: asking the same thing about the same
+    // city twice (a meeting resumed after a rate limit) costs nothing the second time.
+    const transport: Transport = offline ? new DemoTransport() : new CachedTransport(new HttpTransport(), this.kv);
+    const { meeting } = cur;
+    // A meeting that is run again starts a fresh walk through the graph.
+    if (cur.graph.node !== 'triage') {
+      cur.graph = new GraphState();
+      cur.graph.go('triage', 'the mayor sent the council back to debate');
+    }
+    cur.recorder.restart(offline ? 'offline' : 'live');
+    cur.recorder.graph(cur.graph.node, cur.graph.history);
+    cur.firstBacker.clear();
+    cur.recommended = undefined;
     this.resetPlayback();
     this.patch((v) => ({
       phase: 'debate',
@@ -221,11 +314,12 @@ export class CouncilController {
       decision: undefined,
       error: undefined,
       result: undefined,
+      notice: undefined,
       speaking: undefined,
       options: v.options.map((o) => ({ ...o, backers: [] })),
     }));
     const onEvent = (e: SessionEvent): void => {
-      if (ui.council.value?.issue.key !== cur.issue.key) return;
+      if (this.current !== cur || ui.council.value?.issue.key !== meeting.issue.key) return;
       switch (e.type) {
         case 'round':
           if (!this.playing && this.queue.length === 0) this.patch(() => ({ round: e.round }));
@@ -239,8 +333,9 @@ export class CouncilController {
           const t = this.trackOf(st.minister);
           t.inFlight = false;
           t.queued++;
+          if (st.option !== 'none' && !cur.firstBacker.has(st.option)) cur.firstBacker.set(st.option, st.minister);
           this.queue.push({
-            msg: { key: `${st.minister}-${st.round}`, who: st.minister, round: st.round, stance: st.stance, option: st.option, text: st.text, condition: st.condition, provider: e.provider },
+            msg: { key: `${st.minister}-${st.round}`, who: st.minister, round: st.round, stance: st.stance, option: st.option, text: st.text, condition: st.condition, provider: e.provider, standIn: st.standIn, flags: st.flags },
             backer: st.option !== 'none' ? [st.minister, st.option] : undefined,
           });
           this.refresh(st.minister);
@@ -253,20 +348,21 @@ export class CouncilController {
           this.refresh(e.who);
           break;
         }
-        case 'failed': {
-          const t = this.trackOf(e.who);
-          t.inFlight = false;
-          t.failed = true;
-          this.refresh(e.who);
+        case 'failed':
+          // The stand-in for this seat speaks next; the seat is not lost.
           break;
-        }
+        case 'notice':
+          this.patch(() => ({ notice: e.message }));
+          break;
         case 'decision': {
           const t = this.trackOf('chief');
           t.inFlight = false;
           t.queued++;
+          cur.recommended = e.decision.option;
+          const d = e.decision;
           this.queue.push({
-            msg: { key: 'chief', who: 'chief', round: 3, option: e.decision.option, text: e.decision.summary, provider: e.provider },
-            decision: { option: e.decision.option, summary: e.decision.summary, dissent: e.decision.dissent, conditions: e.decision.conditions },
+            msg: { key: 'chief', who: 'chief', round: 3, option: d.option, text: d.summary, provider: e.provider, standIn: d.source === 'policy' && !offline },
+            decision: { option: d.option, summary: d.summary, dissent: d.dissent, conditions: d.conditions, guardrail: d.guardrail, source: d.source },
           });
           this.refresh('chief');
           break;
@@ -276,11 +372,26 @@ export class CouncilController {
           break;
         case 'done':
           this.session = null;
+          this.persist(cur, true);
           break;
       }
     };
-    this.session = new CouncilSession({ city: this.host.cityName(), issue: cur.issue, options: cur.options, seats: cur.seats, briefings, mayorNote: note.trim().slice(0, 400), lang }, transport, onEvent);
+    this.session = new CouncilSession(
+      { city: this.host.cityName(), issue: meeting.issue, options: meeting.options, seats: meeting.seats, briefings: meeting.briefings, limits: meeting.limits, mayorNote: note.trim().slice(0, 400), lang, memory: cur.memory },
+      transport,
+      onEvent,
+      { graph: cur.graph, recorder: cur.recorder },
+    );
     void this.session.run();
+  }
+
+  /** Saves the meeting's trace; `finished` also folds it into the lifetime numbers. */
+  private persist(cur: Current, finished: boolean): void {
+    ui.traces.value = saveTrace(this.kv, cur.recorder.trace);
+    if (finished) {
+      ui.aiStats.value = addToStats(ui.aiStats.value, cur.recorder.trace);
+      saveStats(this.kv, ui.aiStats.value);
+    }
   }
 
   private resetPlayback(): void {
@@ -362,24 +473,50 @@ export class CouncilController {
     this.gap = 0;
   }
 
-  /** Carries out an option: every action through the normal game commands. */
-  approve(optionId: string): void {
+  /**
+   * The human-in-the-loop step: the mayor approves an option (the council's, or their
+   * own). It runs as one transaction: checked on a fork of the city first, committed only
+   * if every command passes, then measured and compared with the payload on the card.
+   * `withLoan` first takes the loan that covers an option the treasury cannot pay for.
+   */
+  approve(optionId: string, withLoan = false): void {
     const cur = this.current;
-    const option = cur?.options.find((o) => o.id === optionId);
-    if (!cur || !option) return;
+    const option = cur?.meeting.options.find((o) => o.id === optionId);
+    if (!cur || !option || !cur.graph.can('execute')) return;
     const sim = this.host.sim;
-    let spent = 0;
-    for (const action of option.actions) {
-      const r = sim.apply(action);
-      if (!r.ok) {
-        this.patch(() => ({ phase: 'enacted', result: { ok: false, text: `Could not carry out option ${option.id}: ${r.reason ?? 'refused'}. The city may have changed since the meeting.` } }));
-        return;
-      }
-      spent += r.cost ?? 0;
+    const { issue, seats } = cur.meeting;
+    const recommended = cur.recommended ?? '';
+    const followedChair = option.id === recommended;
+    cur.graph.go('execute', `the mayor approved option ${option.id}${recommended ? (followedChair ? ', as recommended' : `, overruling the recommendation (${recommended})`) : ''}`);
+    cur.recorder.graph(cur.graph.node, cur.graph.history);
+    let actions: Command[] = option.actions;
+    if (withLoan && option.feasibility.status === 'needs_loan') {
+      const loan = financing(sim, option.feasibility.shortfall);
+      if (loan) actions = [...loan.tiers.map((tier) => ({ type: 'takeLoan', tier }) as Command), ...option.actions];
     }
-    this.snoozed.set(cur.issue.key, Date.now() + RESOLVED_MS);
-    const text = option.actions.length === 0 ? 'No action taken. The council will look at this again if it gets worse.' : `Option ${option.id} approved: ${option.title}.${spent > 0 ? ` ${'$' + spent.toLocaleString('en-US')} spent.` : ''}`;
-    this.patch(() => ({ phase: 'enacted', result: { ok: true, text } }));
+    const report = execute(sim, actions);
+    cur.recorder.set({ execution: report });
+    if (!report.ok) {
+      cur.graph.go('hitl', `execution refused at ${report.stage}: ${report.reason ?? 'refused'}`);
+      cur.recorder.graph(cur.graph.node, cur.graph.history);
+      const why = report.stage === 'preflight' ? 'Nothing was changed.' : 'The city may be partly changed: check it.';
+      this.patch(() => ({ result: { ok: false, text: `Could not carry out option ${option.id}: ${report.reason ?? 'refused'}. ${why}` } }));
+      return;
+    }
+    const backers = [...this.backers].filter(([, o]) => o === option.id).map(([m]) => m);
+    const attribution: Attribution = { chosen: option.id, recommended, followedChair, proposedBy: cur.firstBacker.get(option.id) ?? null, backers };
+    const observed = report.observed ?? option.effects;
+    this.memoryFor(sim, this.when().day).record(decisionRecord(this.when(), issue, seats.map((s) => s.id), { title: option.title, acted: actions.length > 0 }, observed, followedChair));
+    cur.recorder.set({ attribution });
+    cur.graph.go('done', report.drift.length ? `executed with ${report.drift.length} field(s) off the projection` : 'executed; the city changed exactly as projected');
+    cur.recorder.graph(cur.graph.node, cur.graph.history);
+    ui.aiStats.value = { ...ui.aiStats.value, decisions: ui.aiStats.value.decisions + 1, followedChair: ui.aiStats.value.followedChair + (followedChair ? 1 : 0) };
+    saveStats(this.kv, ui.aiStats.value);
+    this.persist(cur, false);
+    this.snoozed.set(issue.key, Date.now() + RESOLVED_MS);
+    const spent = report.spent;
+    const text = actions.length === 0 ? 'No action taken. The council will look at this again if it gets worse.' : `Option ${option.id} approved: ${option.title}.${spent > 0 ? ` ${'$' + spent.toLocaleString('en-US')} spent.` : ''}`;
+    this.patch(() => ({ phase: 'enacted', result: { ok: true, text, observed, drift: report.drift } }));
     if (option.x !== undefined && option.z !== undefined) this.host.lookAt(option.x, option.z);
   }
 
@@ -387,6 +524,15 @@ export class CouncilController {
     this.session?.cancel();
     this.session = null;
     this.resetPlayback();
+    const cur = this.current;
+    if (cur) {
+      // Leaving after the recommendation is a decision to defer; leaving earlier abandons the meeting.
+      const moved = cur.graph.node === 'hitl' ? cur.graph.tryGo('done', 'the mayor deferred the decision') : cur.graph.tryGo('aborted', 'the mayor left the meeting');
+      if (moved) {
+        cur.recorder.graph(cur.graph.node, cur.graph.history);
+        this.persist(cur, false);
+      }
+    }
     this.current = null;
     ui.council.value = null;
     if (this.resumeSpeed !== null) {

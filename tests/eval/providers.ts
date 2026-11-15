@@ -35,7 +35,7 @@ export async function evalProviders(): Promise<EvalProviders> {
 
 /** `complete`, but waits out rate limits ("try again in 9.4s") and retries. */
 export async function patient(providers: Provider[], req: Parameters<typeof complete>[1], attempts = 10): Promise<Awaited<ReturnType<typeof complete>>> {
-  let last: Awaited<ReturnType<typeof complete>> = { error: 'not tried' };
+  let last: Awaited<ReturnType<typeof complete>> = { error: 'not tried', rateLimited: false };
   for (let i = 0; i < attempts; i++) {
     last = await complete(providers, req);
     if (!('error' in last)) return last;

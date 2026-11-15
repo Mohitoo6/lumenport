@@ -32,8 +32,13 @@ export interface CityIssue {
   title: string;
   /** One sentence for the request card and the council header. */
   summary: string;
-  /** The measured facts every minister is given. */
+  /** The measured facts of the problem. */
   facts: string[];
+  /**
+   * Which ministries a fact concerns, by position in `facts`; absent or undefined means
+   * everyone. The lead and the chair always see every fact; the others see only theirs.
+   */
+  factsFor?: Array<MinistryId[] | undefined>;
   /** World position to show on the map. */
   x: number;
   z: number;
@@ -89,6 +94,9 @@ function trafficIssue(sim: Sim): CityIssue | null {
       `Nearest clinic to this road: ${metres(clinic)}. Nearest school: ${metres(school)}.`,
       `Nearest fire station: ${metres(fire)}. Nearest police station: ${metres(police)}.`,
     ],
+    // Distances to clinics and schools matter to the ministries that run them; the rest
+    // of the council argues about the jam itself.
+    factsFor: [undefined, undefined, undefined, ['welfare', 'planning', 'health', 'safety'], ['health', 'education'], ['safety']],
     x: mid.x,
     z: mid.z,
     edge: worst,
