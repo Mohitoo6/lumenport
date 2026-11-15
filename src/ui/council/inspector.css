@@ -670,23 +670,19 @@ p.ins-fallback {
   font: inherit;
 }
 
-/* The chamber makes room for the inspector. */
-
-.chamber-ui.has-inspector .drawer-right {
-  display: none;
-}
-
-.chamber-ui.has-inspector .stage-bottom {
-  right: 530px;
-}
-
-.chamber-ui.has-inspector .council-head {
-  left: calc(50% - 90px);
-  width: min(620px, calc(100% - 900px));
-}
-
 @media (prefers-reduced-motion: reduce) {
   .ins-node.is-live .ins-dot {
     animation: none;
   }
+}
+
+.ins-question {
+  max-width: 150px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ins-head-side .ins-link {
+  padding-top: 2px;
 }

@@ -1,3 +1,4 @@
+import { violations, type Constraint } from './constraints';
 import type { FiscalLimits } from './effects';
 import { MINISTER_BY_ID, type MinistryId } from './ministries';
 import type { CouncilOption } from './options';
@@ -18,11 +19,13 @@ export type Lang = 'en' | 'hi';
 const usd = (n: number): string => `$${Math.abs(Math.round(n)).toLocaleString('en-US')}`;
 
 /** How much a ministry likes an option: its objective, as arithmetic. */
-export function score(id: MinistryId, o: CouncilOption): number {
+export function score(id: MinistryId, o: CouncilOption, constraints: readonly Constraint[] = []): number {
   const e = o.effects;
   const im = o.impact;
   // Doing something beats doing nothing, unless the portfolio says otherwise below.
   let v = o.actions.length > 0 ? 10 : 0;
+  // The mayor's instruction outranks every portfolio.
+  if (violations(o, constraints).length > 0) v -= 60;
   if (o.feasibility.status === 'unaffordable' || o.feasibility.status === 'blocked') v -= 100;
   else if (o.feasibility.status === 'needs_loan') v -= id === 'finance' ? 40 : 12;
   const spend = Math.max(0, -e.budgetDelta);
@@ -63,8 +66,10 @@ export function score(id: MinistryId, o: CouncilOption): number {
 }
 
 /** The one fact from a ministry's own lens that explains why it dislikes an option. */
-function objection(id: MinistryId, o: CouncilOption, limits: FiscalLimits, hi: boolean): string {
+function objection(id: MinistryId, o: CouncilOption, limits: FiscalLimits, hi: boolean, constraints: readonly Constraint[] = []): string {
   const e = o.effects;
+  const broken = violations(o, constraints);
+  if (broken.length) return hi ? `मेयर के निर्देश के ख़िलाफ़ है (${broken.join(', ')})` : `${broken.join(' and ')}, against the mayor's instruction`;
   const im = o.impact;
   const spend = Math.max(0, -e.budgetDelta);
   if (o.feasibility.status === 'unaffordable' || o.feasibility.status === 'needs_loan') {
@@ -140,18 +145,22 @@ export interface PolicyContext {
   lang: Lang;
   /** Where the others stand so far: minister -> option. */
   positions?: ReadonlyMap<MinistryId, string>;
+  /** The enforceable parts of the mayor's instruction. */
+  constraints?: readonly Constraint[];
 }
 
 /** One minister's turn, decided by rule. */
 export function policyTurn(id: MinistryId, round: 1 | 2, lead: boolean, ctx: PolicyContext): MinisterTurn {
   const { options, limits } = ctx;
   const hi = ctx.lang === 'hi';
-  const ranked = [...options].sort((a, b) => score(id, b) - score(id, a));
+  const rules = ctx.constraints ?? [];
+  const rate = (o: CouncilOption): number => score(id, o, rules);
+  const ranked = [...options].sort((a, b) => rate(b) - rate(a));
   const best = ranked[0]!;
   const acting = options.filter((o) => o.actions.length > 0);
-  const worst = [...acting].sort((a, b) => score(id, a) - score(id, b))[0];
+  const worst = [...acting].sort((a, b) => rate(a) - rate(b))[0];
   // A ministry objects when an option on the table scores clearly worse than doing nothing.
-  const objects = worst !== undefined && worst.id !== best.id && score(id, worst) < 4;
+  const objects = worst !== undefined && worst.id !== best.id && rate(worst) < 4;
 
   if (round === 2) {
     // Final position: move to the room's choice if it is nearly as good for this portfolio.
@@ -159,7 +168,7 @@ export function policyTurn(id: MinistryId, round: 1 | 2, lead: boolean, ctx: Pol
     for (const [m, o] of ctx.positions ?? []) if (m !== id) counts.set(o, (counts.get(o) ?? 0) + 1);
     const room = [...counts].sort((a, b) => b[1] - a[1])[0]?.[0];
     const roomOption = options.find((o) => o.id === room);
-    if (roomOption && roomOption.id !== best.id && score(id, best) - score(id, roomOption) < 3) {
+    if (roomOption && roomOption.id !== best.id && rate(best) - rate(roomOption) < 3) {
       return {
         speak: true,
         stance: 'support',
@@ -173,8 +182,8 @@ export function policyTurn(id: MinistryId, round: 1 | 2, lead: boolean, ctx: Pol
       stance: lead ? 'propose' : objects ? 'oppose' : 'support',
       option: best.id,
       say: hi
-        ? `मेरा रुख़ वही है: विकल्प ${best.id}।${objects ? ` विकल्प ${worst!.id} ${objection(id, worst!, limits, true)}।` : ''}`
-        : `My position stands: option ${best.id}.${objects ? ` Option ${worst!.id} ${objection(id, worst!, limits, false)}.` : ''}`,
+        ? `मेरा रुख़ वही है: विकल्प ${best.id}।${objects ? ` विकल्प ${worst!.id} ${objection(id, worst!, limits, true, rules)}।` : ''}`
+        : `My position stands: option ${best.id}.${objects ? ` Option ${worst!.id} ${objection(id, worst!, limits, false, rules)}.` : ''}`,
       condition: '',
     };
   }
@@ -194,8 +203,8 @@ export function policyTurn(id: MinistryId, round: 1 | 2, lead: boolean, ctx: Pol
       stance: 'concern',
       option: best.id,
       say: hi
-        ? `विकल्प ${worst!.id} ${objection(id, worst!, limits, true)}। मैं विकल्प ${best.id} का समर्थन करता हूँ, जो ${merit(id, best, limits, true)}।`
-        : `Option ${worst!.id} ${objection(id, worst!, limits, false)}. I back option ${best.id}, which ${merit(id, best, limits, false)}.`,
+        ? `विकल्प ${worst!.id} ${objection(id, worst!, limits, true, rules)}। मैं विकल्प ${best.id} का समर्थन करता हूँ, जो ${merit(id, best, limits, true)}।`
+        : `Option ${worst!.id} ${objection(id, worst!, limits, false, rules)}. I back option ${best.id}, which ${merit(id, best, limits, false)}.`,
       condition: '',
     };
   }
@@ -209,9 +218,11 @@ export function policyTurn(id: MinistryId, round: 1 | 2, lead: boolean, ctx: Pol
 }
 
 /** The chair's recommendation by rule: the best-backed option the city can actually afford. */
-export function policyVerdict(options: readonly CouncilOption[], tally: Record<string, MinistryId[]>, lang: Lang): ChairVerdict {
+export function policyVerdict(options: readonly CouncilOption[], tally: Record<string, MinistryId[]>, lang: Lang, constraints: readonly Constraint[] = []): ChairVerdict {
   const hi = lang === 'hi';
-  const allowed = options.filter((o) => o.feasibility.status === 'ok');
+  const affordable = options.filter((o) => o.feasibility.status === 'ok');
+  const compliant = affordable.filter((o) => violations(o, constraints).length === 0);
+  const allowed = compliant.some((o) => o.actions.length > 0) ? compliant : affordable;
   const pool = allowed.length ? allowed : [options[options.length - 1]!];
   const backing = (o: CouncilOption): number => tally[o.id]?.length ?? 0;
   const pick = [...pool].sort((a, b) => backing(b) - backing(a) || Number(b.actions.length > 0) - Number(a.actions.length > 0))[0]!;

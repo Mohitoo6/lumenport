@@ -111,6 +111,9 @@ function skyTexture(): CanvasTexture {
   return t;
 }
 
+/** Share of the screen height by which the chamber's picture is raised to clear the UI below it. */
+const LENS_LIFT = 0.09;
+
 interface SeatSlot {
   pos: Vector3;
   /** Facing direction (toward the table). */
@@ -607,6 +610,10 @@ export class Chamber {
 
   resize(w: number, h: number): void {
     this.camera.aspect = w / Math.max(1, h);
+    // The meeting's board and captions sit along the bottom of the screen, so the picture
+    // is framed above centre. Shifting the lens moves the subject up without tilting the
+    // room, which a camera tilt would.
+    this.camera.setViewOffset(w, h, 0, Math.round(h * LENS_LIFT), w, h);
     this.camera.updateProjectionMatrix();
     this.composer.setSize(w, h);
   }

@@ -1,3 +1,4 @@
+import { anyCompliant, violations, type Constraint } from './constraints';
 import type { FiscalLimits } from './effects';
 import { checkNumbers, lettersIn } from './grounding';
 import type { MinistryId } from './ministries';
@@ -19,6 +20,8 @@ export interface Finding {
   strength: Strength;
   passed: boolean;
   detail: string;
+  /** For the grounding check: how many figures were quoted and how many were not found. */
+  figures?: { quoted: number; unverified: number };
 }
 
 const usd = (n: number): string => `$${Math.abs(Math.round(n)).toLocaleString('en-US')}`;
@@ -32,9 +35,10 @@ const flag = (check: string, strength: Strength, detail: string): Finding => ({ 
  */
 function grounded(said: string, seen: string): Finding {
   const n = checkNumbers(said, seen);
-  if (n.ungrounded.length === 0) return pass('grounded_figures', n.checked ? `${n.checked} figure${n.checked > 1 ? 's' : ''} quoted, all found in the facts shown.` : 'No figures quoted.');
+  const figures = { quoted: n.checked, unverified: n.ungrounded.length };
+  if (n.ungrounded.length === 0) return { ...pass('grounded_figures', n.checked ? `${n.checked} figure${n.checked > 1 ? 's' : ''} quoted, all found in the facts shown.` : 'No figures quoted.'), figures };
   const list = n.ungrounded.map((v) => v.toLocaleString('en-US'));
-  return flag('grounded_figures', 'warn', `${list.join(', ')} ${list.length > 1 ? 'are' : 'is'} not in the facts this speaker was shown (${n.checked - list.length} of ${n.checked} figures verified).`);
+  return { ...flag('grounded_figures', 'warn', `${list.join(', ')} ${list.length > 1 ? 'are' : 'is'} not in the facts this speaker was shown (${n.checked - list.length} of ${n.checked} figures verified).`), figures };
 }
 
 /** The text argues for the same option the structured field names. */
@@ -45,11 +49,13 @@ function consistent(text: string, option: string, valid: readonly string[]): Fin
 }
 
 /** Checks one minister's statement against what that minister was shown. */
-export function checkStatement(turn: MinisterTurn, seen: string, options: readonly CouncilOption[]): Finding[] {
+export function checkStatement(turn: MinisterTurn, seen: string, options: readonly CouncilOption[], constraints: readonly Constraint[] = []): Finding[] {
   const ids = options.map((o) => o.id);
   const out = [grounded(`${turn.say} ${turn.condition}`, seen), consistent(turn.say, turn.option, ids)];
   const backed = options.find((o) => o.id === turn.option);
   if (backed && backed.feasibility.status === 'unaffordable') out.push(flag('backs_affordable_option', 'warn', `Backs option ${backed.id}, which the city cannot pay for. ${backed.feasibility.reason}`));
+  const broken = backed ? violations(backed, constraints) : [];
+  if (backed && broken.length) out.push(flag('respects_mayor_instruction', 'warn', `Backs option ${backed.id}, which ${broken.join(' and ')}: against the mayor's instruction.`));
   return out;
 }
 
@@ -97,10 +103,26 @@ export function checkOption(option: CouncilOption, limits: FiscalLimits): Findin
  * The option code would choose: the best-backed option that passes every hard rule, ties
  * broken by the order on the table, falling back to "take no action", which always passes.
  */
-export function safestBacked(options: readonly CouncilOption[], tally: Record<string, MinistryId[]>, limits: FiscalLimits, exclude: string): CouncilOption {
-  const ok = options.filter((o) => o.id !== exclude && checkOption(o, limits).every((f) => f.passed || f.strength !== 'block') && o.feasibility.status !== 'needs_loan');
+export function safestBacked(options: readonly CouncilOption[], tally: Record<string, MinistryId[]>, limits: FiscalLimits, exclude: string, constraints: readonly Constraint[] = []): CouncilOption {
+  const ok = options.filter((o) => o.id !== exclude && checkOption(o, limits).every((f) => f.passed || f.strength !== 'block') && o.feasibility.status !== 'needs_loan' && violations(o, constraints).length === 0);
   const ranked = ok.filter((o) => o.actions.length > 0).sort((a, b) => (tally[b.id]?.length ?? 0) - (tally[a.id]?.length ?? 0));
-  return ranked.find((o) => (tally[o.id]?.length ?? 0) > 0) ?? options[options.length - 1]!;
+  return ranked.find((o) => (tally[o.id]?.length ?? 0) > 0) ?? ranked[0] ?? options[options.length - 1]!;
+}
+
+/**
+ * The mayor's instruction as a rule. Breaking it is a hard violation when another option
+ * that acts would respect it; when none would, the instruction cannot be met and the
+ * mayor is told so instead.
+ */
+export function checkInstruction(option: CouncilOption, options: readonly CouncilOption[], constraints: readonly Constraint[]): Finding | null {
+  if (constraints.length === 0) return null;
+  const broken = violations(option, constraints);
+  const rules = constraints.map((c) => c.label).join('; ');
+  if (broken.length === 0) return pass('respects_mayor_instruction', `Meets the mayor's instruction (${rules}).`);
+  if (option.actions.length === 0) return pass('respects_mayor_instruction', `Takes no action, which breaks nothing in the mayor's instruction (${rules}).`);
+  return anyCompliant(options, constraints)
+    ? flag('respects_mayor_instruction', 'block', `Option ${option.id} ${broken.join(' and ')}, against the mayor's instruction (${rules}).`)
+    : flag('respects_mayor_instruction', 'warn', `Option ${option.id} ${broken.join(' and ')}. No option that acts meets the mayor's instruction (${rules}).`);
 }
 
 /**
@@ -112,14 +134,15 @@ export function safestBacked(options: readonly CouncilOption[], tally: Record<st
  */
 export function checkVerdict(
   verdict: ChairVerdict,
-  ctx: { options: readonly CouncilOption[]; limits: FiscalLimits; seen: string; tally: Record<string, MinistryId[]> },
+  ctx: { options: readonly CouncilOption[]; limits: FiscalLimits; seen: string; tally: Record<string, MinistryId[]>; constraints?: readonly Constraint[] },
 ): VerdictReport {
   const { options, limits, tally } = ctx;
+  const constraints = ctx.constraints ?? [];
   const ids = options.map((o) => o.id);
   const findings: Finding[] = [];
   const chosen = options.find((o) => o.id === verdict.option);
   if (!chosen) {
-    const safe = safestBacked(options, tally, limits, verdict.option);
+    const safe = safestBacked(options, tally, limits, verdict.option, constraints);
     return {
       status: 'overridden',
       option: safe.id,
@@ -129,6 +152,8 @@ export function checkVerdict(
     };
   }
   findings.push(pass('option_on_table', `Option ${chosen.id} is one of ${ids.join(', ')}.`), ...checkOption(chosen, limits));
+  const instruction = checkInstruction(chosen, options, constraints);
+  if (instruction) findings.push(instruction);
   findings.push(grounded(`${verdict.summary} ${verdict.dissent} ${verdict.conditions}`, ctx.seen), consistent(verdict.summary, verdict.option, ids));
   const others = Object.entries(tally).filter(([id, ms]) => id !== chosen.id && ms.length > 0);
   if (others.length > 0) {
@@ -136,7 +161,7 @@ export function checkVerdict(
   }
   const blocks = findings.filter((f) => !f.passed && f.strength === 'block');
   if (blocks.length > 0) {
-    const safe = safestBacked(options, tally, limits, chosen.id);
+    const safe = safestBacked(options, tally, limits, chosen.id, constraints);
     return {
       status: 'overridden',
       option: safe.id,

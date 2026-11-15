@@ -4,6 +4,7 @@ import type { Command } from '../../sim/commands';
 import type { Sim } from '../../sim/sim';
 import { dateOf, type Speed } from '../../sim/state';
 import { ui, type CouncilMessage, type CouncilView, type SeatState } from '../../ui/store';
+import { parseInstruction, violations } from './constraints';
 import { execute, financing } from './effects';
 import { GraphState } from './graph';
 import { detectIssues, type CityIssue } from './issues';
@@ -149,6 +150,9 @@ export class CouncilController {
     const live = new Set(this.issues.map((i) => i.key));
     for (const k of [...this.seen.keys()]) if (!live.has(k)) this.seen.delete(k);
     for (const i of this.issues) this.seen.set(i.key, (this.seen.get(i.key) ?? 0) + 1);
+    // Old decisions are judged by the detectors: is the problem they were about still here?
+    const today = this.when().day;
+    this.memoryFor(this.host.sim, today).settle(today, live);
     // A request whose problem has gone away is withdrawn.
     const req = ui.request.value;
     if (req && !live.has(req.issueKey)) ui.request.value = null;
@@ -243,6 +247,7 @@ export class CouncilController {
       triage: meeting.triage,
       limits,
       memory: chair,
+      constraints: [],
       aiReady: true,
       providers: [],
       lang,
@@ -303,8 +308,13 @@ export class CouncilController {
     cur.firstBacker.clear();
     cur.recommended = undefined;
     this.resetPlayback();
+    // The enforceable parts of the instruction, and which options they rule out.
+    const constraints = parseInstruction(note);
+    cur.recorder.set({ constraints: constraints.map((c) => c.label) });
+    const broken = new Map(meeting.options.map((o) => [o.id, violations(o, constraints)]));
     this.patch((v) => ({
       phase: 'debate',
+      constraints: constraints.map((c) => c.label),
       lang,
       source: transport.label,
       round: 1,
@@ -316,7 +326,7 @@ export class CouncilController {
       result: undefined,
       notice: undefined,
       speaking: undefined,
-      options: v.options.map((o) => ({ ...o, backers: [] })),
+      options: v.options.map((o) => ({ ...o, backers: [], violations: broken.get(o.id) ?? [] })),
     }));
     const onEvent = (e: SessionEvent): void => {
       if (this.current !== cur || ui.council.value?.issue.key !== meeting.issue.key) return;

@@ -37,7 +37,7 @@ export interface NumberCheck {
  * Numbers in `said` that do not appear in `seen` (allowing rounding of about 3%, and sums
  * or differences of two figures the speaker was given, for values above 100).
  */
-export function checkNumbers(said: string, seen: string): NumberCheck {
+export function checkNumbers(said: string, seen: string, opts: { derive?: boolean } = {}): NumberCheck {
   const pool = [...new Set(numbersIn(seen))];
   const near = (v: number, p: number): boolean => Math.abs(v - p) <= Math.max(0.5, Math.abs(p) * 0.03);
   const ungrounded: number[] = [];
@@ -47,7 +47,9 @@ export function checkNumbers(said: string, seen: string): NumberCheck {
     checked++;
     if (pool.some((p) => near(v, p))) continue;
     let derived = false;
-    if (v > 100) {
+    // With a long source full of prices, almost any figure is the sum of some two, so
+    // callers with such a source turn derivation off.
+    if (v > 100 && opts.derive !== false) {
       outer: for (let i = 0; i < pool.length; i++) {
         for (let j = i + 1; j < pool.length; j++) {
           const a = pool[i]!;

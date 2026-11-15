@@ -1,4 +1,5 @@
-import { parseJsonReply } from '../council/llm';
+import { z } from 'zod';
+import { extractJson, type SchemaOutcome } from '../council/schemas';
 import { FACILITIES, FacilityKind } from '../../sim/facilities';
 import type { KnownIssue } from './situation';
 
@@ -19,6 +20,8 @@ export interface AssistantReply {
   actions: AssistantAction[];
   /** Which model answered, or 'offline'. */
   source: string;
+  /** Figures in the answer that are in neither the rules nor the city data it was given. */
+  flags?: string[];
 }
 
 export interface ChatTurn {
@@ -101,11 +104,53 @@ export function validActions(raw: unknown, issues: readonly KnownIssue[]): Assis
   return out;
 }
 
+/** The assistant's reply contract: an answer, and up to three buttons (each checked separately). */
+export const ANSWER_MAX = 1400;
+export const assistantReplySchema = z.object({ answer: z.string().min(1).max(ANSWER_MAX), actions: z.array(z.unknown()).max(8) }).strict();
+
+export interface ParsedAnswer {
+  outcome: SchemaOutcome;
+  reply: AssistantReply | null;
+  repairs: string[];
+  errors: string[];
+}
+
+/**
+ * Validates the model's reply against the contract, repairing what can be fixed without
+ * changing its meaning. Buttons are validated one by one against what exists in the game:
+ * an invented button is dropped, not trusted.
+ */
+export function checkAssistantReply(text: string, issues: readonly KnownIssue[], source: string): ParsedAnswer {
+  const repairs: string[] = [];
+  const found = extractJson(text);
+  if (!found) return { outcome: 'fail', reply: null, repairs, errors: ['the reply holds no JSON object'] };
+  if (found.wrapped) repairs.push('removed text around the JSON object');
+  const o: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(found.value)) {
+    const key = k === 'reply' || k === 'response' || k === 'text' ? 'answer' : k === 'buttons' ? 'actions' : k;
+    if (key !== k) repairs.push(`renamed "${k}" to "${key}"`);
+    if (key === 'answer' || key === 'actions') o[key] = v;
+    else repairs.push(`dropped unknown field "${k}"`);
+  }
+  if (typeof o.answer === 'string') {
+    const answer = o.answer.trim();
+    if (answer.length > ANSWER_MAX) repairs.push(`answer cut from ${answer.length} to ${ANSWER_MAX} characters`);
+    o.answer = answer.slice(0, ANSWER_MAX);
+  }
+  if (!Array.isArray(o.actions)) {
+    if (o.actions !== undefined && o.actions !== null) repairs.push('"actions" was not a list');
+    o.actions = [];
+  }
+  const result = assistantReplySchema.safeParse(o);
+  if (!result.success) return { outcome: 'fail', reply: null, repairs, errors: result.error.issues.map((i) => `${i.path.join('.') || 'reply'}: ${i.message}`) };
+  const offered = result.data.actions.length;
+  const actions = validActions(result.data.actions, issues);
+  if (actions.length < Math.min(3, offered)) repairs.push(`dropped ${Math.min(3, offered) - actions.length} button(s) that do not exist in the game`);
+  return { outcome: repairs.length ? 'repaired' : 'pass', reply: { answer: result.data.answer, actions, source }, repairs, errors: [] };
+}
+
 export function parseAssistantReply(text: string, issues: readonly KnownIssue[], source: string): AssistantReply | null {
-  const data = parseJsonReply(text);
-  const answer = typeof data?.answer === 'string' ? data.answer.trim() : '';
-  if (!answer) return null;
-  return { answer, actions: validActions(data!.actions, issues), source };
+  return checkAssistantReply(text, issues, source).reply;
 }
 
 /**

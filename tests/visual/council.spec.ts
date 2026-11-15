@@ -120,6 +120,7 @@ test('council: real AI debate', async ({ page }) => {
   await page.locator('.verdict, .council-alert').first().waitFor({ timeout: 420_000 });
   await page.waitForTimeout(800);
   await page.screenshot({ path: `${DIR}/14-real-verdict.png` });
+  await page.getByRole('button', { name: /^Minutes/ }).click();
   const transcript = await page.locator('.msg').allInnerTexts();
   console.log(transcript.join('\n---\n'));
 });

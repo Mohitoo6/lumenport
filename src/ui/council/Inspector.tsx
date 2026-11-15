@@ -363,8 +363,11 @@ function Lifetime(): JSX.Element {
     ['Schema pass rate', validated ? `${Math.round((s.schemaPass / validated) * 100)}% first time, ${Math.round(((s.schemaPass + s.schemaRepaired) / validated) * 100)}% after repair` : 'n/a'],
     ['Turns answered offline', num(s.policyTurns)],
     ['Cache hits', num(s.cacheHits)],
+    ['Figures verified in the facts shown', s.figuresQuoted ? `${num(s.figuresVerified)} of ${num(s.figuresQuoted)} (${Math.round((s.figuresVerified / s.figuresQuoted) * 100)}%)` : 'n/a'],
+    ['Meetings that needed round 2', s.meetings ? `${s.contested} of ${s.meetings}` : 'n/a'],
     ['Guardrail overrides', num(s.overrides)],
     ['Mayor followed the chair', s.decisions ? `${s.followedChair} of ${s.decisions}` : 'n/a'],
+    ['Assistant questions', s.assistantCalls ? `${num(s.assistantCalls)} (${num(s.assistantTokens)} tokens)` : '0'],
   ];
   return (
     <dl class="ins-kv wide">
@@ -376,6 +379,55 @@ function Lifetime(): JSX.Element {
       ))}
     </dl>
   );
+}
+
+/** The assistant's recent questions: the second model feature, on the same instruments. */
+function AssistantCalls(): JSX.Element {
+  const calls = ui.assistantCalls.value;
+  if (calls.length === 0) return <p class="ins-muted">No question asked yet this session. Each one is listed here with the manual sections sent, its cost, and any figure code could not verify.</p>;
+  return (
+    <table class="ins-table ins-spans">
+      <thead>
+        <tr>
+          <th>Question</th>
+          <th>Source</th>
+          <th class="r">Latency</th>
+          <th class="r">In</th>
+          <th class="r">Out</th>
+          <th>Schema</th>
+          <th class="r">Flags</th>
+        </tr>
+      </thead>
+      <tbody>
+        {calls.map((c) => (
+          <tr key={c.id} title={`${c.question}\nManual sections sent: ${c.sections.join(', ')}\n${c.provider}${c.repairs.length ? `\nRepaired: ${c.repairs.join('; ')}` : ''}`}>
+            <td class="ins-question">{c.question}</td>
+            <td>
+              <span class={`ins-pill ${c.source === 'llm' ? 'live' : 'off'}`}>{c.source === 'llm' ? 'LLM' : 'offline'}</span>
+            </td>
+            <td class="r">{c.promptTokens ? secs(c.latencyMs) : '—'}</td>
+            <td class="r">{num(c.promptTokens)}</td>
+            <td class="r">{num(c.completionTokens)}</td>
+            <td>
+              <span class={`ins-schema is-${c.schema === 'n/a' ? 'na' : c.schema}`}>{c.schema === 'n/a' ? 'rules' : c.schema}</span>
+            </td>
+            <td class="r">{c.unverified.length ? <span class="ins-warn">{c.unverified.length}</span> : '0'}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
+/** Saves a trace as a file: the raw evidence behind everything on this panel. */
+function exportTrace(trace: CouncilTrace): void {
+  const blob = new Blob([JSON.stringify(trace, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `council-trace-day-${trace.day}-${trace.issue.kind}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 export function Inspector(): JSX.Element | null {
@@ -395,6 +447,11 @@ export function Inspector(): JSX.Element | null {
         </div>
         <div class="ins-head-side">
           {trace && <span class={`ins-pill ${trace.mode === 'live' ? 'live' : 'off'}`}>{trace.mode === 'live' ? 'live AI' : 'offline'}</span>}
+          {trace && (
+            <button type="button" class="ins-link" title="Download this meeting's full trace as JSON" onClick={() => exportTrace(trace)}>
+              Export
+            </button>
+          )}
           <button type="button" class="icon-btn" aria-label="Close the inspector" title="Close (I)" onClick={() => actions.toggleInspector()}>
             ×
           </button>
@@ -440,6 +497,15 @@ export function Inspector(): JSX.Element | null {
             <Section title="Mayor’s decision" note="human in the loop">
               <Outcome trace={trace} />
             </Section>
+            {trace.constraints && trace.constraints.length > 0 && (
+              <Section title="Mayor’s instruction" note="parsed and enforced by code">
+                <ul class="ins-memory">
+                  {trace.constraints.map((c) => (
+                    <li key={c}>{c}</li>
+                  ))}
+                </ul>
+              </Section>
+            )}
             <Section title="Episodic memory" note={`${trace.memory.length} line${trace.memory.length === 1 ? '' : 's'} injected`}>
               {trace.memory.length ? (
                 <ul class="ins-memory">
@@ -453,6 +519,9 @@ export function Inspector(): JSX.Element | null {
             </Section>
           </>
         )}
+        <Section title="Assistant" note="keyword-routed manual, same checks">
+          <AssistantCalls />
+        </Section>
         <Section title="All meetings" note="kept across reloads">
           <Lifetime />
         </Section>

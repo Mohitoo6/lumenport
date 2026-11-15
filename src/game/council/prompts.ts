@@ -1,3 +1,4 @@
+import { violations, type Constraint } from './constraints';
 import type { FiscalLimits } from './effects';
 import type { CityIssue } from './issues';
 import { CHIEF_SECRETARY, MINISTER_BY_ID, type Lens, type MinistryId } from './ministries';
@@ -94,27 +95,36 @@ function lensItems(o: CouncilOption, lens: readonly Lens[], limits: FiscalLimits
 }
 
 /** Upfront and monthly money: shown to everyone, because the budget is everyone's limit. */
-function moneyOf(o: CouncilOption): string {
+function moneyOf(o: CouncilOption, constraints: readonly Constraint[] = []): string {
   const now = o.cost > 0 ? `${money(o.cost)} now` : o.cost < 0 ? `brings in ${money(-o.cost)} now` : 'free now';
   const monthly = o.monthly > 0 ? `, ${money(o.monthly)}/month more` : o.monthly < 0 ? `, ${money(-o.monthly)}/month better` : '';
   const flag = o.feasibility.status === 'unaffordable' ? ' NOT AFFORDABLE' : o.feasibility.status === 'needs_loan' ? ` NEEDS A LOAN of ${money(o.feasibility.shortfall)} first` : '';
-  return `${now}${monthly}${flag}`;
+  // What the mayor ruled out is marked on the option itself, for every agent.
+  const broken = violations(o, constraints);
+  const against = broken.length ? ` AGAINST THE MAYOR'S INSTRUCTION: ${broken.join(', ')}` : '';
+  return `${now}${monthly}${flag}${against}`;
 }
 
 /** One option as one line, seen through a lens. */
-function optionLine(o: CouncilOption, lens: readonly Lens[], limits: FiscalLimits): string {
+function optionLine(o: CouncilOption, lens: readonly Lens[], limits: FiscalLimits, constraints: readonly Constraint[]): string {
   const items = lensItems(o, lens, limits);
-  return `${o.id}. ${o.title} (${moneyOf(o)}). ${o.gist}${items.length ? ` [${items.join('; ')}]` : ''}`;
+  return `${o.id}. ${o.title} (${moneyOf(o, constraints)}). ${o.gist}${items.length ? ` [${items.join('; ')}]` : ''}`;
 }
 
 /** The options as the lead sees them: every fact, since the lead has to propose one. */
-export function describeOptions(options: readonly CouncilOption[]): string {
-  return options.map((o) => `${o.id}. ${o.title} (${moneyOf(o)}).\n  - ${o.facts.join('\n  - ')}`).join('\n');
+export function describeOptions(options: readonly CouncilOption[], constraints: readonly Constraint[] = []): string {
+  return options.map((o) => `${o.id}. ${o.title} (${moneyOf(o, constraints)}).\n  - ${o.facts.join('\n  - ')}`).join('\n');
 }
 
 /** The options through one ministry's lens, or through all of them for the chair. */
-export function describeOptionsFor(options: readonly CouncilOption[], lens: readonly Lens[] | 'all', limits: FiscalLimits): string {
-  return options.map((o) => optionLine(o, lens === 'all' ? ALL_LENSES : lens, limits)).join('\n');
+export function describeOptionsFor(options: readonly CouncilOption[], lens: readonly Lens[] | 'all', limits: FiscalLimits, constraints: readonly Constraint[] = []): string {
+  return options.map((o) => optionLine(o, lens === 'all' ? ALL_LENSES : lens, limits, constraints)).join('\n');
+}
+
+/** The mayor's instruction as the agents see it: the words, and what code will hold them to. */
+function mayorLine(note: string, constraints: readonly Constraint[]): string {
+  const rules = constraints.length ? ` Enforced by rule: ${constraints.map((c) => c.label).join('; ')}.` : '';
+  return `MAYOR'S INSTRUCTION: "${note}".${rules} Respect it.`;
 }
 
 /** The issue with every fact (lead and chair), or only the facts that concern one ministry. */
@@ -140,7 +150,7 @@ export function ministerSystem(id: MinistryId, city: string, lang: Lang): string
 export function chiefSystem(city: string, lang: Lang): string {
   return [
     `You are ${CHIEF_SECRETARY.name}, ${CHIEF_SECRETARY.title} of ${city}: the impartial civil servant who chairs the mayor's council.`,
-    'Recommend exactly one listed option: the one that best fixes the problem within the budget while respecting well-founded objections. Usually that is the one most ministers can live with. Never recommend an option marked NOT AFFORDABLE.',
+    "Recommend exactly one listed option: the one that best fixes the problem within the budget while respecting well-founded objections. Usually that is the one most ministers can live with. Never recommend an option marked NOT AFFORDABLE or AGAINST THE MAYOR'S INSTRUCTION if another option is free of it.",
     `Use only the facts given; invent nothing. ${languageRule(lang)}`,
     'Reply with JSON only: {"option":"<letter>","summary":"<at most 3 sentences: what the council concluded and why>","dissent":"<who still disagrees and why, or empty>","conditions":"<conditions ministers asked for, or empty>"}',
   ].join('\n');
@@ -170,6 +180,8 @@ export interface TurnContext {
   earlier: readonly Statement[];
   /** Past decisions relevant to this agent, one line each. */
   memory: readonly string[];
+  /** The parts of the mayor's instruction that code enforces. */
+  constraints?: readonly Constraint[];
 }
 
 export function ministerTurn(id: MinistryId, round: 1 | 2, lead: MinistryId, ctx: TurnContext): string {
@@ -181,11 +193,11 @@ export function ministerTurn(id: MinistryId, round: 1 | 2, lead: MinistryId, ctx
     // The lead has to propose, so opens with every fact of every option. The others see
     // each option through their own lens. In round 2 the lead answers challenges from
     // other portfolios, so sees the one-line form with every lens.
-    `OPTIONS:\n${isLead && round === 1 ? describeOptions(ctx.options) : describeOptionsFor(ctx.options, isLead ? 'all' : m.lens, ctx.limits)}`,
+    `OPTIONS:\n${isLead && round === 1 ? describeOptions(ctx.options, ctx.constraints) : describeOptionsFor(ctx.options, isLead ? 'all' : m.lens, ctx.limits, ctx.constraints)}`,
     `YOUR DEPARTMENT (${m.short}): ${ctx.briefing.join(' ')}`,
   ];
   if (ctx.memory.length) parts.push(`PAST DECISIONS:\n${ctx.memory.join('\n')}`);
-  if (ctx.mayorNote) parts.push(`MAYOR'S INSTRUCTION: "${ctx.mayorNote}". Respect it.`);
+  if (ctx.mayorNote) parts.push(mayorLine(ctx.mayorNote, ctx.constraints ?? []));
   if (round === 1 && isLead) {
     parts.push('You raised this. Open the meeting: put the problem in your own terms, propose one option and say why. "speak":true, "stance":"propose".');
   } else if (round === 1) {
@@ -199,9 +211,9 @@ export function ministerTurn(id: MinistryId, round: 1 | 2, lead: MinistryId, ctx
 }
 
 export function chiefTurn(ctx: TurnContext, tally: string): string {
-  const parts = [`ISSUE: ${describeIssue(ctx.issue)}`, budgetLine(ctx.limits), `OPTIONS:\n${describeOptionsFor(ctx.options, 'all', ctx.limits)}`];
+  const parts = [`ISSUE: ${describeIssue(ctx.issue)}`, budgetLine(ctx.limits), `OPTIONS:\n${describeOptionsFor(ctx.options, 'all', ctx.limits, ctx.constraints)}`];
   if (ctx.memory.length) parts.push(`PAST DECISIONS:\n${ctx.memory.join('\n')}`);
-  if (ctx.mayorNote) parts.push(`MAYOR'S INSTRUCTION: "${ctx.mayorNote}".`);
+  if (ctx.mayorNote) parts.push(mayorLine(ctx.mayorNote, ctx.constraints ?? []));
   parts.push(`DEBATE:\n${digest(ctx.earlier)}`, `WHERE MINISTERS STAND: ${tally}`, 'Sum up and recommend one option to the mayor.');
   return parts.join('\n\n');
 }

@@ -1,3 +1,4 @@
+import type { Constraint } from './constraints';
 import type { FiscalLimits } from './effects';
 import type { MinistryId } from './ministries';
 import type { CouncilOption } from './options';
@@ -27,6 +28,7 @@ export interface LlmRequest {
     /** Where each minister stands so far. */
     positions?: ReadonlyMap<MinistryId, string>;
     tally?: Record<string, MinistryId[]>;
+    constraints?: readonly Constraint[];
   };
 }
 
@@ -166,8 +168,8 @@ export class DemoTransport implements Transport {
     const limits = meta.limits ?? NO_LIMITS;
     const body =
       meta.role === 'chief'
-        ? policyVerdict(meta.options, meta.tally ?? (meta.backed && meta.backed !== 'none' ? { [meta.backed]: [] } : {}), meta.lang)
-        : policyTurn(meta.minister!, meta.round ?? 1, meta.lead === true, { options: meta.options, limits, lang: meta.lang, positions: meta.positions });
+        ? policyVerdict(meta.options, meta.tally ?? (meta.backed && meta.backed !== 'none' ? { [meta.backed]: [] } : {}), meta.lang, meta.constraints)
+        : policyTurn(meta.minister!, meta.round ?? 1, meta.lead === true, { options: meta.options, limits, lang: meta.lang, positions: meta.positions, constraints: meta.constraints });
     return { provider: 'deterministic policy', text: JSON.stringify(body), offline: true };
   }
 }

@@ -20,6 +20,8 @@ export interface AssistantMessage {
   actions?: AssistantAction[];
   /** Which model answered, or 'offline'. */
   source?: string;
+  /** Figures in the answer that code could not find in the rules or the city data. */
+  flags?: string[];
 }
 
 export type SeatState = 'waiting' | 'thinking' | 'speaking' | 'spoke' | 'silent' | 'failed';
@@ -51,6 +53,8 @@ export interface CouncilOptionView {
   feasibility: Feasibility;
   /** A loan that would cover the shortfall, when the treasury alone cannot pay. */
   financing?: { amount: number };
+  /** How this option breaks the mayor's instruction, if it does. */
+  violations?: string[];
   /** Ministers whose latest position backs this option. */
   backers: MinistryId[];
   hasActions: boolean;
@@ -77,6 +81,8 @@ export interface CouncilView {
   limits: FiscalLimits;
   /** Past decisions the council was reminded of. */
   memory: string[];
+  /** The parts of the mayor's instruction that code enforces in this meeting. */
+  constraints: string[];
   /** Something about how the meeting is being run (for example, a fall back to offline). */
   notice?: string;
   /** False when the server has no AI keys: the brief offers a demo meeting instead. */
@@ -168,6 +174,8 @@ export const ui = {
   trace: signal<CouncilTrace | null>(null),
   traces: signal<CouncilTrace[]>([]),
   aiStats: signal<AiStats>(EMPTY_STATS),
+  /** The assistant's recent questions, with what each cost. */
+  assistantCalls: signal<import('../game/assistant/controller').AssistantCall[]>([]),
   /** Whether the AI inspector panel is open. */
   inspector: signal(false),
   cinema: signal<CinemaStage>('off'),

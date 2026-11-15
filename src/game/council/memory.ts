@@ -32,7 +32,17 @@ export interface DecisionRecord {
   residentsDisplaced: number;
   /** Whether the mayor took the chair's recommendation or overruled it. */
   followedChair: boolean;
+  /** How bad the problem was when this was decided, 0..1. */
+  severity?: number;
+  /**
+   * What became of it, judged by the same detector that raised the problem, once enough
+   * game time has passed: gone, or still there. Absent until then.
+   */
+  outcome?: 'resolved' | 'persisted';
 }
+
+/** Game days after a decision at which its outcome is judged. */
+export const OUTCOME_AFTER_DAYS = 30;
 
 const KEEP = 40;
 const key = (cityKey: string): string => `metropolis.council.memory.v1:${cityKey}`;
@@ -46,7 +56,8 @@ export function memoryLine(r: DecisionRecord): string {
   if (r.monthlyNetDelta !== 0) parts.push(`${usd(r.monthlyNetDelta)}/month`);
   if (r.residentsDisplaced > 0) parts.push(`${r.residentsDisplaced} residents displaced`);
   const what = r.acted ? `${r.optionTitle}${parts.length ? ` (${parts.join(', ')})` : ''}` : 'took no action';
-  return `Day ${r.day} (${r.date}), ${r.issueTitle}: ${what}${r.followedChair ? '' : '; mayor overruled the council'}.`;
+  const outcome = r.outcome === 'resolved' ? ' Outcome: the problem went away.' : r.outcome === 'persisted' ? ' Outcome: the problem was still there a month later.' : '';
+  return `Day ${r.day} (${r.date}), ${r.issueTitle}: ${what}${r.followedChair ? '' : '; mayor overruled the council'}.${outcome}`;
 }
 
 export interface Recalled {
@@ -80,6 +91,11 @@ export function relevance(r: DecisionRecord, issue: CityIssue, today: number, mo
   if (fiscal && (issue.kind === 'budget' || moneyAtStake)) {
     score += issue.kind === 'budget' ? 2.5 : 1.5;
     why.push(r.debtDelta > 0 ? 'left the city in debt' : r.taxChanged ? 'changed taxes' : 'a large spend');
+  }
+  // A fix that did not work is exactly what the council should hear about again.
+  if (score > 0 && r.outcome === 'persisted' && r.issueKind === issue.kind) {
+    score += 1;
+    why.push('it did not fix the problem');
   }
   if (score === 0) return { score: 0, why };
   // Old decisions fade: half the weight is kept, half decays over about a game year.
@@ -118,6 +134,22 @@ export class EpisodicMemory {
     if (kept.length === this.records.length) return;
     this.records = kept;
     this.kv.set(key(this.cityKey), JSON.stringify(kept));
+  }
+
+  /**
+   * Closes the loop on old decisions: once a decision is old enough, records whether the
+   * problem it was about is still being detected. Zero tokens: the detector that raised
+   * the problem is the judge of whether it went away. Returns how many were settled.
+   */
+  settle(today: number, activeIssueKeys: ReadonlySet<string>): number {
+    let settled = 0;
+    for (const r of this.records) {
+      if (r.outcome || today < r.day + OUTCOME_AFTER_DAYS) continue;
+      r.outcome = activeIssueKeys.has(r.issueKey) ? 'persisted' : 'resolved';
+      settled++;
+    }
+    if (settled > 0) this.kv.set(key(this.cityKey), JSON.stringify(this.records));
+    return settled;
   }
 
   /** The most relevant past decisions for an issue, best first. */
@@ -160,5 +192,6 @@ export function decisionRecord(
     taxChanged: delta.taxRateDelta.some((d) => d !== 0),
     residentsDisplaced: delta.residentsDisplaced,
     followedChair,
+    severity: issue.severity,
   };
 }

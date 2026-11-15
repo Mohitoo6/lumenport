@@ -76,6 +76,9 @@ export interface TraceTotals {
   schemaRepaired: number;
   schemaFail: number;
   guardrailFlags: number;
+  /** Figures the agents quoted, and how many were found in what they were shown. */
+  figuresQuoted: number;
+  figuresVerified: number;
   /** True when every token count came from the provider. */
   measured: boolean;
 }
@@ -106,6 +109,8 @@ export interface CouncilTrace {
   options: TraceOption[];
   /** The memory lines injected into the agents' context. */
   memory: string[];
+  /** The parts of the mayor's instruction that code enforced. */
+  constraints?: string[];
   spans: AgentSpan[];
   verdict?: VerdictReport;
   attribution?: Attribution;
@@ -137,9 +142,16 @@ export function totalsOf(spans: readonly AgentSpan[]): TraceTotals {
     schemaRepaired: 0,
     schemaFail: 0,
     guardrailFlags: 0,
+    figuresQuoted: 0,
+    figuresVerified: 0,
     measured: true,
   };
   for (const s of spans) {
+    for (const g of s.guardrails) {
+      if (g.check !== 'grounded_figures' || !g.figures) continue;
+      t.figuresQuoted += g.figures.quoted;
+      t.figuresVerified += g.figures.quoted - g.figures.unverified;
+    }
     if (s.source === 'llm') {
       t.llmCalls++;
       t.promptTokens += s.usage.prompt;
@@ -176,6 +188,13 @@ export interface AiStats {
   overrides: number;
   decisions: number;
   followedChair: number;
+  /** Meetings that needed a second round. */
+  contested: number;
+  figuresQuoted: number;
+  figuresVerified: number;
+  /** The mayor's assistant: questions answered by the model, and what they cost. */
+  assistantCalls: number;
+  assistantTokens: number;
 }
 
 export const EMPTY_STATS: AiStats = {
@@ -193,11 +212,16 @@ export const EMPTY_STATS: AiStats = {
   overrides: 0,
   decisions: 0,
   followedChair: 0,
+  contested: 0,
+  figuresQuoted: 0,
+  figuresVerified: 0,
+  assistantCalls: 0,
+  assistantTokens: 0,
 };
 
 const STATS_KEY = 'metropolis.ai.stats.v1';
 const TRACES_KEY = 'metropolis.ai.traces.v1';
-const KEEP_TRACES = 4;
+const KEEP_TRACES = 8;
 
 export function loadStats(kv: KV): AiStats {
   return { ...EMPTY_STATS, ...readJson<Partial<AiStats>>(kv, STATS_KEY, {}) };
@@ -221,6 +245,11 @@ export function addToStats(stats: AiStats, trace: CouncilTrace): AiStats {
     overrides: stats.overrides + (trace.verdict?.status === 'overridden' ? 1 : 0),
     decisions: stats.decisions,
     followedChair: stats.followedChair,
+    contested: stats.contested + (trace.transitions.some((x) => x.to === 'debate_r2') ? 1 : 0),
+    figuresQuoted: stats.figuresQuoted + t.figuresQuoted,
+    figuresVerified: stats.figuresVerified + t.figuresVerified,
+    assistantCalls: stats.assistantCalls,
+    assistantTokens: stats.assistantTokens,
   };
 }
 
@@ -273,7 +302,7 @@ export class Recorder {
     this.changed();
   }
 
-  set(patch: Partial<Pick<CouncilTrace, 'verdict' | 'attribution' | 'execution' | 'mode' | 'memory'>>): void {
+  set(patch: Partial<Pick<CouncilTrace, 'verdict' | 'attribution' | 'execution' | 'mode' | 'memory' | 'constraints'>>): void {
     Object.assign(this.trace, patch);
     this.changed();
   }

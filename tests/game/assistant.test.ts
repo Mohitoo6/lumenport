@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { offlineReply, parseAssistantReply, scriptOf, validActions } from '../../src/game/assistant/assistant';
-import { AssistantController, type Completer } from '../../src/game/assistant/controller';
-import { gameManual } from '../../src/game/assistant/knowledge';
+import { checkAssistantReply, offlineReply, parseAssistantReply, scriptOf, validActions } from '../../src/game/assistant/assistant';
+import { AssistantController, type AssistantCall, type Completer } from '../../src/game/assistant/controller';
+import { gameManual, manualFor, manualSections } from '../../src/game/assistant/knowledge';
 import { citySituation, zonedLand } from '../../src/game/assistant/situation';
 import { FacilityKind } from '../../src/sim/facilities';
 import { RoadType } from '../../src/sim/roads/types';
@@ -84,6 +84,51 @@ describe('assistant: what it may offer', () => {
   });
 });
 
+describe('assistant: retrieval, schema and grounding', () => {
+  it('sends only the manual sections a question touches', () => {
+    const full = gameManual();
+    const traffic = manualFor('Why is there so much traffic on my avenue?');
+    expect(traffic.sections).toEqual(['roads', 'traffic']);
+    expect(traffic.text).toContain('Rush hours are about 9:00 and 18:00');
+    expect(traffic.text).not.toContain('Clinic:');
+    expect(traffic.text.length).toBeLessThan(full.length * 0.4);
+    // "Why is nothing building?" needs zoning and, with it, utilities.
+    const homes = manualFor('ghar kyu nahi ban rahe?');
+    expect(homes.sections).toContain('zoning');
+    expect(homes.sections).toContain('utilities');
+    // A question that names nothing gets the core loop; the city's warnings add to it.
+    expect(manualFor('what next?').sections).toEqual(['zoning', 'utilities', 'money']);
+    expect(manualFor('help', 'traffic jam at rush hour').sections).toContain('traffic');
+    expect(manualFor('मेट्रो कैसे बनाऊँ?').sections).toContain('metro');
+    for (const s of manualSections()) expect(full).toContain(s.text);
+  });
+
+  it('validates the reply, repairs small faults and drops invented buttons', () => {
+    const issues = [{ key: 'traffic:3', title: 'Gridlock', severity: 0.8 }];
+    const ok = checkAssistantReply('{"answer":"Build a water tower.","actions":[{"type":"budget","label":"Budget"}]}', issues, 'm');
+    expect(ok.outcome).toBe('pass');
+    const fenced = checkAssistantReply('```json\n{"reply":"Build a water tower.","actions":[{"type":"tool","tool":"teleport","label":"Nope"}],"mood":"calm"}\n```', issues, 'm');
+    expect(fenced.outcome).toBe('repaired');
+    expect(fenced.reply).toMatchObject({ answer: 'Build a water tower.', actions: [] });
+    expect(fenced.repairs.join(' | ')).toMatch(/renamed "reply" to "answer".*dropped unknown field "mood".*do not exist in the game/);
+    expect(checkAssistantReply('{"answer":"","actions":[]}', issues, 'm').outcome).toBe('fail');
+    expect(checkAssistantReply('Sure, build a tower.', issues, 'm').outcome).toBe('fail');
+  });
+
+  it('flags a figure that is in neither the rules nor the city data, and records what the call cost', async () => {
+    const sim = starterTown();
+    const answers = ['A clinic costs $6,000 and $380 a month.', 'A clinic costs $41,250.'];
+    const c = new AssistantController(host(sim), async () => ({ text: JSON.stringify({ answer: answers.shift(), actions: [] }), provider: 'test-model', usage: { prompt: 900, completion: 30, reasoning: 0 }, latencyMs: 1200 }));
+    const calls: AssistantCall[] = [];
+    c.onCall = (call) => calls.push(call);
+    expect((await c.answer('How much is a clinic?')).flags).toBeUndefined();
+    expect((await c.answer('How much is a clinic?')).flags).toEqual(['41,250']);
+    expect(calls[0]).toMatchObject({ source: 'llm', schema: 'pass', promptTokens: 900, completionTokens: 30, latencyMs: 1200, measured: true, figures: 2, unverified: [] });
+    expect(calls[0]!.sections).toContain('utilities');
+    expect(calls[1]!.unverified).toEqual([41250]);
+  });
+});
+
 describe('assistant: language and fallback', () => {
   it('tells Hinglish from English and Hindi', () => {
     expect(scriptOf('ghar kyu nahi ban rahe? kya karu?')).toBe('hinglish');
@@ -118,10 +163,16 @@ describe('assistant: conversation', () => {
     await c.ask('Why are homes not built?');
     expect(ui.assistant.value.messages.map((m) => m.text)).toEqual(['Why are homes not built?', 'Answer 1']);
     expect(ui.assistant.value.messages[1]!.actions![0]!.label).toBe('Water tower');
-    // Second question: the first reply is garbage, the retry works; history is in the prompt.
+    // Second question: the reply is garbage. It is not asked for again (that would be a
+    // second paid call); the offline answer takes over. History is in the prompt.
+    const calls2: Array<{ source: string; schema: string; promptTokens: number }> = [];
+    c.onCall = (call) => calls2.push(call);
     const r = await c.answer('And then?');
-    expect(r.answer).toBe('Answer 3');
-    expect(seen[2]).toContain('Assistant: Answer 1');
+    expect(r.source).toBe('offline');
+    expect(calls).toBe(2);
+    expect(seen[1]).toContain('Assistant: Answer 1');
+    expect(calls2[0]).toMatchObject({ source: 'offline', schema: 'fail' });
+    expect(calls2[0]!.promptTokens).toBeGreaterThan(0);
     const quiet = new AssistantController(host(sim), async () => null);
     quiet.retryMs = 0;
     const offline = await quiet.answer('help');

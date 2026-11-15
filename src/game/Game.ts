@@ -5,6 +5,8 @@ import { saves } from '../platform/idb';
 import { cloneState, metaOf, validateState } from '../sim/save/serialize';
 import { createState, type GameState } from '../sim/state';
 import { CouncilController } from './council/controller';
+import { browserKV } from './council/storage';
+import { saveStats } from './council/telemetry';
 import { AssistantController } from './assistant/controller';
 import { cityAlerts } from './assistant/situation';
 import type { RoadType } from '../sim/roads/types';
@@ -270,6 +272,13 @@ export class Game {
       tool: () => this.toolLabel(),
       hour: () => this.atmosphere.hour,
     });
+    // The assistant's calls are counted with the council's: one set of AI numbers.
+    this.assistant.onCall = (call) => {
+      ui.assistantCalls.value = [call, ...ui.assistantCalls.value].slice(0, 8);
+      if (call.promptTokens === 0) return;
+      ui.aiStats.value = { ...ui.aiStats.value, assistantCalls: ui.aiStats.value.assistantCalls + 1, assistantTokens: ui.aiStats.value.assistantTokens + call.promptTokens + call.completionTokens };
+      saveStats(browserKV(), ui.aiStats.value);
+    };
     actions.askAssistant = (q) => void this.assistant.ask(q);
     actions.clearAssistant = () => this.assistant.clear();
     actions.assistantAction = (a) => {

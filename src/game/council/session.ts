@@ -1,5 +1,6 @@
 import type { Sim } from '../../sim/sim';
 import { briefing } from './briefs';
+import { parseInstruction, type Constraint } from './constraints';
 import { fiscalLimits, type FiscalLimits } from './effects';
 import { GraphState } from './graph';
 import { checkStatement, checkVerdict, type Finding, type VerdictReport } from './guardrails';
@@ -132,6 +133,8 @@ export class CouncilSession {
   private failures = 0;
   private breakerOpen = false;
   private readonly ids: string[];
+  /** The parts of the mayor's instruction that code enforces. */
+  readonly constraints: Constraint[];
 
   constructor(
     private readonly input: SessionInput,
@@ -140,6 +143,7 @@ export class CouncilSession {
     private readonly hooks: { graph?: GraphState; recorder?: Recorder } = {},
   ) {
     this.ids = input.options.map((o) => o.id);
+    this.constraints = parseInstruction(input.mayorNote);
     this.graph = hooks.graph ?? new GraphState();
     if (this.graph.node === 'detect') this.graph.go('triage', 'meeting started directly');
   }
@@ -163,6 +167,7 @@ export class CouncilSession {
       mayorNote,
       earlier: this.statements.slice(),
       memory: seat ? (memory?.byMinister[seat.id] ?? []) : (memory?.chair ?? []),
+      constraints: this.constraints,
     };
   }
 
@@ -256,7 +261,8 @@ export class CouncilSession {
     const lead = seat.id === issue.lead;
     this.emit({ type: 'thinking', who: seat.id });
     const positions = this.positions();
-    const standIn = (): MinisterTurn => policyTurn(seat.id, round, lead, { options, limits, lang, positions });
+    const constraints = this.constraints;
+    const standIn = (): MinisterTurn => policyTurn(seat.id, round, lead, { options, limits, lang, positions, constraints });
     try {
       const answer = await this.ask<MinisterTurn>(
         seat.id,
@@ -267,11 +273,11 @@ export class CouncilSession {
           maxTokens: BUDGET.ministerTokens,
           schema: jsonSchemaOf(ministerTurnSchema(this.ids)),
           schemaName: 'minister_turn',
-          meta: { role: 'minister', minister: seat.id, round, lead, options, lang, reason: seat.reason, limits, positions },
+          meta: { role: 'minister', minister: seat.id, round, lead, options, lang, reason: seat.reason, limits, positions, constraints },
         },
         (raw) => parseMinisterTurn(raw, this.ids),
         standIn,
-        (data, seen) => checkStatement(data, seen, options),
+        (data, seen) => checkStatement(data, seen, options, constraints),
       );
       // The lead may not pass: they called the meeting.
       const passed = lead && round === 1 && (!answer.data.speak || !answer.data.say.trim());
@@ -364,27 +370,29 @@ export class CouncilSession {
           maxTokens: BUDGET.chairTokens,
           schema: jsonSchemaOf(chairVerdictSchema(this.ids)),
           schemaName: 'chair_verdict',
-          meta: { role: 'chief', options, lang, backed: ranked[0]?.[0], limits, tally },
+          meta: { role: 'chief', options, lang, backed: ranked[0]?.[0], limits, tally, constraints: this.constraints },
         },
         (raw) => parseChairVerdict(raw, this.ids),
-        () => policyVerdict(options, tally, lang),
-        () => [],
+        () => policyVerdict(options, tally, lang, this.constraints),
+        // The chair's span carries the same findings the verdict is judged on.
+        (data, seen) => checkVerdict(data, { options, limits, seen, tally, constraints: this.constraints }).findings,
       );
       if (this.cancelled) return;
 
       // Guardrails: code has the last word on what may be recommended.
       this.graph.go('guardrails', `chair recommends ${answer.data.option}`);
       sync();
-      const report = checkVerdict(answer.data, { options, limits, seen: `${system}\n${user}`, tally });
+      const report = checkVerdict(answer.data, { options, limits, seen: `${system}\n${user}`, tally, constraints: this.constraints });
       let verdict = answer.data;
       if (report.status === 'overridden') {
         const safe = options.find((o) => o.id === report.option)!;
+        const againstMayor = report.findings.some((f) => !f.passed && f.strength === 'block' && f.check === 'respects_mayor_instruction');
         verdict = {
           option: safe.id,
           summary:
             lang === 'hi'
-              ? `परिषद का झुकाव विकल्प ${report.original} की ओर था, पर वह खेल के नियमों के अनुसार संभव नहीं है। इसलिए मेरी सिफ़ारिश विकल्प ${safe.id} है: ${safe.title}। ${safe.gist}`
-              : `The council leaned towards option ${report.original}, but it cannot be carried out under the city's rules. I therefore recommend option ${safe.id}, ${safe.title.toLowerCase()}. ${safe.gist}`,
+              ? `परिषद का झुकाव विकल्प ${report.original} की ओर था, पर ${againstMayor ? 'वह आपके निर्देश के विरुद्ध है' : 'वह खेल के नियमों के अनुसार संभव नहीं है'}। इसलिए मेरी सिफ़ारिश विकल्प ${safe.id} है: ${safe.title}। ${safe.gist}`
+              : `The council leaned towards option ${report.original}, but ${againstMayor ? 'it goes against your instruction, Mayor' : "it cannot be carried out under the city's rules"}. I therefore recommend option ${safe.id}, ${safe.title.toLowerCase()}. ${safe.gist}`,
           dissent: answer.data.dissent,
           conditions: answer.data.conditions,
         };

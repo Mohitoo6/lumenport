@@ -52,10 +52,24 @@ The council is a multi-agent decision-support pipeline with the game as the sour
 truth. The model argues; code decides what is possible, checks what was said, and carries
 out what the mayor approves.
 
+```mermaid
+flowchart LR
+  D[Detect<br/>code] --> T[Triage<br/>code]
+  T --> R1[Round 1<br/>model]
+  R1 -- contested --> R2[Round 2<br/>model]
+  R1 -- agreed --> C[Chair<br/>model]
+  R2 --> C
+  C --> G[Guardrails<br/>code]
+  G --> M[Mayor<br/>human]
+  M -- approves --> X[Execute<br/>code]
+  X -- refused --> M
+  X --> Mem[(Memory)]
+  Mem -.-> R1
 ```
-detect -> triage -> round 1 -> [round 2] -> chair -> guardrails -> mayor -> execute
- code      code      model      model       model      code        human     code
-```
+
+![The council in session: the division board along the bottom shows which minister backs which option](screenshots/council/06-next-speaker.png)
+
+![The AI inspector: pipeline state, tokens, latency, triage scores and each agent's turn](screenshots/inspector/04-inspector-verdict.png)
 
 | Stage | What happens |
 |---|---|
@@ -65,13 +79,15 @@ detect -> triage -> round 1 -> [round 2] -> chair -> guardrails -> mayor -> exec
 | Debate | Each minister sees only its own department and its slice of each option. Round 2 runs only if they disagree. |
 | Chair | The Chief Secretary recommends one option, as schema-checked JSON. |
 | Guardrails | Code checks the recommendation: it exists, the game accepts it, the city can pay, the figures quoted were in the facts shown. |
-| Mayor | You approve, overrule or defer. |
+| Mayor | You approve, overrule or defer. An instruction you type first ("under $5,000, no demolition") is parsed into rules the council cannot break. |
 | Execute | The option runs as one transaction and the city is compared with what the option card promised. |
 
 A meeting is capped at 8 model calls (typically 4 or 5). Press **I** in the chamber, or open
 Council > AI inspector, to watch it: the pipeline state, each agent's prompt and JSON,
 latency, token counts, schema results and guardrail findings. Past decisions are
-remembered per city and shown to the ministers they concern.
+remembered per city, together with whether they fixed the problem, and shown to the
+ministers they concern. The "Ask" assistant runs on the same instruments, and sends the
+model only the parts of the manual a question touches.
 
 `docs/GENAI_GUIDE.md` explains the design, the trade-offs and the numbers in full.
 `npm test` covers all of it without calling a model; `REAL_COUNCIL=1 npx vitest run

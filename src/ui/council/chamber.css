@@ -1,0 +1,686 @@
+/*
+ * The council chamber. The room is the picture; the interface keeps to its edges.
+ * Top: what is being decided and how far the meeting has got. Bottom: the division board,
+ * with one sheet or caption above it. Right: minutes or the inspector, only on request.
+ */
+
+.chamber-ui {
+  --brass: #d8b46c;
+  --brass-ink: #2b2008;
+  --ink: rgba(12, 16, 22, 0.9);
+  /* Width kept clear on the right for the minutes or the inspector. */
+  --side: 0px;
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  pointer-events: none;
+  animation: chamber-in 0.7s ease 0.2s both;
+}
+
+.chamber-ui.side-minutes {
+  --side: 374px;
+}
+
+.chamber-ui.side-inspector {
+  --side: 514px;
+}
+
+.chamber-ui > * {
+  pointer-events: auto;
+}
+
+/* Scrims instead of boxes: the text sits on the room, darkened only where it needs to be. */
+.chamber-ui::before,
+.chamber-ui::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  pointer-events: none;
+}
+
+.chamber-ui::before {
+  top: 0;
+  height: 150px;
+  background: linear-gradient(to bottom, rgba(8, 11, 15, 0.86), rgba(8, 11, 15, 0.5) 55%, rgba(8, 11, 15, 0));
+}
+
+.chamber-ui::after {
+  bottom: 0;
+  height: 46%;
+  background: linear-gradient(to top, rgba(8, 11, 15, 0.8), rgba(8, 11, 15, 0.35) 60%, rgba(8, 11, 15, 0));
+}
+
+/* Top bar */
+
+.cb-top {
+  position: absolute;
+  z-index: 1;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: start;
+  gap: 24px;
+  padding: 16px 20px 0;
+}
+
+.cb-title h2 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  font-size: 21px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  text-shadow: 0 1px 12px rgba(0, 0, 0, 0.5);
+}
+
+.cb-title p {
+  margin: 3px 0 0;
+  max-width: 62ch;
+  font-size: 13px;
+  line-height: 1.4;
+  color: #c9d1da;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.cb-tools {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 2px;
+}
+
+.cb-tools .source {
+  padding: 0 4px 0 0;
+  color: #aab4bf;
+}
+
+.cb-tools .inspect-btn {
+  background: rgba(12, 16, 22, 0.55);
+  color: #d5dce4;
+}
+
+.cb-tools .inspect-btn.is-on {
+  color: var(--accent-ink);
+  background: var(--accent);
+}
+
+.cb-tools .icon-btn {
+  font-size: 22px;
+  line-height: 1;
+}
+
+/* The meeting's five steps. It is a real sequence, so it is drawn as one. */
+
+.cb-steps {
+  display: flex;
+  align-items: center;
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 12px;
+  font-weight: 600;
+  color: #8f9aa6;
+  white-space: nowrap;
+}
+
+.cb-steps li {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.cb-steps li + li::before {
+  content: '';
+  width: 26px;
+  height: 2px;
+  margin: 0 9px;
+  border-radius: 1px;
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.cb-step-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.34);
+}
+
+.cb-steps .is-done {
+  color: #d5dce4;
+}
+
+.cb-steps .is-done .cb-step-dot {
+  border-color: var(--good);
+  background: var(--good);
+}
+
+.cb-steps .is-done + li::before {
+  background: var(--good);
+}
+
+.cb-steps .is-now {
+  color: var(--brass);
+}
+
+.cb-steps .is-now .cb-step-dot {
+  border-color: var(--brass);
+  background: var(--brass);
+  box-shadow: 0 0 0 4px rgba(216, 180, 108, 0.22);
+}
+
+.cb-steps .is-skipped {
+  text-decoration: line-through;
+  text-decoration-color: rgba(255, 255, 255, 0.4);
+}
+
+.cb-steps .is-skipped .cb-step-dot {
+  border-style: dashed;
+}
+
+/* The floor: one sheet or caption, then the board, anchored to the bottom. */
+
+.cb-floor {
+  position: absolute;
+  z-index: 1;
+  left: 16px;
+  right: calc(16px + var(--side));
+  bottom: 16px;
+  max-height: calc(100% - 96px);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 10px;
+  pointer-events: none;
+  transition: right 0.25s ease;
+}
+
+.cb-floor > * {
+  pointer-events: auto;
+  flex-shrink: 0;
+}
+
+/* The division board */
+
+.board {
+  display: grid;
+  grid-template-columns: repeat(var(--cols), minmax(0, 1fr)) minmax(132px, 0.62fr);
+  background: var(--ink);
+  border-radius: 14px;
+}
+
+.board-col,
+.board-tray {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  padding: 11px 13px 12px;
+  /* The rule along the top is where a recommended option is marked. */
+  border-top: 3px solid transparent;
+}
+
+.board-col + .board-col,
+.board-tray {
+  border-left: 1px solid var(--hairline);
+}
+
+.board-col:first-child {
+  border-radius: 13px 0 0 13px;
+}
+
+.board-tray {
+  border-radius: 0 13px 13px 0;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.board-col.is-recommended {
+  border-top-color: var(--brass);
+  background: linear-gradient(to bottom, rgba(216, 180, 108, 0.13), rgba(216, 180, 108, 0.03) 70%);
+}
+
+.board-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  text-align: left;
+  color: var(--text);
+}
+
+.board-head:hover .board-title {
+  text-decoration: underline;
+  text-decoration-color: rgba(255, 255, 255, 0.4);
+  text-underline-offset: 3px;
+}
+
+.board-letter {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  border-radius: 7px;
+  display: grid;
+  place-items: center;
+  font-size: 13px;
+  font-weight: 800;
+  background: rgba(255, 255, 255, 0.11);
+}
+
+.board-col.is-recommended .board-letter {
+  background: var(--brass);
+  color: var(--brass-ink);
+}
+
+.board-title {
+  flex: 1;
+  min-width: 0;
+  font-size: 13.5px;
+  font-weight: 650;
+  line-height: 1.3;
+  /* Two lines, so every column's figures line up. */
+  min-height: 2.6em;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Sits on the column's top rule, so it never takes room from the title. */
+.board-tag {
+  position: absolute;
+  top: -11px;
+  right: 10px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--brass);
+  color: var(--brass-ink);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.board-warn {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.board-warn.is-warn {
+  color: var(--accent);
+}
+
+.board-warn.is-bad {
+  color: #ff9a8d;
+}
+
+.board-plates {
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: 5px;
+  /* Room for one row of plates even when empty, so the board does not jump as they arrive. */
+  min-height: 28px;
+  margin-top: auto;
+  padding-top: 3px;
+}
+
+.board-approve {
+  display: flex;
+}
+
+.board-approve .btn {
+  flex: 1;
+  justify-content: center;
+}
+
+.board-tray-title {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--muted);
+  min-height: 24px;
+  display: flex;
+  align-items: center;
+}
+
+.board-tray .board-plates {
+  margin-top: 0;
+}
+
+/* Everything about one option, opened from its heading. */
+
+.board-more {
+  position: absolute;
+  left: 6px;
+  bottom: calc(100% + 8px);
+  width: min(420px, calc(100vw - 44px));
+  z-index: 3;
+  padding: 12px 14px;
+  background: rgba(13, 17, 23, 0.96);
+}
+
+.board-col:nth-last-child(-n + 3):not(:first-child) .board-more {
+  left: auto;
+  right: 6px;
+}
+
+.board-gist {
+  margin: 0 0 8px;
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
+.board-more .opt-facts {
+  margin: 9px 0 0;
+}
+
+/* Nameplates: brass, like the ones on the table. */
+
+.plate {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  padding: 2px 9px 2px 3px;
+  border-radius: 999px;
+  background: linear-gradient(to bottom, #e3c483, #c9a259);
+  color: var(--brass-ink);
+  font-size: 11.5px;
+  font-weight: 700;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.35) inset, 0 2px 6px rgba(0, 0, 0, 0.35);
+  /* The one movement in the room: a plate dropping into the column its minister backs. */
+  animation: plate-in 0.32s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+}
+
+.plate .portrait {
+  box-shadow: 0 0 0 1.5px var(--c);
+}
+
+.plate-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* An objection is the thing to notice on the board. */
+.plate.st-oppose {
+  box-shadow: 0 0 0 2px var(--bad), 0 2px 6px rgba(0, 0, 0, 0.35);
+}
+
+.plate.st-concern {
+  box-shadow: 0 0 0 2px var(--accent), 0 2px 6px rgba(0, 0, 0, 0.35);
+}
+
+.plate.is-speaking {
+  box-shadow: 0 0 0 2px #fff, 0 0 0 6px rgba(255, 255, 255, 0.2), 0 2px 6px rgba(0, 0, 0, 0.35);
+}
+
+/* Plates not yet on an option are blank metal: the minister has not committed. */
+.board-tray .plate {
+  background: rgba(255, 255, 255, 0.1);
+  color: #d5dce4;
+  box-shadow: none;
+  animation: none;
+}
+
+.board-tray .plate.is-waiting,
+.board-tray .plate.is-silent {
+  color: var(--muted);
+}
+
+.board-tray .plate.is-speaking {
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
+  box-shadow: 0 0 0 2px #fff;
+}
+
+.plate .dots.inline {
+  margin-left: 1px;
+}
+
+@keyframes plate-in {
+  from {
+    opacity: 0;
+    transform: translateY(-16px) scale(0.92);
+  }
+}
+
+/* Sheets: the briefing before the meeting, the ruling after it. */
+
+.chamber-ui .sheet {
+  align-self: center;
+  width: min(940px, 100%);
+  min-height: 0;
+  flex-shrink: 1;
+  overflow-y: auto;
+  margin: 0;
+  padding: 16px 20px 14px;
+  background: rgba(13, 17, 23, 0.93);
+  border-color: var(--hairline-strong);
+}
+
+.sheet h3 {
+  margin: 0 0 6px;
+  font-size: 12.5px;
+  font-weight: 650;
+  color: var(--muted);
+}
+
+.sheet h3:not(:first-child) {
+  margin-top: 12px;
+}
+
+.sheet-cols {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  gap: 4px 28px;
+}
+
+.chamber-ui .brief-facts {
+  margin: 0;
+  padding-left: 17px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.chamber-ui .brief-memory {
+  margin: 0;
+}
+
+.chamber-ui .triage {
+  margin: 0 0 8px;
+}
+
+.chamber-ui .note {
+  margin: 12px 0 8px;
+}
+
+.chamber-ui .brief-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 0;
+}
+
+.brief-how {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+}
+
+.chamber-ui .brief-btns {
+  display: flex;
+  flex-shrink: 0;
+  gap: 8px;
+  margin: 0;
+}
+
+/* The ruling */
+
+.chamber-ui .verdict {
+  border-color: rgba(216, 180, 108, 0.6);
+  background: rgba(20, 18, 13, 0.94);
+}
+
+.chamber-ui .verdict-title {
+  margin: 0 0 6px;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.chamber-ui .verdict p {
+  margin: 0 0 4px;
+  max-width: 86ch;
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+
+.chamber-ui .verdict .verdict-aside {
+  color: #c2cad3;
+  font-size: 12.5px;
+}
+
+.chamber-ui .verdict-btns {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 10px;
+  margin-top: 12px;
+}
+
+/* The speaker's caption */
+
+.chamber-ui .subtitle {
+  align-self: flex-start;
+  width: min(820px, 100%);
+  display: flex;
+  gap: 14px;
+  margin: 0;
+  padding: 12px 16px 12px 14px;
+  background: var(--ink);
+  border-left: 4px solid var(--c);
+}
+
+.chamber-ui .subtitle-body p {
+  margin: 5px 0 0;
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+.chamber-ui .subtitle .msg-cond {
+  font-size: 13px;
+}
+
+.chamber-ui .waiting {
+  align-self: flex-start;
+  margin: 0;
+  padding: 9px 14px;
+  background: var(--ink);
+  font-size: 13px;
+  color: #c9d1da;
+}
+
+.chamber-ui .council-notice,
+.chamber-ui .council-alert {
+  align-self: flex-start;
+  margin: 0;
+}
+
+.chamber-ui .council-alert {
+  max-width: 640px;
+  background: rgba(30, 14, 12, 0.94);
+}
+
+/* Minutes */
+
+.minutes {
+  position: absolute;
+  z-index: 2;
+  top: 78px;
+  right: 16px;
+  bottom: 16px;
+  width: 358px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: rgba(13, 17, 23, 0.93);
+}
+
+.minutes > header {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px 9px 16px;
+  border-bottom: 1px solid var(--hairline);
+}
+
+.minutes h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.minutes .icon-btn {
+  font-size: 20px;
+  line-height: 1;
+}
+
+.minutes .transcript {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 6px 14px 14px;
+}
+
+.chamber-ui .inspector.in-chamber {
+  top: 78px;
+  right: 16px;
+  bottom: 16px;
+}
+
+/* Narrow windows: the steps move under the title and the board keeps its columns. */
+
+@media (max-width: 1180px) {
+  .cb-top {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .cb-steps {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    margin-top: 0;
+  }
+
+  .sheet-cols {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-height: 760px) {
+  .board-title {
+    min-height: 0;
+    -webkit-line-clamp: 1;
+  }
+
+  .cb-title p {
+    -webkit-line-clamp: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .plate,
+  .chamber-ui {
+    animation: none;
+  }
+
+  .cb-floor {
+    transition: none;
+  }
+}
