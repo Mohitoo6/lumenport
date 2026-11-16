@@ -22,7 +22,9 @@ import {
   IconHome,
   IconLayers,
   IconMenu,
+  IconMist,
   IconMoon,
+  IconRain,
   IconPause,
   IconPlay,
   IconRoad,
@@ -352,6 +354,25 @@ function Inspect(): JSX.Element | null {
   );
 }
 
+/** The season and the weather it has brought, with what that does to the city. */
+function Weather(): JSX.Element {
+  const w = ui.weather.value;
+  const raining = w.rain > 0.12;
+  const misty = w.mist > 0.3;
+  const state = raining ? (w.rain > 0.6 ? 'Heavy rain' : 'Rain') : misty ? 'Mist' : ui.isNight.value ? 'Clear night' : 'Clear';
+  return (
+    <div class="panel weather" title={`${w.name} (${w.english.toLowerCase()}). ${w.effect}`} aria-label={`${w.english}, ${w.temperature} degrees, ${state.toLowerCase()}`}>
+      {raining ? <IconRain /> : misty ? <IconMist /> : ui.isNight.value ? <IconMoon /> : <IconSun />}
+      <span class="weather-text">
+        <span class="weather-season">{w.english}</span>
+        <span class="weather-now">
+          {w.temperature}° {state.toLowerCase()}
+        </span>
+      </span>
+    </div>
+  );
+}
+
 function TopBar(): JSX.Element {
   return (
     <header class="topbar">
@@ -380,6 +401,7 @@ function TopBar(): JSX.Element {
         <span class="clock-time">{ui.clock.value}</span>
         <span class="label">{TIME_LABEL[ui.timeMode.value]}</span>
       </button>
+      <Weather />
       <IssuesMenu />
       <AssistantButton />
       <Views />

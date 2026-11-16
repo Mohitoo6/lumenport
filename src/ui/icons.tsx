@@ -165,6 +165,25 @@ export const IconMoon = (p: P): JSX.Element => (
   </Svg>
 );
 
+export const IconCloud = (p: P): JSX.Element => (
+  <Svg {...p}>
+    <path d="M4.600 12.400h7a2.800 2.800 0 0 0 .400-5.570 4 4 0 0 0-7.700.970A2.300 2.300 0 0 0 4.600 12.400z" />
+  </Svg>
+);
+
+export const IconRain = (p: P): JSX.Element => (
+  <Svg {...p}>
+    <path d="M4.600 9.800h7a2.600 2.600 0 0 0 .400-5.170 4 4 0 0 0-7.700.970A2.100 2.100 0 0 0 4.600 9.800z" />
+    <path d="M5.400 12.200l-.700 1.800M8.300 12.200l-.700 1.800M11.200 12.200l-.700 1.800" />
+  </Svg>
+);
+
+export const IconMist = (p: P): JSX.Element => (
+  <Svg {...p}>
+    <path d="M2.400 5.400h8.400M5 8h8.600M2.400 10.600h7.200M11.600 10.600h2" />
+  </Svg>
+);
+
 export const IconMenu = (p: P): JSX.Element => (
   <Svg {...p}>
     <path d="M2.600 4.400h10.800M2.600 8h10.800M2.600 11.600h10.800" />

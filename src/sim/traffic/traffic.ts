@@ -110,6 +110,8 @@ export class Traffic {
    * morning and evening rush. It is not part of the saved game, and tests leave it at noon.
    */
   hour = 12;
+  /** Share of the speed limit cars drive at: below 1 on wet or foggy roads. Set by the sim from the weather. */
+  speedFactor = 1;
   /** Trips completed since the last reset, and the smoothed share of speed lost to queues. */
   arrived = 0;
   congestion = 0;
@@ -474,7 +476,7 @@ export class Traffic {
     this.jy1[i] = a.y;
     this.jlen[i] = Math.max(0.5, bezLength(x0, z0, cx, cz, x1, z1, 8));
     const straight = d0x * d1x + d0z * d1z > 0.93;
-    this.jv[i] = straight ? Math.min(ROAD_SPECS[e.type].speed, ROAD_SPECS[ne.type].speed) : TURN_SPEED;
+    this.jv[i] = (straight ? Math.min(ROAD_SPECS[e.type].speed, ROAD_SPECS[ne.type].speed) : TURN_SPEED) * this.speedFactor;
     this.inbound[this.nextEdge[i]! * 4 + this.nextDir[i]! * 2 + this.nextLane[i]!]!++;
     this.lockIdle[node] = 0;
     this.jt[i] = 0;
@@ -642,7 +644,7 @@ export class Traffic {
         order[b + 1] = c;
       }
       const e = net.edges[key >> 2]!;
-      const vmax = ROAD_SPECS[e.type].speed;
+      const vmax = ROAD_SPECS[e.type].speed * this.speedFactor;
       this.edgeCars[e.id]! += cnt;
       let leadS = Infinity;
       for (let a = lo; a < lo + cnt; a++) {

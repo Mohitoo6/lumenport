@@ -2,6 +2,7 @@ import { MAP, MONTH_NAMES, SEASONS, START_YEAR } from '../../core/constants';
 import { emptyReport, projectBudget } from '../../sim/economy/budget';
 import { FACILITIES, FacilityKind } from '../../sim/facilities';
 import type { Sim } from '../../sim/sim';
+import { SEASON_SPECS } from '../../sim/seasons';
 import { dateOf } from '../../sim/state';
 import { frontageOf } from '../../sim/zoning/lots';
 import { ZoneType } from '../../sim/zoning/zones';
@@ -79,6 +80,7 @@ export function citySituation(sim: Sim, extra: { refusals: readonly Refusal[]; i
   const budget = projectBudget(s.buildings, s.roads, s.tax, s.loans, st, emptyReport(), s.policies, s.metro);
   const lines: string[] = [];
   lines.push(`City: ${s.cityName}. ${MONTH_NAMES[d.month]} (${SEASONS[d.season]!.english.toLowerCase()}), year ${d.year - START_YEAR + 1}, ${String(Math.floor(extra.hour)).padStart(2, '0')}:00. Speed ${s.speed === 0 ? 'paused' : s.speed}.${s.sandbox ? ' Sandbox mode (unlimited money, no utilities needed).' : ''}`);
+  lines.push(`Weather: ${sim.weather.temperature} degrees${sim.weather.rain > 0.12 ? ', raining' : sim.weather.mist > 0.3 ? ', misty' : ''}. ${SEASON_SPECS[sim.weather.season].effect}`);
   lines.push(`Money: ${s.sandbox ? 'unlimited' : usd(s.funds)}; projected hourly ${budget.net >= 0 ? 'surplus' : 'deficit'} ${usd(budget.net)} (income ${usd(budget.income)}, spending ${usd(budget.expense)}: roads ${usd(budget.roads)}, utilities ${usd(budget.utilities)}, services ${usd(budget.services)}, loans ${usd(budget.loans)}). Taxes: homes ${s.tax[1]}%, shops ${s.tax[2]}%, industry ${s.tax[3]}%. Loans: ${s.loans.length}.`);
   lines.push(`People: ${st.population} residents, ${st.employed} employed, homes for ${st.housing}; jobs: shops ${st.jobsC}, industry ${st.jobsI}. Happiness ${Math.round(st.happiness * 100)}%.`);
   const dem = (v: number): string => `${v > 0.02 ? '+' : ''}${Math.round(v * 100)}%`;

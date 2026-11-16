@@ -110,6 +110,8 @@ export function computeUtilities(
   relabel: boolean,
   day: number,
   totals: UtilityTotals,
+  /** Seasonal demand, as a multiple of the baseline (heat raises both, rain lowers water). */
+  scale: { power: number; water: number } = { power: 1, water: 1 },
 ): void {
   if (relabel) net.count = labelRoads(roadCell, net.comp);
   const n = net.count;
@@ -139,8 +141,8 @@ export function computeUtilities(
     } else {
       const t = zoneType(b.zone);
       const cap = capacityOf(b);
-      const p = cap * POWER_PER[t]!;
-      const w = cap * WATER_PER[t]!;
+      const p = cap * POWER_PER[t]! * scale.power;
+      const w = cap * WATER_PER[t]! * scale.water;
       net.powerDemand[c]! += p;
       net.waterDemand[c]! += w;
       totals.powerDemand += p;

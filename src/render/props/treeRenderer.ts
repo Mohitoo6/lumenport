@@ -37,7 +37,7 @@ export class TreeRenderer {
   constructor(
     private trees: Uint8Array,
     private heights: Float32Array,
-    shared: { uTime: { value: number } },
+    shared: { uTime: { value: number }; uFoliage: { value: Vector3 } },
     noise: Texture,
   ) {
     for (let i = 0; i < TREE_SPECIES_COUNT; i++) this.species.push(buildTree(i as TreeSpecies));
@@ -46,6 +46,7 @@ export class TreeRenderer {
     this.material.onBeforeCompile = (shader) => {
       shader.uniforms.uTime = shared.uTime;
       shader.uniforms.uNoise = { value: noise };
+      shader.uniforms.uFoliage = shared.uFoliage;
       shader.vertexShader = shader.vertexShader
         .replace('#include <common>', '#include <common>\nuniform float uTime;\nvarying vec3 vTreeW;')
         .replace(
@@ -63,7 +64,7 @@ export class TreeRenderer {
           #endif`,
         );
       shader.fragmentShader = shader.fragmentShader
-        .replace('#include <common>', '#include <common>\nuniform sampler2D uNoise;\nvarying vec3 vTreeW;')
+        .replace('#include <common>', '#include <common>\nuniform sampler2D uNoise;\nuniform vec3 uFoliage;\nvarying vec3 vTreeW;')
         .replace(
           '#include <color_fragment>',
           /* glsl */ `#include <color_fragment>
@@ -80,7 +81,10 @@ export class TreeRenderer {
             texture2D(uNoise, tq.xy * 3.7 + 0.13).b,
             texture2D(uNoise, tq.zy * 3.7 + 0.29).r);
           float tLeaf = dot(tLeafV, vec3(0.2)) + dot(tLeafF, vec3(0.1333));
-          diffuseColor.rgb *= 0.42 + 1.16 * tLeaf;`,
+          diffuseColor.rgb *= 0.42 + 1.16 * tLeaf;
+          // Leaves follow the season; trunks and branches do not.
+          float tLeafy = smoothstep(0.0, 0.1, vColor.g - vColor.r);
+          diffuseColor.rgb *= mix(vec3(1.0), uFoliage, tLeafy);`,
         )
         .replace(
           '#include <normal_fragment_maps>',
@@ -88,7 +92,7 @@ export class TreeRenderer {
           'normal = normalize(normal + (tLeafV + tLeafF - 1.0) * 0.55);',
         );
     };
-    this.material.customProgramCacheKey = () => 'tree-v3';
+    this.material.customProgramCacheKey = () => 'tree-v4';
 
     for (let cz = 0; cz < CHUNKS; cz++) {
       for (let cx = 0; cx < CHUNKS; cx++) {

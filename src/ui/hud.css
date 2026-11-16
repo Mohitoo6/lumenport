@@ -285,6 +285,31 @@ button:focus-visible {
   min-width: 44px;
 }
 
+.weather {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 0 14px;
+  color: var(--muted);
+}
+
+.weather-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.15;
+}
+
+.weather-season {
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--text);
+}
+
+.weather-now {
+  font-size: 11px;
+  white-space: nowrap;
+}
+
 /* Data views */
 
 .views {

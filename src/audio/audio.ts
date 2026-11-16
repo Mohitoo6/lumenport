@@ -7,6 +7,8 @@ export interface Ambience {
   /** 0 by day, 1 at night. */
   night: number;
   paused: boolean;
+  /** 0..1: how hard it is raining. */
+  rain?: number;
 }
 
 const MUTE_KEY = 'metropolis.muted';
@@ -24,6 +26,7 @@ export class GameAudio {
   private wind: GainNode | null = null;
   private city: GainNode | null = null;
   private crickets: GainNode | null = null;
+  private rain: GainNode | null = null;
   private noise: AudioBuffer | null = null;
   private birdTimer = 2;
 
@@ -76,6 +79,8 @@ export class GameAudio {
     };
     this.wind = layer('bandpass', 420, 0.4);
     this.city = layer('lowpass', 210, 0.7);
+    // Rain: the hiss of the top of the noise spectrum.
+    this.rain = layer('highpass', 2400, 0.3);
 
     // Crickets: a high tone chopped by a fast tremolo.
     const tone = ctx.createOscillator();
@@ -117,13 +122,15 @@ export class GameAudio {
     const live = a.paused ? 0.35 : 1;
     this.wind.gain.setTargetAtTime(0.05 + (1 - close) * 0.2, t, 0.4);
     this.city.gain.setTargetAtTime(size * (0.12 + close * 0.5) * live * (1 - a.night * 0.5), t, 0.4);
-    this.crickets.gain.setTargetAtTime(a.night * close * 0.012 * (1 - size * 0.6), t, 0.6);
+    const rain = a.rain ?? 0;
+    this.crickets.gain.setTargetAtTime(a.night * close * 0.012 * (1 - size * 0.6) * (1 - rain), t, 0.6);
+    this.rain?.gain.setTargetAtTime(rain * (0.05 + close * 0.16), t, 0.8);
 
     // Birds: an occasional two- or three-note call by day, when close to the ground.
     this.birdTimer -= dt;
     if (this.birdTimer <= 0) {
       this.birdTimer = 2.5 + Math.random() * 7;
-      if (a.night < 0.3 && close > 0.25 && !this.muted) this.bird(close * (1 - size * 0.5));
+      if (a.night < 0.3 && close > 0.25 && rain < 0.15 && !this.muted) this.bird(close * (1 - size * 0.5));
     }
   }
 

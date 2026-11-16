@@ -16,6 +16,8 @@ import {
   roadTypeName,
   streetName,
 } from './context';
+import { SEASONS } from '../../core/constants';
+import { SEASON_SPECS } from '../../sim/seasons';
 import type { MinistryId } from './ministries';
 
 export type IssueKind = 'traffic' | 'power' | 'water' | 'pollution' | 'crime' | 'health' | 'education' | 'fire' | 'budget' | 'jobs' | 'housing';
@@ -46,6 +48,23 @@ export interface CityIssue {
   edge?: number;
   /** For power and water: the road network that is short. */
   comp?: number;
+}
+
+/**
+ * The season, where it is part of the problem: a fact for the council, so ministers can
+ * tell a seasonal squeeze (which will pass) from a structural one (which will not).
+ */
+function seasonFact(sim: Sim, what: 'power' | 'water' | 'traffic'): string | null {
+  const w = sim.weather;
+  const season = SEASONS.find((x) => x.id === w.season)!;
+  const label = `${season.name} (${season.english.toLowerCase()})`;
+  if (what === 'traffic') {
+    if (w.roadSpeed > 0.97) return null;
+    return `Weather: ${w.rain > w.mist ? 'rain' : 'mist'} is holding traffic to ${Math.round(w.roadSpeed * 100)}% of the speed limit; it is ${label}.`;
+  }
+  const scale = what === 'power' ? w.powerDemand : w.waterDemand;
+  if (scale === 1) return null;
+  return `Season: it is ${label}, which puts ${what} demand at ${Math.round(scale * 100)}% of its spring level. ${SEASON_SPECS[w.season].effect}`;
 }
 
 /** Cars per 100 m of road (both directions) at which a road counts as jammed. */
@@ -93,6 +112,7 @@ function trafficIssue(sim: Sim): CityIssue | null {
       `Residents living within 200 m of this road: ${residentsNear(sim, mid.x, mid.z, 200)}.`,
       `Nearest clinic to this road: ${metres(clinic)}. Nearest school: ${metres(school)}.`,
       `Nearest fire station: ${metres(fire)}. Nearest police station: ${metres(police)}.`,
+      ...[seasonFact(sim, 'traffic')].filter((f): f is string => f !== null),
     ],
     // Distances to clinics and schools matter to the ministries that run them; the rest
     // of the council argues about the jam itself.
@@ -170,6 +190,7 @@ function utilityIssue(sim: Sim, what: 'power' | 'water'): CityIssue | null {
       `Buildings currently without ${what}: ${unserved}${affected ? `, including homes for ${affected} residents` : ''}.`,
       `Without ${what}, residents move out and nothing new is built on that street.`,
       `The worst-off area is ${describePlace(sim, cx, cz)}.`,
+      ...[seasonFact(sim, what)].filter((f): f is string => f !== null),
     ],
     x: cx,
     z: cz,

@@ -14,6 +14,8 @@ import { CameraInput } from './input';
 import { loadPbr, loadTextureArray, loadWarnings } from '../render/assets/loader';
 import { makeNoiseTexture, makeWaterNormalTexture } from '../render/assets/procedural';
 import { Atmosphere } from '../render/atmosphere';
+import { Rain } from '../render/weather/rain';
+import { SEASON_SPECS, skyAt, type Sky, type Weather } from '../sim/seasons';
 import { RtsCamera, type CameraPose } from '../render/camera/rtsCamera';
 import { BuildingRenderer } from '../render/buildings/buildingRenderer';
 import { TownHallDoors, doorFrame, townHallOf } from '../render/buildings/townHallDoors';
@@ -105,6 +107,11 @@ export class Game {
   /** The council chamber, built the first time the council sits. */
   private chamber: Chamber | null = null;
   private readonly lookTmp = new Vector3();
+  private rain: Rain | null = null;
+  /** A sky set by a script (for screenshots), instead of the one the calendar gives. */
+  private heldSky: Sky | null = null;
+  /** The weather a script asked to show in the top bar along with `heldSky`. */
+  private heldWeather: Weather | null = null;
   private quality: Quality = QUALITY[loadQuality()];
   /** The shadow map is redrawn only when something that casts or receives shadows changed. */
   private shadowDirty = true;
@@ -175,7 +182,7 @@ export class Game {
     this.overlay = new DataOverlay();
     this.preview.fx.overlayTex.value = this.overlay.texture;
     this.preview.fx.overlayAlpha = this.overlay.alpha;
-    this.terrain = new TerrainRenderer(state.heights, state.seed, createTerrainMaterial({ diff, nor, arm, noise }, this.preview.fx));
+    this.terrain = new TerrainRenderer(state.heights, state.seed, createTerrainMaterial({ diff, nor, arm, noise }, this.preview.fx, atmosphere.uniforms));
     engine.scene.add(this.terrain.group);
     this.water = new WaterRenderer(state.heights, state.seed, waterNormal, noise, atmosphere.uniforms);
     engine.scene.add(this.water.mesh);
@@ -605,6 +612,11 @@ export class Game {
     // Traffic follows the clock the player sees: rush hours at 9:00 and 18:00.
     this.sim.traffic.hour = this.simHour();
     this.council?.update(dt);
+    // The season's sky and weather. Scripted runs keep the plain sky unless they set one.
+    const sky = this.heldSky ?? (this.options.shots ? null : skyAt(this.sim.state.tick, this.sim.state.seed, Math.min(1, this.acc / TICK_MS)));
+    this.atmosphere.setSky(sky);
+    this.rain ??= new Rain(this.engine.scene);
+    this.rain.update(this.lookTmp.set(this.rig.pose.x, this.rig.focusY, this.rig.pose.z), this.rig.pose.dist, cine ? 0 : (sky?.rain ?? 0), 1 - this.atmosphere.night, dt);
     this.atmosphere.update(cam, dt);
     this.roads?.setNight(this.atmosphere.night);
     const viewDist = cine ? this.cinematic.focusDist : this.rig.pose.dist;
@@ -653,7 +665,7 @@ export class Game {
     }
     this.frameCount++;
 
-    this.audio.update(dt, { dist: this.rig.pose.dist, population: state.stats.population, night: this.atmosphere.night, paused: state.speed === 0 });
+    this.audio.update(dt, { dist: this.rig.pose.dist, population: state.stats.population, night: this.atmosphere.night, paused: state.speed === 0, rain: sky?.rain ?? 0 });
     this.adaptResolution(dt);
     if (!this.options.shots && this.ready) {
       this.autosaveTimer += dt;
@@ -691,6 +703,9 @@ export class Game {
       const hr = this.simHour();
       ui.clock.value = `${String(Math.floor(hr)).padStart(2, '0')}:${String(Math.floor((hr % 1) * 60)).padStart(2, '0')}`;
       ui.isNight.value = this.atmosphere.night > 0.5;
+      const w = this.heldWeather ?? this.sim.weather;
+      const season = SEASONS.find((x) => x.id === w.season)!;
+      ui.weather.value = { season: w.season, name: season.name, english: season.english, temperature: w.temperature, rain: w.rain, mist: w.mist, effect: SEASON_SPECS[w.season].effect };
       ui.alerts.value = this.alerts();
       ui.inspect.value = this.inspectId >= 0 ? this.describe(this.inspectId) : null;
     }
@@ -826,6 +841,12 @@ export class Game {
     if (d < -12) d += 24;
     const step = dt * 6;
     atmo.hour = Math.abs(d) <= step ? target : (atmo.hour + Math.sign(d) * step + 24) % 24;
+  }
+
+  /** Shows a given sky and weather instead of the calendar's (for screenshots), or null to follow the calendar. */
+  setSky(sky: Sky | null, weather: Weather | null = null): void {
+    this.heldSky = sky;
+    this.heldWeather = sky ? weather : null;
   }
 
   /** Jumps to a time of day and holds the clock there (used by the screenshot runs). */

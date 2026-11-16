@@ -19,6 +19,7 @@ import {
   type PerspectiveCamera,
   type WebGLRenderer,
 } from 'three';
+import type { Sky } from '../sim/seasons';
 import { loadHdri, type HdriRole } from './assets/loader';
 
 const SKY_GLSL = /* glsl */ `
@@ -29,6 +30,7 @@ const SKY_GLSL = /* glsl */ `
   uniform float uRotB;
   uniform float uIntA;
   uniform float uIntB;
+  uniform float uOvercast;
 
   vec3 sampleSky(sampler2D tex, vec3 d, float rot) {
     float u = atan(d.z, d.x) * 0.15915494309 + 0.5 + rot;
@@ -37,9 +39,15 @@ const SKY_GLSL = /* glsl */ `
   }
 
   vec3 skyColor(vec3 d) {
-    vec3 a = sampleSky(uSkyA, d, uRotA) * uIntA;
-    if (uBlend <= 0.001) return a;
-    return mix(a, sampleSky(uSkyB, d, uRotB) * uIntB, uBlend);
+    vec3 c = sampleSky(uSkyA, d, uRotA) * uIntA;
+    if (uBlend > 0.001) c = mix(c, sampleSky(uSkyB, d, uRotB) * uIntB, uBlend);
+    if (uOvercast > 0.001) {
+      // Cloud cover: the sky gives up its colour and its sun for an even grey.
+      float l = dot(c, vec3(0.2126, 0.7152, 0.0722));
+      vec3 grey = vec3(min(l, 1.5)) * vec3(0.9, 0.94, 1.0) * 0.8;
+      c = mix(c, grey, uOvercast * 0.92);
+    }
+    return c;
   }
 `;
 
@@ -57,8 +65,12 @@ interface SkyKey {
   azimuth: number;
 }
 
-/** How high the noon sun climbs, radians above the horizon. */
+/** How high the noon sun climbs, radians above the horizon, when no season says otherwise. */
 const SUN_TILT = (58 * Math.PI) / 180;
+/** Fog density on a clear day. */
+const CLEAR_FOG = 0.00016;
+/** The sky with no season applied: an equinox day, clear and dry. Scripted runs use it. */
+const PLAIN_SKY: Sky = { sunrise: 6, sunset: 18, sunHeight: SUN_TILT, overcast: 0, rain: 0, mist: 0, haze: 0, wet: 0, foliage: [1, 1, 1] };
 const DAY_INTENSITY = 0.55;
 
 function lum(c: Color): number {
@@ -86,13 +98,20 @@ export class Atmosphere {
   /** Direction toward whichever body is lighting the scene: the sun or the moon. */
   readonly lightDir = new Vector3(0.4, 0.7, 0.3).normalize();
   readonly sun = new DirectionalLight(0xffffff, 1);
-  readonly fog = new FogExp2(0xbfd4e6, 0.00016);
+  readonly fog = new FogExp2(0xbfd4e6, CLEAR_FOG);
   /** Shared uniforms: add these objects to any material that reacts to time. */
   readonly uniforms = {
     uTime: { value: 0 },
     uNight: { value: 0 },
     uSunDir: { value: this.sunDir },
+    /** The season on the land: a tint for grass and leaves, and how wet the ground is. */
+    uFoliage: { value: new Vector3(1, 1, 1) },
+    uWet: { value: 0 },
   };
+  /** The season's sky: day length, sun height, cloud, mist and haze. */
+  private sky: Sky = PLAIN_SKY;
+  private skyDirty = false;
+  private envOvercast = 0;
 
   /** Time of day in hours, 0..24. */
   hour = 14.5;
@@ -133,6 +152,7 @@ export class Atmosphere {
       uRotB: { value: 0 },
       uIntA: { value: DAY_INTENSITY },
       uIntB: { value: DAY_INTENSITY },
+      uOvercast: { value: 0 },
     };
 
     this.domeMat = new ShaderMaterial({
@@ -246,9 +266,14 @@ export class Atmosphere {
     if (!day || !golden || !night) return;
     this.appliedHour = this.hour;
 
-    // The sun rises in the east (+x), peaks in the south (+z) and sets in the west.
-    const a = ((this.hour - 6) / 12) * Math.PI;
-    this.sunDir.set(Math.cos(a), Math.sin(a) * Math.sin(SUN_TILT), Math.sin(a) * Math.cos(SUN_TILT)).normalize();
+    // The sun rises in the east (+x), peaks in the south (+z) and sets in the west. The
+    // season sets when it rises and sets and how high it climbs: long, high summer days
+    // and short, low winter ones.
+    const sky = this.sky;
+    this.skyDirty = false;
+    const daylight = sky.sunset - sky.sunrise;
+    const a = this.hour >= sky.sunrise && this.hour <= sky.sunset ? (Math.PI * (this.hour - sky.sunrise)) / daylight : Math.PI + (Math.PI * ((this.hour - sky.sunset + 24) % 24)) / (24 - daylight);
+    this.sunDir.set(Math.cos(a), Math.sin(a) * Math.sin(sky.sunHeight), Math.sin(a) * Math.cos(sky.sunHeight)).normalize();
     const y = this.sunDir.y;
     const azimuth = Math.atan2(this.sunDir.z, this.sunDir.x);
     this.uniforms.uNight.value = smooth(0.1, -0.1, y);
@@ -277,6 +302,7 @@ export class Atmosphere {
       u.uRotB!.value = rot(kb);
       u.uIntA!.value = ka.intensity;
       u.uIntB!.value = kb.intensity;
+      u.uOvercast!.value = sky.overcast;
     }
 
     // Direct light: the sun while it is up, then the moon.
@@ -296,12 +322,26 @@ export class Atmosphere {
       light.color.setRGB(0.45, 0.6, 1.0);
       light.intensity = 1.5 * smooth(-0.05, -0.12, y);
     }
+    // Cloud and mist take the edge off the light and cool its colour.
+    const veil = Math.min(0.85, sky.overcast * 0.8 + sky.mist * 0.35);
+    light.intensity *= 1 - veil;
+    // Under cloud the light from the sky itself falls too.
+    this.scene.environmentIntensity = 1 - 0.42 * sky.overcast;
+    light.color.lerp(this.tmpA.setRGB(0.82, 0.88, 1.0), sky.overcast * 0.75);
 
     // Fog: the blended horizon colour, pulled slightly toward the upper sky.
     const fogOf = (k: SkyKey, out: Color): Color => out.copy(k.horizon).lerp(k.zenith, 0.12).multiplyScalar(k.intensity * 1.45);
     this.fog.color.copy(fogOf(ka, this.tmpA)).lerp(fogOf(kb, this.tmpB), blend);
     this.fog.color.r *= 0.94;
     this.fog.color.b *= 1.07;
+    // Weather in the air. Cloud greys the distance, mist whitens and thickens it, summer
+    // dust warms it, rain closes it in.
+    const fl = lum(this.fog.color);
+    this.fog.color.lerp(this.tmpA.setScalar(fl * 0.95), sky.overcast * 0.7);
+    this.fog.color.lerp(this.tmpA.setRGB(fl * 1.2 + 0.02, fl * 1.24 + 0.02, fl * 1.3 + 0.02), sky.mist * 0.65);
+    this.fog.color.r *= 1 + 0.1 * sky.haze;
+    this.fog.color.b *= 1 - 0.14 * sky.haze;
+    this.fog.density = CLEAR_FOG * (1 + sky.haze * 2.6 + sky.mist * 9 + sky.rain * 3.2);
 
     // The lower half of the environment is light bounced off the lit ground, not sky. It
     // lights walls that face away from the sun. Neutral grey: a greener bounce tints every
@@ -314,11 +354,13 @@ export class Atmosphere {
     // visibly moved on, and not more than a couple of times a second.
     let dh = Math.abs(this.hour - this.envHour);
     if (dh > 12) dh = 24 - dh;
-    if (forceEnv || (dh > 0.07 && this.envAge > 0.4)) this.rebuildEnvironment();
+    const clouded = Math.abs(sky.overcast - this.envOvercast) > 0.06;
+    if (forceEnv || ((dh > 0.07 || clouded) && this.envAge > 0.4)) this.rebuildEnvironment();
   }
 
   private rebuildEnvironment(): void {
     this.envHour = this.hour;
+    this.envOvercast = this.sky.overcast;
     this.envAge = 0;
     const r = this.renderer;
     const prev = r.getRenderTarget();
@@ -331,6 +373,19 @@ export class Atmosphere {
     this.pmremTarget = next;
   }
 
+  /** Applies a season's sky and land colours, or the plain sky when given null. */
+  setSky(sky: Sky | null): void {
+    this.sky = sky ?? PLAIN_SKY;
+    this.uniforms.uFoliage.value.set(this.sky.foliage[0], this.sky.foliage[1], this.sky.foliage[2]);
+    this.uniforms.uWet.value = this.sky.wet;
+    this.skyDirty = true;
+  }
+
+  /** How much of the day's light is left: 1 under a clear sky, less under cloud and mist. */
+  get daylight(): number {
+    return (1 - this.night) * (1 - 0.5 * this.sky.overcast);
+  }
+
   /** Jumps to a time of day and rebuilds the lighting immediately. */
   setHour(hour: number): void {
     this.hour = ((hour % 24) + 24) % 24;
@@ -341,7 +396,7 @@ export class Atmosphere {
     this.uniforms.uTime.value += dt;
     this.envAge += dt;
     this.dome.position.copy(camera.position);
-    if (this.hour !== this.appliedHour || this.envHour !== this.hour) this.apply(false);
+    if (this.hour !== this.appliedHour || this.envHour !== this.hour || this.skyDirty) this.apply(false);
   }
 }
 

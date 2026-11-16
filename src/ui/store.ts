@@ -166,6 +166,16 @@ export const ui = {
   clock: signal('08:00'),
   /** The current season (ritu), which the sky, weather and HUD follow. */
   season: signal<import('../core/constants').SeasonId>('vasant'),
+  /** The weather now, for the top bar. */
+  weather: signal<{ season: import('../core/constants').SeasonId; name: string; english: string; temperature: number; rain: number; mist: number; effect: string }>({
+    season: 'vasant',
+    name: 'Vasant',
+    english: 'Spring',
+    temperature: 24,
+    rain: 0,
+    mist: 0,
+    effect: '',
+  }),
   isNight: signal(false),
   timeMode: signal<TimeMode>('auto'),
   overlay: signal<OverlayId>('none'),

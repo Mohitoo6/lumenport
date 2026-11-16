@@ -1,4 +1,4 @@
-import { MeshStandardMaterial, Vector4, type DataArrayTexture, type Texture } from 'three';
+import { MeshStandardMaterial, Vector4, type DataArrayTexture, type Texture, type Vector3 } from 'three';
 
 /** Layer order inside the terrain texture arrays. */
 export const TERRAIN_LAYERS = ['grass', 'grass2', 'dirt', 'rock', 'sand'] as const;
@@ -23,6 +23,8 @@ const PARS = /* glsl */ `
   uniform vec4 uSelColor;
   uniform sampler2D uOverlayTex; // data view: colour and strength per cell
   uniform float uOverlayAlpha;
+  uniform vec3 uFoliage; // the season's tint on grass
+  uniform float uWet; // 0 dry .. 1 soaked
   varying vec3 vWPos;
   varying vec3 vWNormal;
 
@@ -94,6 +96,11 @@ const MAP = /* glsl */ `
   tAlb = mix(tAlb, tAlb * vec3(1.16, 1.05, 0.78), smoothstep(0.5, 0.9, tNoiseA.a * 0.6 + tNoiseC.g * 0.4) * 0.4 * tGrass);
   tAlb = mix(tAlb, tAlb * vec3(0.78, 0.93, 0.8), smoothstep(0.45, 0.9, tNoiseC.a) * 0.5 * tGrass);
 
+  // The season: grass yellows in the heat and deepens in the rain, and wet ground darkens.
+  tAlb = mix(tAlb, tAlb * uFoliage, tGrass);
+  tAlb *= 1.0 - 0.2 * uWet;
+  tRough -= 0.25 * uWet;
+
   // Damp ground at the waterline, darker still under water.
   tAlb *= mix(0.5, 1.0, smoothstep(-0.6, 0.55, tH));
   tAlb *= mix(1.0, tAo, 0.6);
@@ -157,7 +164,13 @@ export interface TerrainFx {
   overlayAlpha: { value: number };
 }
 
-export function createTerrainMaterial(tex: TerrainTextures, fx: TerrainFx): MeshStandardMaterial {
+/** The season's uniforms, shared with the atmosphere. */
+export interface SeasonUniforms {
+  uFoliage: { value: Vector3 };
+  uWet: { value: number };
+}
+
+export function createTerrainMaterial(tex: TerrainTextures, fx: TerrainFx, season: SeasonUniforms): MeshStandardMaterial {
   const mat = new MeshStandardMaterial({ roughness: 1, metalness: 0 });
   mat.onBeforeCompile = (shader) => {
     shader.uniforms.uGrid = fx.grid;
@@ -171,15 +184,17 @@ export function createTerrainMaterial(tex: TerrainTextures, fx: TerrainFx): Mesh
     shader.uniforms.uTerrNor = { value: tex.nor };
     shader.uniforms.uTerrArm = { value: tex.arm };
     shader.uniforms.uNoise = { value: tex.noise };
+    shader.uniforms.uFoliage = season.uFoliage;
+    shader.uniforms.uWet = season.uWet;
     shader.vertexShader = shader.vertexShader
       .replace('#include <common>', '#include <common>\nvarying vec3 vWPos;\nvarying vec3 vWNormal;')
       .replace('#include <begin_vertex>', '#include <begin_vertex>\nvWPos = position;\nvWNormal = normal;');
     shader.fragmentShader = shader.fragmentShader
       .replace('#include <common>', `#include <common>\n${PARS}`)
       .replace('#include <map_fragment>', MAP)
-      .replace('#include <roughnessmap_fragment>', 'float roughnessFactor = clamp(tRough, 0.55, 1.0);')
+      .replace('#include <roughnessmap_fragment>', 'float roughnessFactor = clamp(tRough, 0.42, 1.0);')
       .replace('#include <normal_fragment_maps>', NORMAL);
   };
-  mat.customProgramCacheKey = () => 'terrain-splat-v6';
+  mat.customProgramCacheKey = () => 'terrain-splat-v7';
   return mat;
 }

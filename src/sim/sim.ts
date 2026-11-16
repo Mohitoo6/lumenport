@@ -8,6 +8,7 @@ import { economyStep, growthRateFor } from './economy/economy';
 import { FacilityKind, findTownHallSite, isLandmark, planFacility, type FacilityPlan } from './facilities';
 import { ROAD_SPECS } from './roads/types';
 import { Fields } from './fields/fields';
+import { weatherAt, type Weather } from './seasons';
 import { cellMinHeight } from './map/terrain';
 import { Traffic } from './traffic/traffic';
 import { POWERED, WATERED, computeUtilities, newNetworks, type Networks } from './utilities/network';
@@ -69,6 +70,8 @@ export class Sim {
   readonly fields = new Fields();
   /** Vehicles on the roads. Derived, never saved. */
   readonly traffic: Traffic;
+  /** The season's weather at the current tick. Derived from the tick and the seed, never saved. */
+  weather: Weather;
   private netDirty = true;
   private utilDirty = true;
   private readonly rates: number[] = [0, 0, 0, 0];
@@ -80,6 +83,8 @@ export class Sim {
     this.state = state;
     this.traffic = new Traffic(state);
     this.traffic.reset(state);
+    this.weather = weatherAt(state.tick, state.seed);
+    this.traffic.speedFactor = this.weather.roadSpeed;
   }
 
   static create(seed: number, cityName?: string): Sim {
@@ -88,6 +93,8 @@ export class Sim {
 
   replaceState(state: GameState): void {
     this.state = state;
+    this.weather = weatherAt(state.tick, state.seed);
+    this.traffic.speedFactor = this.weather.roadSpeed;
     this.frontier = null;
     this.netDirty = true;
     this.utilDirty = true;
@@ -108,6 +115,13 @@ export class Sim {
     advanceConstruction(s, changed);
     if (s.constructing.length !== building) this.utilDirty = true;
     const newStep = s.tick % TICKS_PER_STEP === 0;
+    if (newStep) {
+      // The weather moves with the clock: a new season changes what the city needs.
+      const before = this.weather;
+      this.weather = weatherAt(s.tick, s.seed);
+      this.traffic.speedFactor = this.weather.roadSpeed;
+      if (before.powerDemand !== this.weather.powerDemand || before.waterDemand !== this.weather.waterDemand) this.utilDirty = true;
+    }
     if (s.tick % 8 === 0) {
       if (this.utilDirty || newStep) this.refreshUtilities();
       this.grow(changed);
@@ -142,7 +156,9 @@ export class Sim {
     const st = s.stats;
     const labor = st.population * 0.55;
     const unemployment = labor > 0 ? Math.max(0, 1 - st.employed / labor) : 0;
-    st.happiness = this.fields.update(s.buildings, s.roads, s.roadCell, s.heights, this.traffic.density, s.tax, unemployment, st.congestion, activeStations(s));
+    const mood = this.fields.update(s.buildings, s.roads, s.roadCell, s.heights, this.traffic.density, s.tax, unemployment, st.congestion, activeStations(s));
+    // The season colours the mood a little: festivals lift it, heat and cold wear on it.
+    st.happiness = Math.max(0, Math.min(1, mood + this.weather.mood));
     // Residents within reach of a connected station ride instead of driving.
     const transit = this.fields.coverage[6]!;
     let riders = 0;
@@ -156,7 +172,7 @@ export class Sim {
   /** Recomputes power and water on every road network. */
   refreshUtilities(): void {
     const s = this.state;
-    computeUtilities(s.buildings, s.roadCell, this.net, this.netDirty, Math.floor(s.tick / TICKS_PER_STEP), s.stats);
+    computeUtilities(s.buildings, s.roadCell, this.net, this.netDirty, Math.floor(s.tick / TICKS_PER_STEP), s.stats, { power: this.weather.powerDemand, water: this.weather.waterDemand });
     // Sandbox cities need no plants: everything counts as connected.
     if (s.sandbox) for (const b of s.buildings) if (b) b.flags |= POWERED | WATERED;
     this.netDirty = false;

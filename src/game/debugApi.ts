@@ -1,5 +1,7 @@
 import type { CameraPose } from '../render/camera/rtsCamera';
 import type { Command, CommandResult } from '../sim/commands';
+import { START_HOUR, TICKS_PER_HOUR } from '../core/constants';
+import { skyAt, weatherAt } from '../sim/seasons';
 import { ui } from '../ui/store';
 import type { Game } from './Game';
 
@@ -35,6 +37,8 @@ export interface DebugApi {
   loadState(state: import('../sim/state').GameState): void;
   /** Jumps to a time of day (hours) and holds the clock there. */
   time(hour: number): void;
+  /** Shows the sky and weather of a point in the year: a month (0..11) and an hour of that day. Null follows the calendar. */
+  season(month: number | null, hour?: number): void;
   /** Resolves after `n` rendered frames. */
   frames(n: number): Promise<void>;
   stats(): ReturnType<Game['stats']>;
@@ -53,6 +57,13 @@ export function installDebugApi(game: Game): void {
     exec: (cmd) => game.exec(cmd),
     camera: (pose, instant = true) => game.setCamera(pose, instant),
     time: (hour) => game.setTime(hour),
+    season: (month, hour = 13) => {
+      if (month === null) return game.setSky(null);
+      // The tick at that hour of that month's day, in the city's first year.
+      const tick = (month * 24 + hour - START_HOUR) * TICKS_PER_HOUR;
+      game.setSky(skyAt(tick, game.sim.state.seed), weatherAt(tick, game.sim.state.seed));
+      game.setTime(hour);
+    },
     council: {
       issues: () => game.council.issues.map((i) => ({ key: i.key, kind: i.kind, title: i.title, severity: i.severity })),
       convene: (kind) => {
