@@ -1,4 +1,4 @@
-import { MONTH_NAMES } from '../../core/constants';
+import { MONTH_NAMES, START_YEAR } from '../../core/constants';
 import { Rng } from '../../core/rng';
 import type { Command } from '../../sim/commands';
 import type { Sim } from '../../sim/sim';
@@ -112,20 +112,21 @@ export class CouncilController {
   }
 
   /** This city's decision memory. A different city (another seed) has its own. */
-  private memoryFor(sim: Sim, today: number): EpisodicMemory {
+  private memoryFor(sim: Sim, now: number): EpisodicMemory {
     const city = String(sim.state.seed);
     if (!this.memory || this.memoryCity !== city) {
       this.memory = new EpisodicMemory(this.kv, city);
       this.memoryCity = city;
     }
     // A loaded older save, or a new city on the same seed, has not made those decisions.
-    this.memory.rewindTo(today);
+    this.memory.rewindTo(now);
     return this.memory;
   }
 
-  private when(): { day: number; date: string } {
+  /** Now, in game hours since the city was founded, with the day number and calendar label. */
+  private when(): { at: number; day: number; date: string } {
     const d = dateOf(this.host.sim.state.tick);
-    return { day: d.totalDays, date: `${d.day} ${MONTH_NAMES[d.month]} ${d.year}` };
+    return { at: d.totalHours, day: d.totalDays + 1, date: `${MONTH_NAMES[d.month]}, Year ${d.year - START_YEAR + 1}` };
   }
 
   update(dt: number): void {
@@ -151,8 +152,8 @@ export class CouncilController {
     for (const k of [...this.seen.keys()]) if (!live.has(k)) this.seen.delete(k);
     for (const i of this.issues) this.seen.set(i.key, (this.seen.get(i.key) ?? 0) + 1);
     // Old decisions are judged by the detectors: is the problem they were about still here?
-    const today = this.when().day;
-    this.memoryFor(this.host.sim, today).settle(today, live);
+    const hour = this.when().at;
+    this.memoryFor(this.host.sim, hour).settle(hour, live);
     // A request whose problem has gone away is withdrawn.
     const req = ui.request.value;
     if (req && !live.has(req.issueKey)) ui.request.value = null;
@@ -196,12 +197,12 @@ export class CouncilController {
     const meeting = prepareMeeting(sim, issue);
     const { options, seats, limits } = meeting;
     const when = this.when();
-    const store = this.memoryFor(sim, when.day);
+    const store = this.memoryFor(sim, when.at);
     const moneyAtStake = options.some((o) => o.cost > 0);
-    const chair = store.recall(issue, when.day, { moneyAtStake, limit: 3 }).map((r) => r.line);
+    const chair = store.recall(issue, when.at, { moneyAtStake, limit: 3 }).map((r) => r.line);
     const byMinister: Partial<Record<MinistryId, string[]>> = {};
     for (const seat of seats) {
-      const lines = store.recall(issue, when.day, { moneyAtStake, limit: 2, ministry: seat.id }).map((r) => r.line);
+      const lines = store.recall(issue, when.at, { moneyAtStake, limit: 2, ministry: seat.id }).map((r) => r.line);
       if (lines.length) byMinister[seat.id] = lines;
     }
     const mode = this.forceDemo ? 'offline' : 'live';
@@ -237,7 +238,7 @@ export class CouncilController {
       issue: { key: issue.key, title: issue.title, summary: issue.summary, facts: issue.facts, lead: issue.lead, severity: issue.severity, x: issue.x, z: issue.z },
       options: options.map((o) => {
         const loan = o.feasibility.status === 'needs_loan' ? financing(sim, o.feasibility.shortfall) : null;
-        return { id: o.id, title: o.title, gist: o.gist, cost: o.cost, monthly: o.monthly, facts: o.facts, effects: o.effects, feasibility: o.feasibility, financing: loan ? { amount: loan.amount } : undefined, backers: [], hasActions: o.actions.length > 0, x: o.x, z: o.z };
+        return { id: o.id, title: o.title, gist: o.gist, cost: o.cost, hourly: o.hourly, facts: o.facts, effects: o.effects, feasibility: o.feasibility, financing: loan ? { amount: loan.amount } : undefined, backers: [], hasActions: o.actions.length > 0, x: o.x, z: o.z };
       }),
       seats: seats.map((s) => ({ id: s.id, state: 'waiting', reason: s.reason })),
       chief: 'waiting',
@@ -516,7 +517,7 @@ export class CouncilController {
     const backers = [...this.backers].filter(([, o]) => o === option.id).map(([m]) => m);
     const attribution: Attribution = { chosen: option.id, recommended, followedChair, proposedBy: cur.firstBacker.get(option.id) ?? null, backers };
     const observed = report.observed ?? option.effects;
-    this.memoryFor(sim, this.when().day).record(decisionRecord(this.when(), issue, seats.map((s) => s.id), { title: option.title, acted: actions.length > 0 }, observed, followedChair));
+    this.memoryFor(sim, this.when().at).record(decisionRecord(this.when(), issue, seats.map((s) => s.id), { title: option.title, acted: actions.length > 0 }, observed, followedChair));
     cur.recorder.set({ attribution });
     cur.graph.go('done', report.drift.length ? `executed with ${report.drift.length} field(s) off the projection` : 'executed; the city changed exactly as projected');
     cur.recorder.graph(cur.graph.node, cur.graph.history);

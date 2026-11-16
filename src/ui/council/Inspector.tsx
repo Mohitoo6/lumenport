@@ -266,7 +266,7 @@ function Spans(props: { trace: CouncilTrace }): JSX.Element {
 function payloadRows(e: StateDelta): Array<[string, string]> {
   const rows: Array<[string, string]> = [
     ['budgetDelta', usd(e.budgetDelta)],
-    ['monthlyNetDelta', `${usd(e.monthlyNetDelta)}/mo`],
+    ['hourlyNetDelta', `${usd(e.hourlyNetDelta)}/hr`],
   ];
   if (e.taxRateDelta.some((d) => d !== 0)) rows.push(['taxRateDelta', `[${e.taxRateDelta.join(', ')}] pts`]);
   if (e.debtDelta) rows.push(['debtDelta', usd(e.debtDelta)]);

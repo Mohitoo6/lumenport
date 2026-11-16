@@ -4,7 +4,7 @@ import { NO_DELTA } from '../../src/game/council/effects';
 import { GraphState } from '../../src/game/council/graph';
 import { detectIssues } from '../../src/game/council/issues';
 import { DemoTransport, type LlmRequest, type Transport } from '../../src/game/council/llm';
-import { EpisodicMemory, OUTCOME_AFTER_DAYS, decisionRecord, memoryLine } from '../../src/game/council/memory';
+import { EpisodicMemory, OUTCOME_AFTER_HOURS, decisionRecord, memoryLine } from '../../src/game/council/memory';
 import { CouncilSession, prepareMeeting, type Decision, type SessionEvent, type SessionInput } from '../../src/game/council/session';
 import { memoryKV } from '../../src/game/council/storage';
 import type { Sim } from '../../src/sim/sim';
@@ -13,13 +13,13 @@ import { grownTown, runTicks } from './town';
 const ids = (note: string): string[] => parseInstruction(note).map((c) => c.id).sort();
 
 describe('the mayor’s instruction as rules', () => {
-  it('reads money caps, upfront and monthly', () => {
+  it('reads money caps, upfront and hourly', () => {
     expect(parseInstruction('Keep the upfront cost under $1,500.')).toEqual([{ id: 'max_cost', limit: 1500, label: 'upfront cost at most $1,500' }]);
     expect(parseInstruction('no more than 5k please')[0]).toMatchObject({ id: 'max_cost', limit: 5000 });
     expect(parseInstruction('budget of ₹2 lakh')[0]).toMatchObject({ id: 'max_cost', limit: 200000 });
-    expect(parseInstruction('at most $300 a month')[0]).toMatchObject({ id: 'max_monthly', limit: 300 });
-    expect(parseInstruction('under $400/month and under $9,000').map((c) => [c.id, c.limit])).toEqual([
-      ['max_monthly', 400],
+    expect(parseInstruction('at most $300 an hour')[0]).toMatchObject({ id: 'max_hourly', limit: 300 });
+    expect(parseInstruction('under $400/hour and under $9,000').map((c) => [c.id, c.limit])).toEqual([
+      ['max_hourly', 400],
       ['max_cost', 9000],
     ]);
     // Two caps: the tighter one holds.
@@ -115,8 +115,8 @@ describe('the instruction in a meeting', () => {
   it('says so, without overriding, when no option that acts can meet it', async () => {
     const pick = input.options.find((o) => o.cost > 0)!;
     const agree = (req: LlmRequest) => (req.meta.role === 'chief' ? { option: pick.id, summary: `Option ${pick.id}.`, dissent: '', conditions: '' } : { speak: true, stance: req.meta.lead ? 'propose' : 'support', option: pick.id, say: `I back option ${pick.id}.`, condition: '' });
-    // Nothing that acts is free and costs nothing a month.
-    const { decision } = await hold({ ...input, mayorNote: 'under $0 and under $0 a month' }, scripted(agree));
+    // Nothing that acts is free and costs nothing an hour.
+    const { decision } = await hold({ ...input, mayorNote: 'under $0 and under $0 an hour' }, scripted(agree));
     const finding = decision.guardrail.findings.find((f) => f.check === 'respects_mayor_instruction')!;
     expect(finding.passed).toBe(false);
     expect(finding.strength).toBe('warn');
@@ -136,18 +136,18 @@ describe('the instruction in a meeting', () => {
 
 describe('memory of outcomes', () => {
   const issue = { key: 'traffic:Canal Street', kind: 'traffic' as const, lead: 'roads' as const, severity: 0.7, title: 'Gridlock on Canal Street', summary: '', facts: [], x: 0, z: 0 };
-  const record = (day: number) => decisionRecord({ day, date: `day ${day}` }, issue, ['roads', 'finance'], { title: 'Widen Canal Street', acted: true }, { ...NO_DELTA, budgetDelta: -2496 }, true);
+  const record = (at: number) => decisionRecord({ at, date: `hour ${at}` }, issue, ['roads', 'finance'], { title: 'Widen Canal Street', acted: true }, { ...NO_DELTA, budgetDelta: -2496 }, true);
 
-  it('judges a decision by whether its problem is still detected a month later', () => {
+  it('judges a decision by whether its problem is still detected half a day later', () => {
     const kv = memoryKV();
     const m = new EpisodicMemory(kv, 'city');
     m.record(record(100));
     m.record({ ...record(105), issueKey: 'health:1', issueKind: 'health', issueTitle: 'No clinic nearby' });
     // Too early: nothing is judged.
-    expect(m.settle(100 + OUTCOME_AFTER_DAYS - 1, new Set([issue.key]))).toBe(0);
+    expect(m.settle(100 + OUTCOME_AFTER_HOURS - 1, new Set([issue.key]))).toBe(0);
     expect(m.all[0]!.outcome).toBeUndefined();
-    // A month on, the jam is still being detected; the clinic problem is not.
-    expect(m.settle(105 + OUTCOME_AFTER_DAYS, new Set([issue.key]))).toBe(2);
+    // Half a day on, the jam is still being detected; the clinic problem is not.
+    expect(m.settle(105 + OUTCOME_AFTER_HOURS, new Set([issue.key]))).toBe(2);
     expect(m.all.map((r) => r.outcome)).toEqual(['persisted', 'resolved']);
     // Judged once, and kept across a reload.
     expect(m.settle(400, new Set())).toBe(0);
@@ -160,7 +160,7 @@ describe('memory of outcomes', () => {
     m.record({ ...record(101), issueKey: 'traffic:Mill Road', optionTitle: 'Staggered office hours (policy)' });
     m.settle(200, new Set([issue.key]));
     const line = memoryLine(m.all[0]!);
-    expect(line).toMatch(/Widen Canal Street.*Outcome: the problem was still there a month later\.$/);
+    expect(line).toMatch(/Widen Canal Street.*Outcome: the problem was still there half a day later\.$/);
     expect(memoryLine(m.all[1]!)).toMatch(/Outcome: the problem went away\.$/);
     const other = { ...issue, key: 'traffic:King Street' };
     const got = m.recall(other, 210);

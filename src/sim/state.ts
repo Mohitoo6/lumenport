@@ -1,5 +1,5 @@
 import { emptyMetro, type MetroState } from './transit/metro';
-import { DAYS_PER_MONTH, MAP, MONTHS_PER_YEAR, START_YEAR, TICKS_PER_DAY, VERTS } from '../core/constants';
+import { DAYS_PER_MONTH, MAP, MONTHS_PER_YEAR, START_HOUR, START_YEAR, TICKS_PER_DAY, TICKS_PER_HOUR, VERTS } from '../core/constants';
 import { generateHeights } from './map/terrain';
 import { generateTrees } from './map/trees';
 import { emptyNetwork, type RoadNetwork } from './roads/types';
@@ -88,20 +88,38 @@ export function createState(seed: number, cityName = 'New Haven'): GameState {
 }
 
 export interface CalendarDate {
-  day: number; // 1..30
-  month: number; // 0..11
+  /** Time of day, 0 up to 24, with fractions. */
+  hour: number;
+  /** Day of the month, from 1. */
+  day: number;
+  /** 0..11: an index into MONTH_NAMES. */
+  month: number;
+  /** 0..5: an index into SEASONS. */
+  season: number;
   year: number;
-  /** Total days elapsed since the start. */
+  /** Whole days since the city was founded (the first day is 0). */
   totalDays: number;
+  /** Whole hours since the city was founded: how many times the budget has settled. */
+  totalHours: number;
 }
 
-export function dateOf(tick: number): CalendarDate {
-  const totalDays = Math.floor(tick / TICKS_PER_DAY);
+/**
+ * The date and time at a tick. A city is founded at START_HOUR on the first day, and the
+ * day turns at midnight. `fraction` adds a part of a tick, so the clock can move smoothly
+ * between ticks.
+ */
+export function dateOf(tick: number, fraction = 0): CalendarDate {
+  const t = tick + fraction + START_HOUR * TICKS_PER_HOUR;
+  const totalDays = Math.floor(t / TICKS_PER_DAY);
   const totalMonths = Math.floor(totalDays / DAYS_PER_MONTH);
+  const month = totalMonths % MONTHS_PER_YEAR;
   return {
+    hour: (t % TICKS_PER_DAY) / TICKS_PER_HOUR,
     day: (totalDays % DAYS_PER_MONTH) + 1,
-    month: totalMonths % MONTHS_PER_YEAR,
+    month,
+    season: Math.floor(month / 2),
     year: START_YEAR + Math.floor(totalMonths / MONTHS_PER_YEAR),
     totalDays,
+    totalHours: Math.floor(tick / TICKS_PER_HOUR),
   };
 }

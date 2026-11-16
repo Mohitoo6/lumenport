@@ -27,9 +27,9 @@ export const METRO = {
   /** Build cost: per metre of viaduct, plus a fixed cost per line. */
   costPerMetre: 30,
   baseCost: 1500,
-  /** Monthly upkeep per metre of line. */
+  /** Hourly upkeep per metre of line. */
   upkeepPerMetre: 0.05,
-  /** Monthly fare income per regular rider. */
+  /** Hourly fare income per regular rider. */
   fare: 1.2,
   /** Share of residents in full station reach who ride instead of driving. */
   uptake: 0.35,

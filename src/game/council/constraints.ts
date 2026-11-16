@@ -13,7 +13,7 @@ import type { CouncilOption } from './options';
  * Only what is recognised is enforced, and the mayor is shown exactly what was
  * recognised before the meeting starts.
  */
-export type ConstraintId = 'max_cost' | 'max_monthly' | 'no_demolition' | 'no_displacement' | 'no_job_loss' | 'no_debt' | 'no_tax_rise' | 'no_polluter';
+export type ConstraintId = 'max_cost' | 'max_hourly' | 'no_demolition' | 'no_displacement' | 'no_job_loss' | 'no_debt' | 'no_tax_rise' | 'no_polluter';
 
 export interface Constraint {
   id: ConstraintId;
@@ -45,8 +45,8 @@ export function parseInstruction(note: string): Constraint[] {
   for (const m of note.matchAll(CAP)) {
     const limit = amount(m[1]!, m[2]);
     if (!Number.isFinite(limit) || limit < 0) continue;
-    const monthly = /^\s*(?:a|per|each|every|\/)\s*month|^\s*monthly|^\s*\/\s*mo/i.test(m[3] ?? '');
-    add(monthly ? { id: 'max_monthly', limit, label: `at most ${usd(limit)} a month` } : { id: 'max_cost', limit, label: `upfront cost at most ${usd(limit)}` });
+    const hourly = /^\s*(?:an?|per|each|every|\/)\s*(?:hour|hr|month)|^\s*(?:hourly|monthly)|^\s*\/\s*(?:hr|mo)\b/i.test(m[3] ?? '');
+    add(hourly ? { id: 'max_hourly', limit, label: `at most ${usd(limit)} an hour` } : { id: 'max_cost', limit, label: `upfront cost at most ${usd(limit)}` });
   }
   // Prohibitions: a negation, then what is prohibited, within the same sentence.
   for (const sentence of note.split(/[.;!?\n]+/)) {
@@ -80,9 +80,9 @@ export function violations(option: CouncilOption, constraints: readonly Constrai
         if (spend > c.limit!) out.push(`costs ${usd(spend)}, over the ${usd(c.limit!)} limit`);
         break;
       }
-      case 'max_monthly': {
-        const monthly = Math.max(0, -e.monthlyNetDelta);
-        if (monthly > c.limit!) out.push(`costs ${usd(monthly)} a month, over the ${usd(c.limit!)} limit`);
+      case 'max_hourly': {
+        const hourly = Math.max(0, -e.hourlyNetDelta);
+        if (hourly > c.limit!) out.push(`costs ${usd(hourly)} an hour, over the ${usd(c.limit!)} limit`);
         break;
       }
       case 'no_demolition':

@@ -70,7 +70,7 @@ function moneyLine(sim: Sim): string {
   const s = sim.state;
   const b = projectBudget(s.buildings, s.roads, s.tax, s.loans, s.stats, emptyReport(), s.policies, s.metro);
   const usd = (n: number): string => `${n < 0 ? '-' : ''}$${Math.abs(Math.round(n)).toLocaleString('en-US')}`;
-  return `${usd(s.funds)} in hand, ${usd(b.net)} a month (income ${usd(b.income)}, spending ${usd(b.expense)}; taxes ${s.tax[1]}% / ${s.tax[2]}% / ${s.tax[3]}%)`;
+  return `${usd(s.funds)} in hand, ${usd(b.net)} an hour (income ${usd(b.income)}, spending ${usd(b.expense)}; taxes ${s.tax[1]}% / ${s.tax[2]}% / ${s.tax[3]}%)`;
 }
 
 /** What a refused command was trying to do, in words. */
@@ -120,7 +120,7 @@ export class AssistantController {
     const what = describe(cmd);
     if (!what) return;
     const d = dateOf(this.host.sim.state.tick);
-    this.refusals.unshift({ what, reason: result.reason, when: `${d.day} ${MONTH_NAMES[d.month]}` });
+    this.refusals.unshift({ what, reason: result.reason, when: `${String(Math.floor(d.hour)).padStart(2, '0')}:00, ${MONTH_NAMES[d.month]}` });
     this.refusals.length = Math.min(this.refusals.length, REFUSALS);
   }
 

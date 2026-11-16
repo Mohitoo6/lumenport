@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { MAP, TICKS_PER_DAY, VERTS } from '../../src/core/constants';
+import { MAP, TICKS_PER_STEP, VERTS } from '../../src/core/constants';
 import { FACILITIES, FacilityKind, Service } from '../../src/sim/facilities';
 import { RoadType } from '../../src/sim/roads/types';
 import { Sim } from '../../src/sim/sim';
@@ -21,7 +21,7 @@ function town(): Sim {
 }
 
 function run(sim: Sim, days: number): void {
-  for (let i = 0; i < days * TICKS_PER_DAY; i++) sim.tick();
+  for (let i = 0; i < days * TICKS_PER_STEP; i++) sim.tick();
 }
 
 const at = (a: Float32Array, i: number, j: number): number => a[j * MAP + i]!;

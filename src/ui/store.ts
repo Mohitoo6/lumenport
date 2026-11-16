@@ -46,7 +46,7 @@ export interface CouncilOptionView {
   title: string;
   gist: string;
   cost: number;
-  monthly: number;
+  hourly: number;
   facts: string[];
   /** The measured state-mutation payload, and whether the city can pay for it. */
   effects: StateDelta;
@@ -152,7 +152,7 @@ export const ui = {
   population: signal(0),
   /** Demand per zone in -1..1: residential, commercial, industrial. */
   demand: signal<[number, number, number]>([0, 0, 0]),
-  /** Projected monthly budget as the city stands now. */
+  /** Projected hourly budget as the city stands now. */
   budget: signal<BudgetReport>(emptyReport()),
   tax: signal<[number, number, number]>([9, 9, 9]),
   loans: signal<Loan[]>([]),
@@ -163,7 +163,9 @@ export const ui = {
   showBudget: signal(false),
   happiness: signal(0.5),
   /** Time of day as HH:MM, whether it is dark, and how the clock is driven. */
-  clock: signal('14:30'),
+  clock: signal('08:00'),
+  /** The current season (ritu), which the sky, weather and HUD follow. */
+  season: signal<import('../core/constants').SeasonId>('vasant'),
   isNight: signal(false),
   timeMode: signal<TimeMode>('auto'),
   overlay: signal<OverlayId>('none'),

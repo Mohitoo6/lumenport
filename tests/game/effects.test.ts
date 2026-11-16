@@ -31,7 +31,7 @@ describe('option effect payloads', () => {
       for (const o of options) {
         const label = `${issue.kind} ${o.id} ${o.title}`;
         expect(-o.effects.budgetDelta, `${label}: upfront`).toBe(o.cost);
-        expect(-o.effects.monthlyNetDelta, `${label}: monthly`).toBe(o.monthly);
+        expect(-o.effects.hourlyNetDelta, `${label}: hourly`).toBe(o.hourly);
         expect(o.effects.residentsDisplaced, `${label}: residents`).toBe(o.impact.displacedResidents);
       }
     }
@@ -43,10 +43,10 @@ describe('option effect payloads', () => {
     for (const o of demolishing) expect(o.facts.join(' ')).toMatch(/tax lost/);
   });
 
-  it('projects the same monthly balance as the budget panel for an untouched city', () => {
+  it('projects the same hourly balance as the budget panel for an untouched city', () => {
     const s = sim.state;
     const hud = projectBudget(s.buildings, s.roads, s.tax, s.loans, s.stats, emptyReport(), s.policies, s.metro).net;
-    expect(snapshot(sim).monthlyNet).toBe(hud);
+    expect(snapshot(sim).hourlyNet).toBe(hud);
   });
 
   it('gives "take no action" an empty payload and keeps it last', () => {
@@ -64,10 +64,10 @@ describe('option effect payloads', () => {
     const loan = project(fork, [{ type: 'takeLoan', tier: 1 }]);
     expect(loan.ok && loan.delta.budgetDelta).toBe(LOAN_TIERS[1]!.amount);
     expect(loan.ok && loan.delta.debtDelta).toBeGreaterThan(LOAN_TIERS[1]!.amount);
-    expect(loan.ok && loan.delta.monthlyNetDelta).toBeLessThan(0);
+    expect(loan.ok && loan.delta.hourlyNetDelta).toBeLessThan(0);
     const tax = project(fork, [{ type: 'setTax', zone: 1, rate: fork.state.tax[1] + 2 }], { withApproval: true, baseline: snapshot(forkSim(fork), true) });
     expect(tax.ok && tax.delta.taxRateDelta).toEqual([2, 0, 0]);
-    expect(tax.ok && tax.delta.monthlyNetDelta).toBeGreaterThan(0);
+    expect(tax.ok && tax.delta.hourlyNetDelta).toBeGreaterThan(0);
     // Higher taxes make residents less happy: the approval projection has to show it.
     expect(tax.ok && tax.delta.approvalDelta).toBeLessThan(0);
     const flex = project(fork, [{ type: 'setPolicy', policy: 'flexHours', on: true }]);
@@ -78,7 +78,7 @@ describe('option effect payloads', () => {
 describe('hard money rules', () => {
   it('separates affordable, loan-dependent and impossible spending', () => {
     const fork = forkSim(sim);
-    fork.state.loans = [{ tier: 0, payment: 900, monthsLeft: 10 }];
+    fork.state.loans = [{ tier: 0, payment: 900, hoursLeft: 10 }];
     fork.state.funds = 5000;
     const limits = fiscalLimits(fork);
     expect(limits.loanHeadroom).toBe(LOAN_TIERS[1]!.amount + LOAN_TIERS[2]!.amount);

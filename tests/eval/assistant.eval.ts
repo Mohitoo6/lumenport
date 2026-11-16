@@ -108,8 +108,8 @@ const CASES: Case[] = [
   },
   {
     name: 'losing money',
-    truth: 'A grown town with every tax set to 0%: income collapsed, so the monthly budget is in deficit.',
-    question: 'Why is my money going down every month?',
+    truth: 'A grown town with every tax set to 0%: income collapsed, so the hourly budget is in deficit.',
+    question: 'Why is my money going down every hour?',
     script: 'en',
     build: () => {
       const sim = grownTown(150);

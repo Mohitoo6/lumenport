@@ -1,4 +1,4 @@
-import { CELL, DAYS_PER_MONTH, MAP, TICKS_PER_DAY } from '../core/constants';
+import { CELL, MAP, START_HOUR, TICKS_PER_DAY, TICKS_PER_HOUR, TICKS_PER_STEP } from '../core/constants';
 import { Rng } from '../core/rng';
 import { Emitter } from '../core/events';
 import { OK, fail, type Command, type CommandResult } from './commands';
@@ -40,9 +40,12 @@ export type SimEvents = {
   /** Buildings appeared, changed stage or level (`changed`), or were removed. */
   buildingsChanged: { changed: number[]; removed: Building[] };
   speedChanged: number;
+  /** The economy took a step (every TICKS_PER_STEP ticks). */
+  stepPassed: number;
+  /** Midnight passed; the payload is the number of the day that has begun. */
   dayPassed: number;
-  /** A month's budget was settled; the report is in state.report. */
-  monthPassed: number;
+  /** An hour's budget was settled; the report is in state.report. */
+  hourPassed: number;
   /** A command was applied (or refused). */
   command: { cmd: Command; result: CommandResult };
   /** A whole new state was installed (new game or load). */
@@ -104,24 +107,27 @@ export class Sim {
     const building = s.constructing.length;
     advanceConstruction(s, changed);
     if (s.constructing.length !== building) this.utilDirty = true;
-    const newDay = s.tick % TICKS_PER_DAY === 0;
+    const newStep = s.tick % TICKS_PER_STEP === 0;
     if (s.tick % 8 === 0) {
-      if (this.utilDirty || newDay) this.refreshUtilities();
+      if (this.utilDirty || newStep) this.refreshUtilities();
       this.grow(changed);
     }
     if (changed.length > 0) this.events.emit('buildingsChanged', { changed: changed.slice(), removed: [] });
 
     this.traffic.tick();
 
-    if (newDay) {
-      const day = s.tick / TICKS_PER_DAY;
+    if (newStep) {
+      const step = s.tick / TICKS_PER_STEP;
       s.stats.congestion = this.traffic.congestion;
       s.stats.vehicles = this.traffic.count;
-      // The layers change slowly; every few days is plenty.
-      if (day % 4 === 0) this.refreshFields();
+      // The layers change slowly; every few steps is plenty.
+      if (step % 4 === 0) this.refreshFields();
       economyStep(s.buildings, s.tax, s.stats);
-      this.events.emit('dayPassed', day);
-      if (day % DAYS_PER_MONTH === 0) this.settleMonth(day / DAYS_PER_MONTH);
+      this.events.emit('stepPassed', step);
+      // The budget settles on the hour.
+      if (s.tick % TICKS_PER_HOUR === 0) this.settleBudget(s.tick / TICKS_PER_HOUR);
+      // The day turns at midnight; a city is founded at START_HOUR.
+      if ((s.tick + START_HOUR * TICKS_PER_HOUR) % TICKS_PER_DAY === 0) this.events.emit('dayPassed', (s.tick + START_HOUR * TICKS_PER_HOUR) / TICKS_PER_DAY);
     }
   }
 
@@ -150,21 +156,22 @@ export class Sim {
   /** Recomputes power and water on every road network. */
   refreshUtilities(): void {
     const s = this.state;
-    computeUtilities(s.buildings, s.roadCell, this.net, this.netDirty, Math.floor(s.tick / TICKS_PER_DAY), s.stats);
+    computeUtilities(s.buildings, s.roadCell, this.net, this.netDirty, Math.floor(s.tick / TICKS_PER_STEP), s.stats);
     // Sandbox cities need no plants: everything counts as connected.
     if (s.sandbox) for (const b of s.buildings) if (b) b.flags |= POWERED | WATERED;
     this.netDirty = false;
     this.utilDirty = false;
   }
 
-  private settleMonth(month: number): void {
+  /** Books one hour of income and spending, and moves every loan one payment on. */
+  private settleBudget(hour: number): void {
     const s = this.state;
     projectBudget(s.buildings, s.roads, s.tax, s.loans, s.stats, s.report, s.policies, s.metro);
     if (!s.sandbox) s.funds += s.report.net;
     for (let i = s.loans.length - 1; i >= 0; i--) {
-      if (--s.loans[i]!.monthsLeft <= 0) s.loans.splice(i, 1);
+      if (--s.loans[i]!.hoursLeft <= 0) s.loans.splice(i, 1);
     }
-    this.events.emit('monthPassed', month);
+    this.events.emit('hourPassed', hour);
   }
 
   /** True if the street in front of cell (i, j) has spare power and water. */
@@ -488,7 +495,7 @@ export class Sim {
         const tier = LOAN_TIERS[cmd.tier];
         if (!tier) return fail('No such loan');
         if (s.loans.some((l) => l.tier === cmd.tier)) return fail('That loan is already taken');
-        s.loans.push({ tier: cmd.tier, payment: loanPayment(tier), monthsLeft: tier.months });
+        s.loans.push({ tier: cmd.tier, payment: loanPayment(tier), hoursLeft: tier.hours });
         s.funds += tier.amount;
         return OK;
       }

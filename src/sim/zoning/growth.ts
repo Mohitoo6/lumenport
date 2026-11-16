@@ -1,8 +1,8 @@
-import { MAP, TICKS_PER_DAY, VERTS } from '../../core/constants';
+import { MAP, TICKS_PER_STEP, VERTS } from '../../core/constants';
 import type { Rng } from '../../core/rng';
 import type { Rect } from '../roads/terraform';
 import { findLot, frontageOf, type Lot } from './lots';
-import { FACING_DX, FACING_DY, buildDays, stageOf, type Building } from './zones';
+import { FACING_DX, FACING_DY, buildSteps, stageOf, type Building } from './zones';
 
 export interface ZoningLayers {
   zone: Uint8Array;
@@ -114,7 +114,7 @@ export function advanceConstruction(s: ZoningLayers, changed: number[]): void {
       continue;
     }
     const before = stageOf(b.progress);
-    b.progress = Math.min(1, b.progress + 1 / ((b.kind !== 0 ? 3 : buildDays(b.zone)) * TICKS_PER_DAY));
+    b.progress = Math.min(1, b.progress + 1 / ((b.kind !== 0 ? 3 : buildSteps(b.zone)) * TICKS_PER_STEP));
     if (stageOf(b.progress) !== before) changed.push(b.id);
     if (b.progress >= 1) list.splice(n, 1);
   }

@@ -44,10 +44,10 @@ function effectChips(e: StateDelta): Chip[] {
   return out;
 }
 
-/** The two money figures of an option: now, and each month. */
+/** The two money figures of an option: now, and each hour. */
 function moneyChips(e: StateDelta): Chip[] {
   const out: Chip[] = [{ text: e.budgetDelta === 0 ? 'Free now' : `${signed(e.budgetDelta)} now`, tone: e.budgetDelta < 0 ? 'bad' : e.budgetDelta > 0 ? 'good' : 'plain' }];
-  if (e.monthlyNetDelta !== 0) out.push({ text: `${signed(e.monthlyNetDelta)} a month`, tone: e.monthlyNetDelta < 0 ? 'bad' : 'good' });
+  if (e.hourlyNetDelta !== 0) out.push({ text: `${signed(e.hourlyNetDelta)} an hour`, tone: e.hourlyNetDelta < 0 ? 'bad' : 'good' });
   return out;
 }
 
@@ -66,8 +66,8 @@ function Chips(props: { list: Chip[] }): JSX.Element | null {
 
 function costLine(o: CouncilOptionView): string {
   const now = o.cost > 0 ? `${usd(o.cost)} now` : o.cost < 0 ? `+${usd(-o.cost)} now` : 'no upfront cost';
-  const monthly = o.monthly > 0 ? `, ${usd(o.monthly)} a month` : o.monthly < 0 ? `, saves ${usd(-o.monthly)} a month` : '';
-  return now + monthly;
+  const hourly = o.hourly > 0 ? `, ${usd(o.hourly)} an hour` : o.hourly < 0 ? `, saves ${usd(-o.hourly)} an hour` : '';
+  return now + hourly;
 }
 
 const STANCE_LABEL: Record<Stance, string> = { propose: 'Proposes', support: 'Supports', concern: 'Concerned', oppose: 'Objects', neutral: 'Neutral' };

@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { MAP, TICKS_PER_DAY, VERTS } from '../../src/core/constants';
+import { MAP, TICKS_PER_STEP, VERTS } from '../../src/core/constants';
 import { Rng } from '../../src/core/rng';
 import { RoadType } from '../../src/sim/roads/types';
 import { Sim } from '../../src/sim/sim';
 import { buildFrontier } from '../../src/sim/zoning/growth';
 import { findLot, frontageOf } from '../../src/sim/zoning/lots';
-import { Facing, ZoneType, buildDays, stageOf, zoneCode, zoneDensity, zoneType, type Building } from '../../src/sim/zoning/zones';
+import { Facing, ZoneType, buildSteps, stageOf, zoneCode, zoneDensity, zoneType, type Building } from '../../src/sim/zoning/zones';
 
 const R1 = zoneCode(ZoneType.Residential, 1);
 const C3 = zoneCode(ZoneType.Commercial, 3);
@@ -148,7 +148,7 @@ describe('growth', () => {
     });
     run(sim, 8);
     expect(first).toBeGreaterThanOrEqual(0);
-    run(sim, buildDays(R1) * TICKS_PER_DAY + 2);
+    run(sim, buildSteps(R1) * TICKS_PER_STEP + 2);
     expect(sim.state.buildings[first]!.progress).toBe(1);
     expect(stages).toEqual([0, 1, 2, 3, 4]);
     expect(sim.state.constructing.includes(first)).toBe(false);

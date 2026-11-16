@@ -281,16 +281,16 @@ function budgetIssue(sim: Sim): CityIssue | null {
   if (s.sandbox) return null;
   const r = s.report;
   if (r.net >= 0 || s.funds > 30000) return null;
-  const months = r.net < 0 ? Math.floor(s.funds / -r.net) : 99;
+  const hours = r.net < 0 ? Math.floor(s.funds / -r.net) : 99;
   return {
     key: 'budget',
     kind: 'budget',
     lead: 'finance',
-    severity: clamp01(1 - months / 18),
+    severity: clamp01(1 - hours / 18),
     title: 'Budget deficit',
-    summary: `The city loses ${money(-r.net)} a month and has ${money(s.funds)} left: about ${months} months.`,
+    summary: `The city loses ${money(-r.net)} an hour and has ${money(s.funds)} left: about ${hours} hours.`,
     facts: [
-      `Treasury: ${money(s.funds)}. Last month: income ${money(r.income)}, spending ${money(r.expense)}, balance ${money(r.net)}.`,
+      `Treasury: ${money(s.funds)}. Last hour: income ${money(r.income)}, spending ${money(r.expense)}, balance ${money(r.net)}.`,
       `Income: residential tax ${money(r.taxR)}, commercial ${money(r.taxC)}, industrial ${money(r.taxI)}. Tax rates ${s.tax[1]}% / ${s.tax[2]}% / ${s.tax[3]}%.`,
       `Spending: roads ${money(r.roads)}, utilities ${money(r.utilities)}, services ${money(r.services)}, loan repayments ${money(r.loans)}.`,
     ],

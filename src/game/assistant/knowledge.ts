@@ -24,13 +24,14 @@ export interface ManualSection {
 const usd = (n: number): string => `$${n.toLocaleString('en-US')}`;
 
 const INTRO = `HOW THE GAME WORKS (Metropolis, a city builder; the player is the mayor)
-Toolbar at the bottom: Street, Avenue, Homes, Shops, Industry, De-zone, Power, Water, Services, Bulldoze. Top bar: date, speed, funds, population, happiness, demand bars, clock, Council button, Views (data overlays), Menu (M).`;
+Toolbar at the bottom: Street, Avenue, Homes, Shops, Industry, De-zone, Power, Water, Services, Bulldoze. Top bar: date, speed, funds, population, happiness, demand bars, clock, Council button, Views (data overlays), Menu (M).
+Time: one game hour takes a real minute at normal speed (speeds 2 and 3 are twice and four times as quick). The budget settles every hour, so every income and upkeep figure is per hour. A day is 24 hours with a rush at about 9:00 and 18:00. The calendar is the Indian one: each day stands for a month, and two months make a season.`;
 
 export function manualSections(): ManualSection[] {
   const facilities = Object.entries(FACILITIES)
     .filter(([k]) => Number(k) !== FacilityKind.TownHall)
     .map(([, f]) => {
-      const parts = [`${f.name}: ${usd(f.cost)}, ${usd(f.upkeep)}/month`];
+      const parts = [`${f.name}: ${usd(f.cost)}, ${usd(f.upkeep)}/hour`];
       if (f.power) parts.push(`${f.power} MW`);
       if (f.water) parts.push(`${f.water.toLocaleString('en-US')} water units`);
       if (f.radius) parts.push(`reach ${f.radius * CELL} m`);
@@ -74,8 +75,8 @@ ${facilities}
       id: 'money',
       about: /money|fund|budget|tax|loan|debt|cost|price|deficit|income|expens|afford|refund|paisa|paise|kharch|karz|पैस|बजट|टैक्स|कर्ज|खर्च/i,
       text: `Money
-- Monthly income is taxes per zone type (Budget panel, B); spending is road upkeep and facility upkeep. Higher taxes lower demand.
-- Loans: ${LOAN_TIERS.map((t) => `${usd(t.amount)} over ${t.months} months at ${Math.round(t.rate * 100)}%`).join('; ')}.
+- Hourly income is taxes per zone type (Budget panel, B); spending is road upkeep and facility upkeep. Higher taxes lower demand.
+- Loans: ${LOAN_TIERS.map((t) => `${usd(t.amount)} over ${t.hours} hours at ${Math.round(t.rate * 100)}%`).join('; ')}.
 - Bulldozing gives no refund.`,
     },
     {
@@ -94,7 +95,7 @@ ${facilities}
       id: 'metro',
       about: /metro|station|train|transit|viaduct|मेट्रो|ट्रेन/i,
       text: `Metro (toolbar: Metro)
-- Place Metro stations beside roads (Metro > Station), then draw a line (Metro > Line): click a station, click the ground to bend the line, click another station to build it. Cost ${usd(METRO.baseCost)} per line plus ${usd(METRO.costPerMetre)} per metre; upkeep ${usd(METRO.upkeepPerMetre)} per metre a month plus each station's upkeep.
+- Place Metro stations beside roads (Metro > Station), then draw a line (Metro > Line): click a station, click the ground to bend the line, click another station to build it. Cost ${usd(METRO.baseCost)} per line plus ${usd(METRO.costPerMetre)} per metre; upkeep ${usd(METRO.upkeepPerMetre)} per metre an hour plus each station's upkeep.
 - The line runs on a viaduct over roads, houses and small shops, but not through taller buildings or facilities: bend it around them.
 - A station only works once a line joins it to another station. Residents within reach (about ${Math.round(FACILITIES[FacilityKind.MetroStation]!.radius * CELL)} m) ride instead of driving: fewer cars, higher land value and happiness, and fares as income. Bulldoze the ground under a line to remove it.`,
     },

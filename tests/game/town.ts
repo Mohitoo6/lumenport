@@ -1,4 +1,4 @@
-import { TICKS_PER_DAY } from '../../src/core/constants';
+import { TICKS_PER_STEP } from '../../src/core/constants';
 import { RoadType } from '../../src/sim/roads/types';
 import { Sim } from '../../src/sim/sim';
 
@@ -32,8 +32,11 @@ const ZONES: Array<[number, number, number, number, number]> = [
   [173, 86, 199, 92, Z.I2],
 ];
 
-/** A grown city on real terrain. Real economy unless `sandbox`; utilities placed. */
-export function grownTown(days: number, sandbox = false): Sim {
+/**
+ * A grown city on real terrain, after `steps` economy steps (2 real seconds each; 30 make
+ * a game hour). Real economy unless `sandbox`; utilities placed.
+ */
+export function grownTown(steps: number, sandbox = false): Sim {
   const sim = Sim.create(1337);
   sim.state.sandbox = sandbox;
   sim.apply({ type: 'takeLoan', tier: 0 });
@@ -44,7 +47,7 @@ export function grownTown(days: number, sandbox = false): Sim {
   sim.apply({ type: 'placeFacility', kind: 4, x: 169, y: 96 });
   for (const [x0, y0, x1, y1, zone] of ZONES) sim.apply({ type: 'zoneRect', x0, y0, x1, y1, zone });
   if (sandbox) sim.growthRate = 1;
-  for (let i = 0; i < days * TICKS_PER_DAY; i++) sim.tick();
+  for (let i = 0; i < steps * TICKS_PER_STEP; i++) sim.tick();
   return sim;
 }
 

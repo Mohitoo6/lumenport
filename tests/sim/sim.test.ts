@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DAYS_PER_MONTH, START_YEAR, TICKS_PER_DAY } from '../../src/core/constants';
+import { MONTH_NAMES, SEASONS, START_HOUR, START_YEAR, TICKS_PER_DAY, TICKS_PER_HOUR, TICK_MS } from '../../src/core/constants';
 import { Rng, hash2 } from '../../src/core/rng';
 import { Sim } from '../../src/sim/sim';
 import { dateOf } from '../../src/sim/state';
@@ -29,19 +29,32 @@ describe('rng', () => {
 });
 
 describe('sim clock', () => {
-  it('advances the calendar on a fixed tick', () => {
+  it('runs the budget, the calendar and the time of day from one tick count', () => {
     const sim = Sim.create(1);
+    let hours = 0;
     let days = 0;
+    sim.events.on('hourPassed', () => hours++);
     sim.events.on('dayPassed', () => days++);
-    for (let i = 0; i < TICKS_PER_DAY * (DAYS_PER_MONTH + 2); i++) sim.tick();
-    expect(days).toBe(DAYS_PER_MONTH + 2);
-    const d = dateOf(sim.state.tick);
-    expect(d).toMatchObject({ day: 3, month: 1, year: START_YEAR });
+    // Founded at 08:00. Thirty-six hours later it is 20:00 on the second day.
+    for (let i = 0; i < TICKS_PER_HOUR * 36; i++) sim.tick();
+    expect(hours).toBe(36);
+    expect(days).toBe(1);
+    expect(dateOf(sim.state.tick)).toMatchObject({ hour: 20, totalDays: 1, totalHours: 36, month: 1, year: START_YEAR });
   });
 
-  it('rolls the year over', () => {
-    expect(dateOf(TICKS_PER_DAY * DAYS_PER_MONTH * 12).year).toBe(START_YEAR + 1);
-    expect(dateOf(0)).toMatchObject({ day: 1, month: 0, year: START_YEAR });
+  it('starts at eight on a Chaitra morning, turns the day at midnight and the year after twelve days', () => {
+    expect(dateOf(0)).toMatchObject({ hour: START_HOUR, day: 1, month: 0, season: 0, year: START_YEAR, totalDays: 0, totalHours: 0 });
+    expect(dateOf(TICKS_PER_HOUR / 2).hour).toBe(START_HOUR + 0.5);
+    // Part of a tick moves the clock, so it can be drawn smoothly between ticks.
+    expect(dateOf(0, 0.5).hour).toBeGreaterThan(START_HOUR);
+    expect(dateOf(0, 0.5).hour).toBeLessThan(dateOf(1).hour);
+    expect(dateOf(TICKS_PER_HOUR * (24 - START_HOUR))).toMatchObject({ hour: 0, month: 1, totalDays: 1 });
+    expect(dateOf(TICKS_PER_DAY * 12).year).toBe(START_YEAR + 1);
+    // Each day stands for a month, and two months make a season: day five is Shravana, in the monsoon.
+    const fifth = dateOf(TICKS_PER_DAY * 4);
+    expect(MONTH_NAMES[fifth.month]).toBe('Shravana');
+    expect(SEASONS[fifth.season]!.english).toBe('Monsoon');
+    expect(TICKS_PER_HOUR * TICK_MS).toBe(60_000);
   });
 
   it('accepts and validates speed commands', () => {

@@ -64,7 +64,7 @@ export function departmentStress(sim: Sim): Record<MinistryId, { stress: number;
   const noClinic = uncovered(sim, Service.Health);
   const noSchool = uncovered(sim, Service.Education);
   const noPolice = uncovered(sim, Service.Police);
-  // Today's projection, not last month's books: the same figure every agent is shown.
+  // Today's projection, not last hour's books: the same figure every agent is shown.
   const net = projectBudget(s.buildings, s.roads, s.tax, s.loans, st, emptyReport(), s.policies, s.metro).net;
   const runway = net < 0 ? s.funds / -net : Infinity;
   const demand = Math.max(st.demand[1], st.demand[2], st.demand[3]);
@@ -75,7 +75,7 @@ export function departmentStress(sim: Sim): Record<MinistryId, { stress: number;
     safety: { stress: clamp01(noPolice), kpi: `${pct(noPolice)} of residents without police cover` },
     education: { stress: clamp01(noSchool), kpi: `${pct(noSchool)} of residents without a school` },
     environment: { stress: clamp01(polluted * 2), kpi: `${pct(polluted)} of residents in polluted air` },
-    finance: { stress: s.sandbox ? 0 : net < 0 ? clamp01(1 - runway / 18) : s.funds < 10000 ? 0.4 : 0, kpi: net < 0 ? `losing $${Math.round(-net).toLocaleString('en-US')} a month` : `monthly balance +$${Math.round(net).toLocaleString('en-US')}` },
+    finance: { stress: s.sandbox ? 0 : net < 0 ? clamp01(1 - runway / 18) : s.funds < 10000 ? 0.4 : 0, kpi: net < 0 ? `losing $${Math.round(-net).toLocaleString('en-US')} an hour` : `hourly balance +$${Math.round(net).toLocaleString('en-US')}` },
     planning: { stress: clamp01(demand), kpi: `unmet demand ${Math.round(demand * 100)} of 100` },
     welfare: { stress: clamp01((0.6 - st.happiness) / 0.6 + unemployment * 0.5), kpi: `happiness ${pct(st.happiness)}, unemployment ${pct(unemployment)}` },
   };
@@ -102,7 +102,7 @@ export function triage(sim: Sim, issue: CityIssue, options: readonly CouncilOpti
     signals.set(id, list);
   };
 
-  const costly = any((o) => o.cost > 0 || o.monthly > 0);
+  const costly = any((o) => o.cost > 0 || o.hourly > 0);
   if (costly.length) add('finance', 2 + Math.min(3, (Math.max(...costly.map((o) => o.cost)) / Math.max(1, sim.state.funds)) * 10), `options ${ids(costly)} cost money`);
   const unaffordable = any((o) => o.feasibility.status === 'unaffordable' || o.feasibility.status === 'needs_loan');
   if (unaffordable.length) add('finance', 5, `options ${ids(unaffordable)} cost more than the treasury holds`);

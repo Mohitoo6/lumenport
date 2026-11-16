@@ -152,7 +152,7 @@ export class CachedTransport implements Transport {
   }
 }
 
-const NO_LIMITS: FiscalLimits = { sandbox: true, treasury: 0, monthlyNet: 0, loanHeadroom: 0, spendCeiling: Infinity, runwayMonths: null };
+const NO_LIMITS: FiscalLimits = { sandbox: true, treasury: 0, hourlyNet: 0, loanHeadroom: 0, spendCeiling: Infinity, runwayHours: null };
 
 /**
  * The offline council: every turn is taken by the deterministic policy agents

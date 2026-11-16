@@ -20,8 +20,8 @@ import { ZoneType, zoneType } from '../../sim/zoning/zones';
 export interface StateDelta {
   /** Treasury change the moment the option is approved (negative = money spent). */
   budgetDelta: number;
-  /** Change to the projected monthly balance (negative = the city is worse off each month). */
-  monthlyNetDelta: number;
+  /** Change to the projected hourly balance (negative = the city is worse off each hour). */
+  hourlyNetDelta: number;
   /** Tax change in percentage points: homes, shops, industry. */
   taxRateDelta: [number, number, number];
   /** New debt to repay, interest included. */
@@ -55,7 +55,7 @@ const JAM_PER_100M: Record<number, number> = { 0: 7, 1: 11 };
 /** The scalar facts of a world that an option can change. */
 export interface Snapshot {
   funds: number;
-  monthlyNet: number;
+  hourlyNet: number;
   tax: [number, number, number];
   debt: number;
   power: number;
@@ -99,7 +99,7 @@ export function snapshot(sim: Sim, withHappiness = false): Snapshot {
     roadCapacity += (e.length / 100) * (JAM_PER_100M[e.type] ?? 7);
   }
   let debt = 0;
-  for (const l of s.loans) debt += l.payment * l.monthsLeft;
+  for (const l of s.loans) debt += l.payment * l.hoursLeft;
   if (withHappiness) {
     sim.refreshUtilities();
     sim.refreshFields();
@@ -108,7 +108,7 @@ export function snapshot(sim: Sim, withHappiness = false): Snapshot {
     funds: s.funds,
     // Taxed on the people actually housed, so residents who lose their home stop counting
     // at once (the city's own population figure only catches up at the next day's census).
-    monthlyNet: projectBudget(s.buildings, s.roads, s.tax, s.loans, { ...s.stats, population: Math.min(s.stats.population, residents) }, emptyReport(), s.policies, s.metro).net,
+    hourlyNet: projectBudget(s.buildings, s.roads, s.tax, s.loans, { ...s.stats, population: Math.min(s.stats.population, residents) }, emptyReport(), s.policies, s.metro).net,
     tax: [s.tax[1], s.tax[2], s.tax[3]],
     debt,
     power,
@@ -133,7 +133,7 @@ export function diff(before: Snapshot, after: Snapshot): StateDelta {
   const flexFactor = rushFactor(18, true) / rushFactor(18);
   return {
     budgetDelta: Math.round(after.funds - before.funds),
-    monthlyNetDelta: Math.round(after.monthlyNet - before.monthlyNet),
+    hourlyNetDelta: Math.round(after.hourlyNet - before.hourlyNet),
     taxRateDelta: [after.tax[0] - before.tax[0], after.tax[1] - before.tax[1], after.tax[2] - before.tax[2]],
     debtDelta: Math.round(after.debt - before.debt),
     powerSupplyDelta: round1(after.power - before.power),
@@ -152,7 +152,7 @@ export function diff(before: Snapshot, after: Snapshot): StateDelta {
 
 export const NO_DELTA: StateDelta = {
   budgetDelta: 0,
-  monthlyNetDelta: 0,
+  hourlyNetDelta: 0,
   taxRateDelta: [0, 0, 0],
   debtDelta: 0,
   powerSupplyDelta: 0,
@@ -221,13 +221,13 @@ export function baselineOf(sim: Sim, withApproval: boolean): Snapshot {
 export interface FiscalLimits {
   sandbox: boolean;
   treasury: number;
-  monthlyNet: number;
+  hourlyNet: number;
   /** Money the city could still borrow: the loan tiers not yet taken. */
   loanHeadroom: number;
   /** The most that could be spent today: treasury plus every loan still available. */
   spendCeiling: number;
-  /** Months until the treasury is empty at the current monthly loss; null when not losing money. */
-  runwayMonths: number | null;
+  /** Hours until the treasury is empty at the current hourly loss; null when not losing money. */
+  runwayHours: number | null;
 }
 
 export function fiscalLimits(sim: Sim): FiscalLimits {
@@ -240,10 +240,10 @@ export function fiscalLimits(sim: Sim): FiscalLimits {
   return {
     sandbox: s.sandbox,
     treasury: Math.floor(s.funds),
-    monthlyNet: net,
+    hourlyNet: net,
     loanHeadroom: headroom,
     spendCeiling: s.sandbox ? Infinity : Math.floor(s.funds) + headroom,
-    runwayMonths: net < 0 && !s.sandbox ? Math.max(0, Math.floor(s.funds / -net)) : null,
+    runwayHours: net < 0 && !s.sandbox ? Math.max(0, Math.floor(s.funds / -net)) : null,
   };
 }
 
@@ -314,7 +314,7 @@ export interface ExecutionReport {
 /** The payload fields that take effect at once, and so can be checked after the commit. */
 const IMMEDIATE: Array<[string, (d: StateDelta) => number]> = [
   ['budgetDelta', (d) => d.budgetDelta],
-  ['monthlyNetDelta', (d) => d.monthlyNetDelta],
+  ['hourlyNetDelta', (d) => d.hourlyNetDelta],
   ['taxRateDelta.homes', (d) => d.taxRateDelta[0]],
   ['taxRateDelta.shops', (d) => d.taxRateDelta[1]],
   ['taxRateDelta.industry', (d) => d.taxRateDelta[2]],

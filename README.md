@@ -28,12 +28,20 @@ going on: power, water, traffic, pollution, crime, land value, happiness and cov
 | Use a tool | Left click (drag to zone). Right click or Esc steps back |
 | Inspect a building | Click it with no tool selected |
 | Bulldoze / curved roads | X / C |
-| Speed | Space to pause, 1 2 3 |
+| Speed | Space to pause, 1 2 3 (normal, twice, four times as quick) |
 | Budget / data views / menu | B / V / M |
-| Time of day | Click the clock: Auto, Day, Night |
+| Light | Click the clock: Auto, Day, Night. The clock itself always shows the city's time |
 | Dev overlay | ` (backtick) |
 
 Cities are saved in the browser (Menu, M): three slots plus an autosave every two minutes.
+
+## Time
+
+The city has one clock. A game hour takes a real minute at normal speed; the budget settles
+on the hour, so every income and upkeep figure is per hour. Twenty-four hours make a day,
+with rush hours at about 9:00 and 18:00, and the sun follows the same clock. The calendar is
+the Indian one: each day stands for a month (Chaitra, Vaishakha, ...), and two months make a
+season.
 
 ## AI city council
 

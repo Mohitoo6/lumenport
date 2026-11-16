@@ -89,13 +89,13 @@ export function checkOption(option: CouncilOption, limits: FiscalLimits): Findin
       ? flag('affordable_now', 'warn', `Needs ${usd(spend - limits.treasury)} more than the treasury holds: a loan has to come first.`)
       : pass('affordable_now', spend > 0 ? `The treasury (${usd(limits.treasury)}) covers it.` : 'No upfront spending.'),
   );
-  // What is left, against the monthly balance the option leaves behind.
+  // What is left, against the hourly balance the option leaves behind.
   const left = limits.treasury + option.effects.budgetDelta;
-  const net = limits.monthlyNet + option.effects.monthlyNetDelta;
+  const net = limits.hourlyNet + option.effects.hourlyNetDelta;
   if (spend <= limits.treasury && net < 0) {
-    const months = Math.floor(left / -net);
-    out.push(months < 6 ? flag('keeps_runway', 'warn', `Leaves ${usd(left)} with the city losing ${usd(net)} a month: about ${Math.max(0, months)} months of money.`) : pass('keeps_runway', `Leaves about ${months} months of money at ${usd(net)} a month.`));
-  } else if (spend <= limits.treasury) out.push(pass('keeps_runway', `Leaves ${usd(left)} and a monthly balance of ${net < 0 ? '-' : '+'}${usd(net)}.`));
+    const hours = Math.floor(left / -net);
+    out.push(hours < 6 ? flag('keeps_runway', 'warn', `Leaves ${usd(left)} with the city losing ${usd(net)} an hour: about ${Math.max(0, hours)} hours of money.`) : pass('keeps_runway', `Leaves about ${hours} hours of money at ${usd(net)} an hour.`));
+  } else if (spend <= limits.treasury) out.push(pass('keeps_runway', `Leaves ${usd(left)} and an hourly balance of ${net < 0 ? '-' : '+'}${usd(net)}.`));
   return out;
 }
 

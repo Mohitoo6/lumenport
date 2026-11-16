@@ -76,12 +76,12 @@ describe('JSON Schema sent to the provider', () => {
 
 describe('grounding check', () => {
   it('reads money shorthand', () => {
-    expect(numbersIn('about $90k, or 1,250 a month')).toEqual([90000, 1250]);
+    expect(numbersIn('about $90k, or 1,250 an hour')).toEqual([90000, 1250]);
     expect(numbersIn('412 m away')).toEqual([412]);
   });
 
   it('accepts figures that were shown, rounded, or summed from two shown figures', () => {
-    const seen = 'Treasury $91,155. Costs $5,500 now and $340 a month. 298 residents.';
+    const seen = 'Treasury $91,155. Costs $5,500 now and $340 an hour. 298 residents.';
     expect(checkNumbers('A treasury over $90k covers the $5,500.', seen).ungrounded).toEqual([]);
     expect(checkNumbers('That is $5,840 in the first month.', seen).ungrounded).toEqual([]);
     expect(checkNumbers('It helps 4,750 residents.', seen).ungrounded).toEqual([4750]);

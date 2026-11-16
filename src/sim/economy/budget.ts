@@ -9,34 +9,34 @@ export interface Policies {
   flexHours?: boolean;
 }
 
-/** Monthly cost of each policy while it is in force. */
+/** Hourly cost of each policy while it is in force. */
 export const POLICY_COST: Record<keyof Policies, number> = { flexHours: 350 };
 
 export interface Loan {
   tier: number;
-  /** Fixed monthly payment (principal plus interest). */
+  /** Fixed hourly payment (principal plus interest). */
   payment: number;
-  monthsLeft: number;
+  hoursLeft: number;
 }
 
 export interface LoanTier {
   amount: number;
-  months: number;
+  hours: number;
   /** Simple annual interest rate. */
   rate: number;
 }
 
 export const LOAN_TIERS: readonly LoanTier[] = [
-  { amount: 20000, months: 24, rate: 0.06 },
-  { amount: 50000, months: 36, rate: 0.08 },
-  { amount: 120000, months: 48, rate: 0.1 },
+  { amount: 20000, hours: 24, rate: 0.06 },
+  { amount: 50000, hours: 36, rate: 0.08 },
+  { amount: 120000, hours: 48, rate: 0.1 },
 ];
 
 export function loanPayment(t: LoanTier): number {
-  return Math.round((t.amount * (1 + (t.rate * t.months) / 12)) / t.months);
+  return Math.round((t.amount * (1 + (t.rate * t.hours) / 12)) / t.hours);
 }
 
-/** One month's money in and out. */
+/** One hour's money in and out. */
 export interface BudgetReport {
   taxR: number;
   taxC: number;
@@ -58,11 +58,11 @@ export function emptyReport(): BudgetReport {
   return { taxR: 0, taxC: 0, taxI: 0, roads: 0, utilities: 0, services: 0, transit: 0, fares: 0, loans: 0, income: 0, expense: 0, net: 0 };
 }
 
-/** Monthly tax per resident or worker at a 1% rate. */
+/** Hourly tax per resident or worker at a 1% rate. */
 const TAX_BASE = { r: 0.15, c: 0.26, i: 0.2 };
 
 /**
- * What the city would earn and spend in a month as it stands today. Called at each month
+ * What the city would earn and spend in an hour as it stands today. Called at each hour
  * end to settle the books, and by the HUD at any time to show a projection.
  */
 export function projectBudget(

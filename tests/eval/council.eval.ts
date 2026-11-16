@@ -46,7 +46,7 @@ export interface MeetingRecord {
   group: 'issue' | 'hindi' | 'constraint' | 'counterfactual';
   variant?: string;
   issue: { kind: string; title: string; lead: MinistryId; facts: string[] };
-  options: Array<{ id: string; title: string; cost: number; monthly: number; facts: string[]; displacedHomes: number; jobsLost: number; hasActions: boolean }>;
+  options: Array<{ id: string; title: string; cost: number; hourly: number; facts: string[]; displacedHomes: number; jobsLost: number; hasActions: boolean }>;
   seats: Array<{ id: MinistryId; reason: string }>;
   note: string;
   lang: Lang;
@@ -84,7 +84,7 @@ function speakerTransport(providers: Provider[], calls: Map<string, string>): Tr
 }
 
 function optionView(o: CouncilOption): MeetingRecord['options'][number] {
-  return { id: o.id, title: o.title, cost: o.cost, monthly: o.monthly, facts: o.facts, displacedHomes: o.impact.displacedHomes, jobsLost: o.impact.jobsLost, hasActions: o.actions.length > 0 };
+  return { id: o.id, title: o.title, cost: o.cost, hourly: o.hourly, facts: o.facts, displacedHomes: o.impact.displacedHomes, jobsLost: o.impact.jobsLost, hasActions: o.actions.length > 0 };
 }
 
 interface MeetingSpec {

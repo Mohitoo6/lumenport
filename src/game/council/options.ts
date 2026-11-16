@@ -49,8 +49,8 @@ export interface CouncilOption {
   /** One sentence every agent is shown: what this does about the problem. */
   gist: string;
   cost: number;
-  /** Change to monthly spending (upkeep, loan payment) or income (negative = more income). */
-  monthly: number;
+  /** Change to hourly spending (upkeep, loan payment) or income (negative = more income). */
+  hourly: number;
   facts: string[];
   /** Exactly what the game does if the mayor approves this option. */
   actions: Command[];
@@ -184,7 +184,7 @@ function reliefRoad(sim: Sim, edgeId: number): Draft | null {
     title: `New relief street parallel to ${name}`,
     gist: `A second route: a ${Math.round(plan.length)} m street ${best.offset} m ${side} of ${name}, joined to the network at ${joins} points.`,
     cost: plan.cost,
-    monthly: Math.round(plan.length * ROAD_SPECS[RoadType.Street].upkeep),
+    hourly: Math.round(plan.length * ROAD_SPECS[RoadType.Street].upkeep),
     facts: [
       `A ${Math.round(plan.length)} m two-lane street about ${best.offset} m to the ${side} of ${name}, joining the network at ${joins} points, so drivers get a second route.`,
       under.buildings.length ? `It cuts through existing lots: demolishes ${people.text}.` : 'It runs over open land: no buildings demolished.',
@@ -221,7 +221,7 @@ function widenRoad(sim: Sim, edgeId: number): Draft | null {
     title: `Widen ${name} to a four-lane avenue`,
     gist: `Roughly doubles the capacity of this ${Math.round(e.length)} m segment, and draws more traffic onto it.`,
     cost: plan.cost,
-    monthly: extra,
+    hourly: extra,
     facts: [
       `Rebuilds this ${Math.round(e.length)} m segment with two lanes each way and a median: roughly double the capacity, and more traffic drawn onto it.`,
       plan.displaced.length ? `The wider road (32 m) takes the front of neighbouring lots: demolishes ${people.text}.` : 'The extra width fits: no buildings demolished.',
@@ -246,9 +246,9 @@ function flexHours(sim: Sim): Draft | null {
     title: 'Staggered office hours (policy)',
     gist: 'Cuts the rush-hour peak by about a third by spreading it out; nothing is built and it can be dropped later.',
     cost: 0,
-    monthly: POLICY_COST.flexHours,
+    hourly: POLICY_COST.flexHours,
     facts: [
-      `The city pays employers ${money(POLICY_COST.flexHours)} a month to spread start and finish times.`,
+      `The city pays employers ${money(POLICY_COST.flexHours)} an hour to spread start and finish times.`,
       'Traffic at the height of the morning and evening rush drops by about a third, spread over a longer period; the number of trips stays the same.',
       'Nothing is built or demolished. It can be dropped later.',
     ],
@@ -331,7 +331,7 @@ function facilityOption(sim: Sim, kind: FacilityKind, sites: Site[], purpose: st
     title: n > 1 ? `Build ${n} ${spec.name.toLowerCase()}s` : `Build a ${spec.name.toLowerCase()}`,
     gist: `${purpose} Nearest homes ${metres(homesM)}.`,
     cost: spec.cost * n,
-    monthly: spec.upkeep * n,
+    hourly: spec.upkeep * n,
     facts,
     actions: sites.map((s) => ({ type: 'placeFacility', kind, x: s.i, y: s.j }) as Command),
     impact: {
@@ -416,7 +416,7 @@ function pollutionOptions(sim: Sim, issue: CityIssue): Draft[] {
       title: 'Re-zone the worst-hit homes for shops',
       gist: `Moves ${people.residents} residents out of the worst air instead of cleaning it; shops replace their homes.`,
       cost: 0,
-      monthly: 0,
+      hourly: 0,
       facts: [
         `Demolishes ${people.text} where pollution is above 40%; shops can grow there instead.`,
         'Ends the exposure for those residents by moving them out, rather than cleaning the air.',
@@ -435,11 +435,11 @@ function pollutionOptions(sim: Sim, issue: CityIssue): Draft[] {
       title: 'Close the coal power plant',
       gist: `Removes the biggest polluter; power supply falls to ${after.toFixed(0)} MW against ${st.powerDemand.toFixed(1)} MW of demand${after < st.powerDemand ? ' (a shortage)' : ''}.`,
       cost: 0,
-      monthly: -FACILITIES[FacilityKind.CoalPlant]!.upkeep,
+      hourly: -FACILITIES[FacilityKind.CoalPlant]!.upkeep,
       facts: [
         `Removes the biggest polluter ${describePlace(sim, buildingCentre(coal).x, buildingCentre(coal).z)}.`,
         `Power supply would fall from ${st.powerSupply.toFixed(0)} MW to ${after.toFixed(0)} MW against a demand of ${st.powerDemand.toFixed(1)} MW${after < st.powerDemand ? ': the city would be short of power' : ''}.`,
-        `Saves ${money(FACILITIES[FacilityKind.CoalPlant]!.upkeep)} a month in upkeep.`,
+        `Saves ${money(FACILITIES[FacilityKind.CoalPlant]!.upkeep)} an hour in upkeep.`,
       ],
       actions: [{ type: 'bulldozeBuilding', id: coal.id }],
       impact: { ...NO_IMPACT, green: true, powerCut: true },
@@ -465,11 +465,11 @@ function budgetOptions(sim: Sim): Draft[] {
   const g1 = gain(all);
   out.push({
     title: 'Raise all taxes by 2 points',
-    gist: `About ${money(g1)} more a month; slows growth in every zone and lowers happiness.`,
+    gist: `About ${money(g1)} more an hour; slows growth in every zone and lowers happiness.`,
     cost: 0,
-    monthly: -g1,
+    hourly: -g1,
     facts: [
-      `Rates go to ${all[1]}% / ${all[2]}% / ${all[3]}% (homes / shops / industry): about ${money(g1)} more a month.`,
+      `Rates go to ${all[1]}% / ${all[2]}% / ${all[3]}% (homes / shops / industry): about ${money(g1)} more an hour.`,
       'Higher taxes slow growth of every zone and lower residents’ happiness.',
     ],
     actions: [1, 2, 3].map((z) => ({ type: 'setTax', zone: z, rate: all[z]! }) as Command),
@@ -479,11 +479,11 @@ function budgetOptions(sim: Sim): Draft[] {
   const g2 = gain(biz);
   out.push({
     title: 'Raise business taxes by 3 points',
-    gist: `About ${money(g2)} more a month from shops and industry; slows job growth, homes untouched.`,
+    gist: `About ${money(g2)} more an hour from shops and industry; slows job growth, homes untouched.`,
     cost: 0,
-    monthly: -g2,
+    hourly: -g2,
     facts: [
-      `Shops and industry go to ${biz[2]}% and ${biz[3]}%; homes unchanged: about ${money(g2)} more a month.`,
+      `Shops and industry go to ${biz[2]}% and ${biz[3]}%; homes unchanged: about ${money(g2)} more an hour.`,
       'Slows job growth; residents are not taxed more.',
     ],
     actions: [2, 3].map((z) => ({ type: 'setTax', zone: z, rate: biz[z]! }) as Command),
@@ -494,10 +494,10 @@ function budgetOptions(sim: Sim): Draft[] {
     const t = LOAN_TIERS[tier]!;
     out.push({
       title: `Take a ${money(t.amount)} loan`,
-      gist: `${money(t.amount)} now, repaid at ${money(loanPayment(t))} a month for ${t.months} months: buys time, deepens the monthly deficit.`,
+      gist: `${money(t.amount)} now, repaid at ${money(loanPayment(t))} an hour for ${t.hours} hours: buys time, deepens the hourly deficit.`,
       cost: -t.amount,
-      monthly: loanPayment(t),
-      facts: [`Adds ${money(t.amount)} now; repaid at ${money(loanPayment(t))} a month for ${t.months} months (${Math.round(t.rate * 100)}% interest).`, 'Buys time, but makes the monthly deficit worse until it is repaid.'],
+      hourly: loanPayment(t),
+      facts: [`Adds ${money(t.amount)} now; repaid at ${money(loanPayment(t))} an hour for ${t.hours} hours (${Math.round(t.rate * 100)}% interest).`, 'Buys time, but makes the hourly deficit worse until it is repaid.'],
       actions: [{ type: 'takeLoan', tier }],
       impact: { ...NO_IMPACT },
     });
@@ -574,7 +574,7 @@ function zoneOption(sim: Sim, site: ZoneSite, type: ZoneType, density: 1 | 2, wh
     title: `Zone new land for ${label}`,
     gist: `About ${site.cells} empty plots ${describePlace(sim, cx, cz)} for ${label}. ${why}`,
     cost: 0,
-    monthly: 0,
+    hourly: 0,
     facts: [
       `About ${site.cells} plots of empty land ${describePlace(sim, cx, cz)}, zoned for ${label} (${density === 1 ? 'low' : 'medium'} density). ${why}`,
       `Nearest existing homes: ${metres(site.homesM)}.`,
@@ -652,7 +652,7 @@ export function optionsFor(sim: Sim, issue: CityIssue): CouncilOption[] {
     title: 'Take no action for now',
     gist: 'Nothing is built or changed; the problem is likely to continue.',
     cost: 0,
-    monthly: 0,
+    hourly: 0,
     facts: ['Nothing is built or changed. The problem is likely to continue.'],
     actions: [],
     impact: { ...NO_IMPACT },
@@ -668,9 +668,9 @@ export function optionsFor(sim: Sim, issue: CityIssue): CouncilOption[] {
     // The fork is the source of truth for money. Where it disagrees with the estimate the
     // option was drafted with (demolished shops and homes stop paying tax), say so.
     const cost = -p.delta.budgetDelta;
-    const monthly = -p.delta.monthlyNetDelta;
-    const facts = Math.abs(monthly - d.monthly) > 1 ? [...d.facts, `Counting the tax lost from what it demolishes, the monthly balance changes by ${money(-monthly)} in all.`] : d.facts;
-    out.push({ ...d, cost, monthly, facts, id: String.fromCharCode(65 + out.length), effects: p.delta, feasibility: feasibility(limits, p) });
+    const hourly = -p.delta.hourlyNetDelta;
+    const facts = Math.abs(hourly - d.hourly) > 1 ? [...d.facts, `Counting the tax lost from what it demolishes, the hourly balance changes by ${money(-hourly)} in all.`] : d.facts;
+    out.push({ ...d, cost, hourly, facts, id: String.fromCharCode(65 + out.length), effects: p.delta, feasibility: feasibility(limits, p) });
   }
   return out;
 }

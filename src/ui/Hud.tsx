@@ -43,9 +43,9 @@ const QUALITY_NOTE: Record<QualityId, string> = {
 
 const SPEEDS: Array<{ speed: Speed; label: string; icon: () => JSX.Element; key: string }> = [
   { speed: 0, label: 'Pause', icon: () => <IconPause />, key: 'Space' },
-  { speed: 1, label: 'Normal speed', icon: () => <IconPlay />, key: '1' },
-  { speed: 2, label: 'Fast', icon: () => <IconFast />, key: '2' },
-  { speed: 3, label: 'Fastest', icon: () => <IconFaster />, key: '3' },
+  { speed: 1, label: 'Normal speed: a game hour takes a minute', icon: () => <IconPlay />, key: '1' },
+  { speed: 2, label: 'Fast: twice as quick', icon: () => <IconFast />, key: '2' },
+  { speed: 3, label: 'Fastest: four times as quick, a day in six minutes', icon: () => <IconFaster />, key: '3' },
 ];
 
 const TIME_LABEL = { auto: 'Auto', day: 'Day', night: 'Night' } as const;
@@ -74,7 +74,7 @@ function Stats(): JSX.Element {
       <button type="button" class={`stat stat-btn${ui.showBudget.value ? ' is-open' : ''}`} title="Budget (B)" aria-expanded={ui.showBudget.value} onClick={() => (ui.showBudget.value = !ui.showBudget.value)}>
         <span class="label">Funds</span>
         <span class="stat-value">{sandbox ? 'Unlimited' : usd(ui.funds.value)}</span>
-        {!sandbox && <span class={`stat-sub ${net >= 0 ? 'good' : 'bad'}`}>{`${net >= 0 ? '+' : ''}${usd(net)} / mo`}</span>}
+        {!sandbox && <span class={`stat-sub ${net >= 0 ? 'good' : 'bad'}`}>{`${net >= 0 ? '+' : ''}${usd(net)} / hour`}</span>}
       </button>
       <div class="stat">
         <span class="label">Population</span>
@@ -158,7 +158,7 @@ function BudgetPanel(): JSX.Element | null {
       </section>
 
       <section>
-        <h3 class="label">This month, as things stand</h3>
+        <h3 class="label">This hour, as things stand</h3>
         {row('Residential tax', b.taxR, 1)}
         {row('Commercial tax', b.taxC, 1)}
         {row('Industrial tax', b.taxI, 1)}
@@ -188,7 +188,7 @@ function BudgetPanel(): JSX.Element | null {
             <div class="loan" key={i}>
               <div>
                 <div>{usd(t.amount)}</div>
-                <div class="muted">{taken ? `${taken.monthsLeft} payments of ${usd(taken.payment)} left` : `${usd(loanPayment(t))} / mo for ${t.months} months`}</div>
+                <div class="muted">{taken ? `${taken.hoursLeft} payments of ${usd(taken.payment)} left` : `${usd(loanPayment(t))} an hour for ${t.hours} hours`}</div>
               </div>
               <button type="button" class="btn" disabled={!!taken} onClick={() => actions.takeLoan(i)}>
                 {taken ? 'Active' : 'Borrow'}
@@ -375,7 +375,7 @@ function TopBar(): JSX.Element {
         ))}
       </div>
       <Stats />
-      <button type="button" class="panel clock" title={`Time of day: ${TIME_LABEL[ui.timeMode.value]}. Click to change.`} onClick={() => actions.cycleTimeMode()}>
+      <button type="button" class="panel clock" title={`The city's time of day. Light: ${TIME_LABEL[ui.timeMode.value]}. Click to keep daylight or night on screen; the clock and the traffic keep their real time.`} onClick={() => actions.cycleTimeMode()}>
         {ui.isNight.value ? <IconMoon /> : <IconSun />}
         <span class="clock-time">{ui.clock.value}</span>
         <span class="label">{TIME_LABEL[ui.timeMode.value]}</span>

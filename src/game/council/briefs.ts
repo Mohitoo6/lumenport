@@ -63,7 +63,7 @@ export function briefing(sim: Sim, id: MinistryId): string[] {
       return [
         `Vehicles on the road now: ${sim.traffic.count}. Speed lost to queues city-wide: ${pct(st.congestion)}.`,
         `Busiest roads: ${busiest.join('; ') || 'none'}.`,
-        `Road network: ${(length / 1000).toFixed(1)} km; upkeep ${money(r.roads)} a month.`,
+        `Road network: ${(length / 1000).toFixed(1)} km; upkeep ${money(r.roads)} an hour.`,
         `Policy: staggered office hours ${s.policies?.flexHours ? 'in force' : 'not in force'}.`,
       ];
     }
@@ -98,10 +98,10 @@ export function briefing(sim: Sim, id: MinistryId): string[] {
       ];
     case 'finance': {
       // The city as it stands today, the same projection the shared budget line uses, so
-      // Finance never sees two different figures for the monthly balance.
+      // Finance never sees two different figures for the hourly balance.
       const b = projectBudget(s.buildings, s.roads, s.tax, s.loans, st, emptyReport(), s.policies, s.metro);
       return [
-        s.sandbox ? 'Sandbox city: money is unlimited.' : `Monthly income ${money(b.income)}, spending ${money(b.expense)}: roads ${money(b.roads)}, utilities ${money(b.utilities)}, services ${money(b.services)}, loan repayments ${money(b.loans)}.`,
+        s.sandbox ? 'Sandbox city: money is unlimited.' : `Hourly income ${money(b.income)}, spending ${money(b.expense)}: roads ${money(b.roads)}, utilities ${money(b.utilities)}, services ${money(b.services)}, loan repayments ${money(b.loans)}.`,
         `Tax rates: homes ${s.tax[1]}%, shops ${s.tax[2]}%, industry ${s.tax[3]}%. Loans outstanding: ${s.loans.length}.`,
       ];
     }

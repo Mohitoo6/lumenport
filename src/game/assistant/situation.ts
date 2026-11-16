@@ -1,4 +1,4 @@
-import { MAP, MONTH_NAMES } from '../../core/constants';
+import { MAP, MONTH_NAMES, SEASONS, START_YEAR } from '../../core/constants';
 import { emptyReport, projectBudget } from '../../sim/economy/budget';
 import { FACILITIES, FacilityKind } from '../../sim/facilities';
 import type { Sim } from '../../sim/sim';
@@ -78,8 +78,8 @@ export function citySituation(sim: Sim, extra: { refusals: readonly Refusal[]; i
   const usd = (n: number): string => `${n < 0 ? '-' : ''}$${Math.abs(Math.round(n)).toLocaleString('en-US')}`;
   const budget = projectBudget(s.buildings, s.roads, s.tax, s.loans, st, emptyReport(), s.policies, s.metro);
   const lines: string[] = [];
-  lines.push(`City: ${s.cityName}. Date ${d.day} ${MONTH_NAMES[d.month]} ${d.year}, ${String(Math.floor(extra.hour)).padStart(2, '0')}:00. Speed ${s.speed === 0 ? 'paused' : s.speed}.${s.sandbox ? ' Sandbox mode (unlimited money, no utilities needed).' : ''}`);
-  lines.push(`Money: ${s.sandbox ? 'unlimited' : usd(s.funds)}; projected monthly ${budget.net >= 0 ? 'surplus' : 'deficit'} ${usd(budget.net)} (income ${usd(budget.income)}, spending ${usd(budget.expense)}: roads ${usd(budget.roads)}, utilities ${usd(budget.utilities)}, services ${usd(budget.services)}, loans ${usd(budget.loans)}). Taxes: homes ${s.tax[1]}%, shops ${s.tax[2]}%, industry ${s.tax[3]}%. Loans: ${s.loans.length}.`);
+  lines.push(`City: ${s.cityName}. ${MONTH_NAMES[d.month]} (${SEASONS[d.season]!.english.toLowerCase()}), year ${d.year - START_YEAR + 1}, ${String(Math.floor(extra.hour)).padStart(2, '0')}:00. Speed ${s.speed === 0 ? 'paused' : s.speed}.${s.sandbox ? ' Sandbox mode (unlimited money, no utilities needed).' : ''}`);
+  lines.push(`Money: ${s.sandbox ? 'unlimited' : usd(s.funds)}; projected hourly ${budget.net >= 0 ? 'surplus' : 'deficit'} ${usd(budget.net)} (income ${usd(budget.income)}, spending ${usd(budget.expense)}: roads ${usd(budget.roads)}, utilities ${usd(budget.utilities)}, services ${usd(budget.services)}, loans ${usd(budget.loans)}). Taxes: homes ${s.tax[1]}%, shops ${s.tax[2]}%, industry ${s.tax[3]}%. Loans: ${s.loans.length}.`);
   lines.push(`People: ${st.population} residents, ${st.employed} employed, homes for ${st.housing}; jobs: shops ${st.jobsC}, industry ${st.jobsI}. Happiness ${Math.round(st.happiness * 100)}%.`);
   const dem = (v: number): string => `${v > 0.02 ? '+' : ''}${Math.round(v * 100)}%`;
   lines.push(`Demand: homes ${dem(st.demand[1]!)}, shops ${dem(st.demand[2]!)}, industry ${dem(st.demand[3]!)} (at or below 0 that zone stops growing).`);
@@ -89,7 +89,7 @@ export function citySituation(sim: Sim, extra: { refusals: readonly Refusal[]; i
   const stations = s.buildings.filter((b) => b && b.kind === FacilityKind.MetroStation).length;
   const metroLines = (s.metro?.lines ?? []).filter((l) => l);
   const km = metroLines.reduce((t, l) => t + l!.length, 0) / 1000;
-  lines.push(`Metro: ${stations} station${stations === 1 ? '' : 's'}, ${metroLines.length} line${metroLines.length === 1 ? '' : 's'} (${km.toFixed(1)} km), ${activeStations(s).size} stations connected, ${st.metroRiders ?? 0} daily riders; fares ${usd(budget.fares)}/month, upkeep ${usd(budget.transit)}/month.`);
+  lines.push(`Metro: ${stations} station${stations === 1 ? '' : 's'}, ${metroLines.length} line${metroLines.length === 1 ? '' : 's'} (${km.toFixed(1)} km), ${activeStations(s).size} stations connected, ${st.metroRiders ?? 0} daily riders; fares ${usd(budget.fares)}/hour, upkeep ${usd(budget.transit)}/hour.`);
   const counts = new Map<number, number>();
   let growing = 0;
   let building = 0;

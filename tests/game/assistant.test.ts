@@ -25,7 +25,7 @@ describe('assistant: what it is told', () => {
   it('describes the rules from the game’s own numbers', () => {
     const m = gameManual();
     expect(m).toContain('within 4 cells (32 m) of a road');
-    expect(m).toContain('Clinic: $6,000, $380/month');
+    expect(m).toContain('Clinic: $6,000, $380/hour');
     expect(m).not.toContain('Town Hall:');
   });
 
@@ -117,7 +117,7 @@ describe('assistant: retrieval, schema and grounding', () => {
 
   it('flags a figure that is in neither the rules nor the city data, and records what the call cost', async () => {
     const sim = starterTown();
-    const answers = ['A clinic costs $6,000 and $380 a month.', 'A clinic costs $41,250.'];
+    const answers = ['A clinic costs $6,000 and $380 an hour.', 'A clinic costs $41,250.'];
     const c = new AssistantController(host(sim), async () => ({ text: JSON.stringify({ answer: answers.shift(), actions: [] }), provider: 'test-model', usage: { prompt: 900, completion: 30, reasoning: 0 }, latencyMs: 1200 }));
     const calls: AssistantCall[] = [];
     c.onCall = (call) => calls.push(call);
@@ -137,8 +137,8 @@ describe('assistant: language and fallback', () => {
   });
 
   it('answers the question asked when offline: money gets the budget, not unrelated warnings', () => {
-    const r = offlineReply(['Water shortage'], [{ key: 'water:1', title: 'Water shortage', severity: 0.9 }], false, 'Why is my money going down?', { money: '$4,000 in hand, -$900 a month' });
-    expect(r.answer).toContain('-$900 a month');
+    const r = offlineReply(['Water shortage'], [{ key: 'water:1', title: 'Water shortage', severity: 0.9 }], false, 'Why is my money going down?', { money: '$4,000 in hand, -$900 an hour' });
+    expect(r.answer).toContain('-$900 an hour');
     expect(r.answer).not.toContain('Water');
     expect(r.actions[0]!.type).toBe('budget');
     const t = offlineReply(['Water shortage'], [{ key: 'water:1', title: 'Water shortage', severity: 0.9 }, { key: 'traffic:2', title: 'Gridlock on Canal Street', severity: 0.6 }], false, 'traffic is bad');

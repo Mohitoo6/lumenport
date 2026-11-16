@@ -38,7 +38,7 @@ export interface FacilitySpec {
   /** Footprint side in cells (all footprints are square). */
   size: number;
   cost: number;
-  /** Monthly running cost. */
+  /** Hourly running cost. */
   upkeep: number;
   /** Megawatts supplied. */
   power: number;

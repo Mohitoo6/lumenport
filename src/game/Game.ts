@@ -1,5 +1,5 @@
 import { Vector3 } from 'three';
-import { MONTH_NAMES, TICK_MS, WORLD } from '../core/constants';
+import { MONTH_NAMES, SEASONS, SPEED_FACTOR, START_YEAR, TICK_MS, WORLD } from '../core/constants';
 import { GameAudio } from '../audio/audio';
 import { saves } from '../platform/idb';
 import { cloneState, metaOf, validateState } from '../sim/save/serialize';
@@ -60,8 +60,6 @@ export interface GameOptions {
 }
 
 const MAX_TICKS_PER_FRAME = 8;
-/** Real seconds for one day/night cycle at normal speed. */
-const DAY_SECONDS = 600;
 
 /** Wires the simulation, renderer, input and HUD together and runs the frame loop. */
 export class Game {
@@ -96,6 +94,8 @@ export class Game {
   private lastDay = -1;
   private hudTimer = 1;
   private clockHeld = false;
+  /** A fixed time of day for scripted runs, or null to follow the simulation. */
+  private heldHour: number | null = null;
   readonly audio = new GameAudio();
   council!: CouncilController;
   assistant!: AssistantController;
@@ -270,7 +270,7 @@ export class Game {
       sim,
       issues: () => this.council.issues.map((i) => ({ key: i.key, title: i.title, severity: i.severity })),
       tool: () => this.toolLabel(),
-      hour: () => this.atmosphere.hour,
+      hour: () => this.simHour(),
     });
     // The assistant's calls are counted with the council's: one set of AI numbers.
     this.assistant.onCall = (call) => {
@@ -386,7 +386,9 @@ export class Game {
     ui.showHelp.value = !this.options.shots;
     // Screenshot runs hold the afternoon light unless a test asks otherwise.
     ui.timeMode.value = this.options.shots ? 'day' : 'auto';
-    this.atmosphere.setHour(this.options.shots ? 14.5 : 9);
+    // Scripted runs sit at mid-afternoon, with midday traffic, unless a script sets the time.
+    this.heldHour = this.options.shots ? 14.5 : null;
+    this.atmosphere.setHour(this.options.shots ? 14.5 : this.simHour());
     this.onResize();
 
     // Compile shaders and upload textures before revealing the scene.
@@ -559,7 +561,7 @@ export class Game {
     const state = this.sim.state;
 
     const t0 = performance.now();
-    this.acc += dt * 1000 * state.speed;
+    this.acc += dt * 1000 * SPEED_FACTOR[state.speed];
     let ticks = 0;
     while (this.acc >= TICK_MS && ticks < MAX_TICKS_PER_FRAME) {
       this.sim.tick();
@@ -601,7 +603,7 @@ export class Game {
     this.camPos.copy(cam.position);
     this.advanceClock(dt);
     // Traffic follows the clock the player sees: rush hours at 9:00 and 18:00.
-    this.sim.traffic.hour = this.atmosphere.hour;
+    this.sim.traffic.hour = this.simHour();
     this.council?.update(dt);
     this.atmosphere.update(cam, dt);
     this.roads?.setNight(this.atmosphere.night);
@@ -669,7 +671,8 @@ export class Game {
     const d = dateOf(state.tick);
     if (d.totalDays !== this.lastDay) {
       this.lastDay = d.totalDays;
-      ui.dateLabel.value = `${d.day} ${MONTH_NAMES[d.month]} ${d.year}`;
+      ui.dateLabel.value = `${MONTH_NAMES[d.month]}, Year ${d.year - START_YEAR + 1}`;
+      ui.season.value = SEASONS[d.season]!.id;
     }
     this.hudTimer += dt;
     if (this.hudTimer >= 0.25) {
@@ -685,7 +688,7 @@ export class Game {
       ui.water.value = [st.waterSupply, st.waterDemand];
       ui.sandbox.value = state.sandbox;
       ui.happiness.value = st.happiness;
-      const hr = this.atmosphere.hour;
+      const hr = this.simHour();
       ui.clock.value = `${String(Math.floor(hr)).padStart(2, '0')}:${String(Math.floor((hr % 1) * 60)).padStart(2, '0')}`;
       ui.isNight.value = this.atmosphere.night > 0.5;
       ui.alerts.value = this.alerts();
@@ -799,29 +802,36 @@ export class Game {
   }
 
   /**
-   * Moves the time of day. In auto mode a full day takes ten real minutes at normal speed
-   * (independent of the calendar, so the economy's pace does not make the sun race).
-   * Pinned modes glide to 14:30 or 22:00 and stay there.
+   * The time of day in the city, from the simulation's own clock: the one the calendar,
+   * the budget and the rush hour run on. It moves smoothly between ticks and stops when
+   * the game is paused. A scripted run can hold it at a fixed hour.
+   */
+  simHour(): number {
+    return this.heldHour ?? dateOf(this.sim.state.tick, Math.min(1, this.acc / TICK_MS)).hour;
+  }
+
+  /**
+   * Moves the sky. In auto mode it shows the city's real time of day. The Day and Night
+   * modes pin the light at 14:30 or 22:00 for players who want to build in daylight; the
+   * clock and the traffic keep their real time either way. Changes glide, so a jump (a
+   * loaded city, a mode switch) sweeps the sun across instead of snapping.
    */
   private advanceClock(dt: number): void {
     const atmo = this.atmosphere;
     const mode = ui.timeMode.value;
     if (this.clockHeld) return;
-    if (mode === 'auto') {
-      atmo.hour = (atmo.hour + (dt * this.sim.state.speed * 24) / DAY_SECONDS) % 24;
-    } else {
-      const target = mode === 'day' ? 14.5 : 22;
-      let d = target - atmo.hour;
-      if (d > 12) d -= 24;
-      if (d < -12) d += 24;
-      const step = dt * 6;
-      atmo.hour = Math.abs(d) <= step ? target : (atmo.hour + Math.sign(d) * step + 24) % 24;
-    }
+    const target = mode === 'auto' ? this.simHour() : mode === 'day' ? 14.5 : 22;
+    let d = target - atmo.hour;
+    if (d > 12) d -= 24;
+    if (d < -12) d += 24;
+    const step = dt * 6;
+    atmo.hour = Math.abs(d) <= step ? target : (atmo.hour + Math.sign(d) * step + 24) % 24;
   }
 
   /** Jumps to a time of day and holds the clock there (used by the screenshot runs). */
   setTime(hour: number): void {
     this.clockHeld = true;
+    this.heldHour = ((hour % 24) + 24) % 24;
     this.atmosphere.setHour(hour);
   }
 
@@ -846,7 +856,7 @@ export class Game {
       if (spec.power > 0) rows.push(['Output', `${spec.power} MW`]);
       if (spec.water > 0) rows.push(['Output', `${spec.water.toLocaleString('en-US')} water`]);
       if (spec.service !== Service.None) rows.push(['Reach', `${spec.radius * CELL} m`]);
-      rows.push(['Upkeep', `$${spec.upkeep} / month`]);
+      rows.push(['Upkeep', `$${spec.upkeep} / hour`]);
     } else {
       const t = zoneType(b.zone);
       const cap = capacityOf(b);

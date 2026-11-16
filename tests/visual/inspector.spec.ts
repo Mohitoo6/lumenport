@@ -53,7 +53,7 @@ async function stubModel(page: Page): Promise<{ calls: () => number }> {
       text = JSON.stringify({ speak: true, stance: 'propose', option: final ? 'B' : 'A', say: final ? 'I hear the objections. A relief street still adds capacity, so I can back option B.' : 'This segment is past its jam point at rush hour. I propose option A: widening is the only fix that doubles capacity here.', condition: '' });
     } else if (faulty) {
       // A fenced reply with a renamed key, and a figure nobody was shown.
-      text = '```json\n' + JSON.stringify({ speak: true, stance: 'concern', option: 'B', statement: 'Option A costs us tax every month. Option B is cheaper and saves about $48,750 over the decade, so I back B.', condition: '' }) + '\n```';
+      text = '```json\n' + JSON.stringify({ speak: true, stance: 'concern', option: 'B', statement: 'Option A costs us tax every hour. Option B is cheaper and saves about $48,750 over the decade, so I back B.', condition: '' }) + '\n```';
     } else {
       text = JSON.stringify({ speak: true, stance: 'oppose', option: 'B', say: 'Option A demolishes a workplace when open land is available. I back option B, which displaces nobody.', condition: 'no demolition' });
     }

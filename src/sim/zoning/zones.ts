@@ -83,8 +83,8 @@ export function stageOf(progress: number): number {
   return 3;
 }
 
-/** Days to build, indexed by zone code. */
-export function buildDays(zone: number): number {
+/** Economy steps (2 real seconds each) a building takes to go up, by zone type and density. */
+export function buildSteps(zone: number): number {
   const t = zoneType(zone);
   const d = zoneDensity(zone);
   if (t === ZoneType.Residential) return [0, 5, 8, 14][d]!;

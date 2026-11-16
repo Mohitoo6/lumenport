@@ -32,8 +32,8 @@ export function score(id: MinistryId, o: CouncilOption, constraints: readonly Co
   const taxUp = e.taxRateDelta[0] + e.taxRateDelta[1] + e.taxRateDelta[2];
   switch (id) {
     case 'finance':
-      v -= spend / 1000 + Math.max(0, -e.monthlyNetDelta) / 50 + e.debtDelta / 15000;
-      v += Math.max(0, e.monthlyNetDelta) / 100;
+      v -= spend / 1000 + Math.max(0, -e.hourlyNetDelta) / 50 + e.debtDelta / 15000;
+      v += Math.max(0, e.hourlyNetDelta) / 100;
       break;
     case 'welfare':
       v -= e.residentsDisplaced / 5 + e.jobsLost / 12 + taxUp * 0.8;
@@ -77,7 +77,7 @@ function objection(id: MinistryId, o: CouncilOption, limits: FiscalLimits, hi: b
   }
   switch (id) {
     case 'finance':
-      if (spend > 0) return hi ? `पर अभी ${usd(spend)} और हर महीने ${usd(-e.monthlyNetDelta)} खर्च होते हैं` : `costs ${usd(spend)} now and ${usd(-e.monthlyNetDelta)} a month`;
+      if (spend > 0) return hi ? `पर अभी ${usd(spend)} और हर घंटे ${usd(-e.hourlyNetDelta)} खर्च होते हैं` : `costs ${usd(spend)} now and ${usd(-e.hourlyNetDelta)} an hour`;
       if (e.debtDelta > 0) return hi ? `से ${usd(e.debtDelta)} का कर्ज़ चढ़ता है` : `adds ${usd(e.debtDelta)} of debt`;
       if (o.actions.length === 0) return hi ? 'से घाटा जस का तस रहता है' : 'leaves the deficit where it is';
       break;
@@ -114,7 +114,7 @@ function merit(id: MinistryId, o: CouncilOption, limits: FiscalLimits, hi: boole
   const spend = Math.max(0, -e.budgetDelta);
   switch (id) {
     case 'finance':
-      if (spend === 0 && e.monthlyNetDelta > 0) return hi ? `से हर महीने ${usd(e.monthlyNetDelta)} की बचत होती है` : `improves the monthly balance by ${usd(e.monthlyNetDelta)}`;
+      if (spend === 0 && e.hourlyNetDelta > 0) return hi ? `से हर घंटे ${usd(e.hourlyNetDelta)} की बचत होती है` : `improves the hourly balance by ${usd(e.hourlyNetDelta)}`;
       if (spend === 0) return hi ? 'पर अभी कोई खर्च नहीं है' : 'costs nothing upfront';
       return hi ? `की लागत ${usd(spend)} है और खज़ाने में ${usd(limits.treasury)} हैं` : `costs ${usd(spend)}, which a treasury of ${usd(limits.treasury)} can carry`;
     case 'welfare':

@@ -34,12 +34,12 @@ const COMPLAINTS: Record<IssueKind, string[]> = {
   power: ['Power cut AGAIN. Fridge is warm, laptop is dead.', 'Lights flickering all evening. Does the city know?', 'No electricity on our street since morning. Shops shutting early.'],
   water: ['Taps are dry. Second day.', 'Water pressure is a joke. Anyone else?', 'Bought bottled water to cook dinner. In 2030.'],
   pollution: ['You can taste the air near the factories. Kids are coughing.', 'Smog over the neighbourhood again. Windows stay shut.', 'Washing came off the line grey. Thanks, chimneys.'],
-  crime: ['Second break-in on our street this month. Where are the police?', 'Not walking home after dark any more.', 'Bike stolen from right outside my door.'],
+  crime: ['Second break-in on our street this hour. Where are the police?', 'Not walking home after dark any more.', 'Bike stolen from right outside my door.'],
   health: ['Nearest clinic is miles away. Had to take a sick day just to see a doctor.', 'My mother needs check-ups and there is no clinic anywhere near us.', 'A city this size with no clinic? Really?'],
   education: ['No school nearby, so it is an hour of driving every morning.', 'Where are the kids supposed to study? No school in our area.', 'Thinking of moving. We need a school close by.'],
   fire: ['A kitchen fire next door and the fire brigade took forever.', 'Is there even a fire station in this part of town?'],
   budget: ['Heard the city is running out of money. Should we be worried?', 'Potholes everywhere and the council says the budget is tight.'],
-  jobs: ['Six months looking for work. Nothing in this city.', 'All my friends are leaving for jobs elsewhere.', 'Lots of new houses, no jobs to pay for them.'],
+  jobs: ['Six hours looking for work. Nothing in this city.', 'All my friends are leaving for jobs elsewhere.', 'Lots of new houses, no jobs to pay for them.'],
   housing: ['Trying to rent here is impossible. Nothing available.', 'Waiting list for a flat is a year long.'],
 };
 

@@ -348,7 +348,7 @@ describe('council session', () => {
 
   it('puts remembered decisions in front of the agents they concern', async () => {
     const input = inputFor(sim);
-    const line = 'Day 12 (13 Jan 2030), Budget deficit: Take a $20,000 loan (+$20,000 now, -$900/month).';
+    const line = 'Day 12 (13 Jan 2030), Budget deficit: Take a $20,000 loan (+$20,000 now, -$900/hour).';
     const log: LlmRequest[] = [];
     await hold({ ...input, memory: { chair: [line], byMinister: { finance: [line] } } }, scripted(agree('B'), log));
     expect(log.find((r) => r.meta.role === 'chief')!.user).toContain(line);
@@ -375,7 +375,7 @@ describe('guardrails on the recommendation', () => {
     runTicks(poor, 1500);
     // No money and every loan already taken: nothing that costs money is affordable.
     poor.state.funds = 50;
-    poor.state.loans = [0, 1, 2].map((tier) => ({ tier, payment: 100, monthsLeft: 12 }));
+    poor.state.loans = [0, 1, 2].map((tier) => ({ tier, payment: 100, hoursLeft: 12 }));
     const input = inputFor(poor);
     const costly = input.options.find((o) => o.cost > 50)!;
     expect(costly.feasibility.status).toBe('unaffordable');

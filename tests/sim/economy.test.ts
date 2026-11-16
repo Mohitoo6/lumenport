@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DAYS_PER_MONTH, MAP, TICKS_PER_DAY, VERTS } from '../../src/core/constants';
+import { MAP, STEPS_PER_HOUR, TICKS_PER_STEP, VERTS } from '../../src/core/constants';
 import { LOAN_TIERS, emptyReport, loanPayment, projectBudget } from '../../src/sim/economy/budget';
 import { capacityOf } from '../../src/sim/economy/capacity';
 import { growthRateFor } from '../../src/sim/economy/economy';
@@ -25,7 +25,7 @@ function city(): Sim {
 }
 
 function run(sim: Sim, days: number): void {
-  for (let i = 0; i < days * TICKS_PER_DAY; i++) sim.tick();
+  for (let i = 0; i < days * TICKS_PER_STEP; i++) sim.tick();
 }
 
 const alive = (sim: Sim): Building[] => sim.state.buildings.filter((b): b is Building => b !== null);
@@ -63,22 +63,22 @@ describe('money', () => {
     expect(sim.apply({ type: 'takeLoan', tier: 0 }).ok).toBe(false);
     expect(sim.apply({ type: 'takeLoan', tier: 9 }).ok).toBe(false);
     const pay = loanPayment(LOAN_TIERS[0]!);
-    expect(pay * LOAN_TIERS[0]!.months).toBeGreaterThan(LOAN_TIERS[0]!.amount);
-    run(sim, DAYS_PER_MONTH);
+    expect(pay * LOAN_TIERS[0]!.hours).toBeGreaterThan(LOAN_TIERS[0]!.amount);
+    run(sim, STEPS_PER_HOUR);
     expect(sim.state.report.loans).toBe(pay);
-    expect(sim.state.loans[0]!.monthsLeft).toBe(LOAN_TIERS[0]!.months - 1);
-    run(sim, DAYS_PER_MONTH * (LOAN_TIERS[0]!.months - 1));
+    expect(sim.state.loans[0]!.hoursLeft).toBe(LOAN_TIERS[0]!.hours - 1);
+    run(sim, STEPS_PER_HOUR * (LOAN_TIERS[0]!.hours - 1));
     expect(sim.state.loans.length).toBe(0);
   });
 
-  it('settles the budget monthly: funds move by exactly the reported net', () => {
+  it('settles the budget hourly: funds move by exactly the reported net', () => {
     const sim = city();
     utilities(sim);
     const before = sim.state.funds;
-    let months = 0;
-    sim.events.on('monthPassed', () => months++);
-    run(sim, DAYS_PER_MONTH);
-    expect(months).toBe(1);
+    let hours = 0;
+    sim.events.on('hourPassed', () => hours++);
+    run(sim, STEPS_PER_HOUR);
+    expect(hours).toBe(1);
     const r = sim.state.report;
     expect(r.utilities).toBe(FACILITIES[FacilityKind.CoalPlant]!.upkeep + FACILITIES[FacilityKind.WaterTower]!.upkeep);
     expect(r.roads).toBe(Math.round(480 * ROAD_SPECS[RoadType.Street].upkeep));
@@ -239,7 +239,7 @@ describe('population and demand', () => {
     expect(grow(20)).toBeLessThan(grow(4));
   });
 
-  it('a working town turns a monthly profit and stays deterministic', () => {
+  it('a working town turns a hourly profit and stays deterministic', () => {
     const play = (): Sim => {
       const sim = city();
       utilities(sim);

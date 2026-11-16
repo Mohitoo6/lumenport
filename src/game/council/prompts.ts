@@ -48,8 +48,8 @@ function languageRule(lang: Lang): string {
 /** The shared constraint every agent argues within. */
 export function budgetLine(limits: FiscalLimits): string {
   if (limits.sandbox) return 'BUDGET: sandbox city, money is unlimited.';
-  const runway = limits.runwayMonths !== null ? ` (about ${limits.runwayMonths} months of money left)` : '';
-  return `BUDGET: treasury ${money(limits.treasury)}; monthly balance ${signed(limits.monthlyNet)}${runway}; the city can still borrow ${money(limits.loanHeadroom)}.`;
+  const runway = limits.runwayHours !== null ? ` (about ${limits.runwayHours} hours of money left)` : '';
+  return `BUDGET: treasury ${money(limits.treasury)}; hourly balance ${signed(limits.hourlyNet)}${runway}; the city can still borrow ${money(limits.loanHeadroom)}.`;
 }
 
 const ALL_LENSES: Lens[] = ['money', 'displacement', 'health', 'schools', 'environment', 'utilities', 'traffic', 'tax', 'approval', 'zoning'];
@@ -94,15 +94,15 @@ function lensItems(o: CouncilOption, lens: readonly Lens[], limits: FiscalLimits
   return out;
 }
 
-/** Upfront and monthly money: shown to everyone, because the budget is everyone's limit. */
+/** Upfront and hourly money: shown to everyone, because the budget is everyone's limit. */
 function moneyOf(o: CouncilOption, constraints: readonly Constraint[] = []): string {
   const now = o.cost > 0 ? `${money(o.cost)} now` : o.cost < 0 ? `brings in ${money(-o.cost)} now` : 'free now';
-  const monthly = o.monthly > 0 ? `, ${money(o.monthly)}/month more` : o.monthly < 0 ? `, ${money(-o.monthly)}/month better` : '';
+  const hourly = o.hourly > 0 ? `, ${money(o.hourly)}/hour more` : o.hourly < 0 ? `, ${money(-o.hourly)}/hour better` : '';
   const flag = o.feasibility.status === 'unaffordable' ? ' NOT AFFORDABLE' : o.feasibility.status === 'needs_loan' ? ` NEEDS A LOAN of ${money(o.feasibility.shortfall)} first` : '';
   // What the mayor ruled out is marked on the option itself, for every agent.
   const broken = violations(o, constraints);
   const against = broken.length ? ` AGAINST THE MAYOR'S INSTRUCTION: ${broken.join(', ')}` : '';
-  return `${now}${monthly}${flag}${against}`;
+  return `${now}${hourly}${flag}${against}`;
 }
 
 /** One option as one line, seen through a lens. */

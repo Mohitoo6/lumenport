@@ -57,7 +57,15 @@ export function validateState(v: unknown): GameState | string {
     Array.isArray(s.roads.edges) &&
     typeof s.funds === 'number' &&
     typeof s.tick === 'number';
-  return ok ? (s as GameState) : 'The saved city is damaged';
+  if (!ok) return 'The saved city is damaged';
+  // Loans were once counted in "months"; the budget period is an hour now. Same number.
+  for (const loan of s.loans as Array<{ hoursLeft?: number; monthsLeft?: number }>) {
+    if (loan.hoursLeft === undefined && loan.monthsLeft !== undefined) {
+      loan.hoursLeft = loan.monthsLeft;
+      delete loan.monthsLeft;
+    }
+  }
+  return s as GameState;
 }
 
 export interface SaveMeta {

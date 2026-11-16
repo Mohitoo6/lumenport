@@ -18,7 +18,7 @@ export interface RoadSpec {
   speed: number;
   /** Build cost per metre. */
   cost: number;
-  /** Monthly upkeep per metre. */
+  /** Hourly upkeep per metre. */
   upkeep: number;
 }
 

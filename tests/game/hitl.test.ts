@@ -166,14 +166,14 @@ describe('human in the loop', () => {
 
 describe('episodic memory', () => {
   const issue = (kind: CityIssue['kind'], key = kind, lead: CityIssue['lead'] = 'roads'): CityIssue => ({ key, kind, lead, severity: 0.6, title: `A ${kind} problem`, summary: '', facts: [], x: 0, z: 0 });
-  const rec = (day: number, kind: CityIssue['kind'], over: Partial<DecisionRecord> = {}): DecisionRecord => ({
-    ...decisionRecord({ day, date: `day ${day}` }, issue(kind), ['roads', 'finance'], { title: `Fix ${kind}`, acted: true }, { ...NO_DELTA, budgetDelta: -1200, monthlyNetDelta: -40 }, true),
+  const rec = (at: number, kind: CityIssue['kind'], over: Partial<DecisionRecord> = {}): DecisionRecord => ({
+    ...decisionRecord({ at, date: `hour ${at}` }, issue(kind), ['roads', 'finance'], { title: `Fix ${kind}`, acted: true }, { ...NO_DELTA, budgetDelta: -1200, hourlyNetDelta: -40 }, true),
     ...over,
   });
 
   it('writes one compact line per decision', () => {
-    const line = memoryLine(rec(212, 'traffic', { optionTitle: 'Widen Canal Street to a four-lane avenue', budgetDelta: -4200, monthlyNetDelta: -642, residentsDisplaced: 38, followedChair: false }));
-    expect(line).toBe('Day 212 (day 212), A traffic problem: Widen Canal Street to a four-lane avenue (-$4,200 now, -$642/month, 38 residents displaced); mayor overruled the council.');
+    const line = memoryLine(rec(212, 'traffic', { optionTitle: 'Widen Canal Street to a four-lane avenue', budgetDelta: -4200, hourlyNetDelta: -642, residentsDisplaced: 38, followedChair: false }));
+    expect(line).toBe('hour 212, A traffic problem: Widen Canal Street to a four-lane avenue (-$4,200 now, -$642/hour, 38 residents displaced); mayor overruled the council.');
     expect(estimateTokens(line)).toBeLessThan(45);
     expect(memoryLine(rec(3, 'traffic', { acted: false }))).toMatch(/took no action\.$/);
   });
@@ -188,7 +188,7 @@ describe('episodic memory', () => {
     const got = m.recall(issue('traffic', 'traffic'), 60, { moneyAtStake: true });
     expect(got.length).toBe(3);
     // The same problem outranks a newer one of the same kind; the loan is remembered because money is at stake.
-    expect(got[0]!.record.day).toBe(10);
+    expect(got[0]!.record.at).toBe(10);
     expect(got[0]!.why).toContain('same problem');
     expect(got.map((g) => g.record.issueKind).sort()).toEqual(['budget', 'traffic', 'traffic']);
     // Unrelated decisions are not recalled at all.
@@ -208,7 +208,7 @@ describe('episodic memory', () => {
     m.record(rec(10, 'traffic'));
     m.record(rec(90, 'traffic'));
     m.rewindTo(50);
-    expect(new EpisodicMemory(store, 'city').all.map((r) => r.day)).toEqual([10]);
+    expect(new EpisodicMemory(store, 'city').all.map((r) => r.at)).toEqual([10]);
     expect(new EpisodicMemory(store, 'another-city').all).toEqual([]);
   });
 
