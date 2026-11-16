@@ -30,8 +30,8 @@ describe('option effect payloads', () => {
     for (const { issue, options } of table) {
       for (const o of options) {
         const label = `${issue.kind} ${o.id} ${o.title}`;
-        expect(-o.effects.budgetDelta, `${label}: upfront`).toBe(o.cost);
-        expect(-o.effects.hourlyNetDelta, `${label}: hourly`).toBe(o.hourly);
+        expect(-o.effects.budgetDelta + 0, `${label}: upfront`).toBe(o.cost + 0);
+        expect(-o.effects.hourlyNetDelta + 0, `${label}: hourly`).toBe(o.hourly + 0);
         expect(o.effects.residentsDisplaced, `${label}: residents`).toBe(o.impact.displacedResidents);
       }
     }

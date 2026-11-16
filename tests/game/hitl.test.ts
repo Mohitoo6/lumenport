@@ -66,7 +66,7 @@ describe('human in the loop', () => {
     expect(v.triage.length).toBe(9);
     expect(v.triage.filter((t) => t.role !== 'standby').map((t) => t.ministry)).toEqual(v.seats.map((s) => s.id));
     for (const o of v.options) {
-      expect(o.effects.budgetDelta).toBe(-o.cost);
+      expect(o.effects.budgetDelta + 0).toBe(-o.cost + 0);
       expect(o.feasibility.status).toBeDefined();
     }
     const trace = ui.trace.value!;
