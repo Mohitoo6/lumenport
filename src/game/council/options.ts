@@ -240,6 +240,47 @@ function widenRoad(sim: Sim, edgeId: number): Draft | null {
   };
 }
 
+/**
+ * A bus line along a jammed road: stops near both ends and the middle, close enough to the
+ * homes that feed the road for people to walk to them. Its effect (residents who leave
+ * the car at home) is measured on the fork like everything else.
+ */
+function busLine(sim: Sim, edgeId: number): Draft | null {
+  const net = sim.state.roads;
+  const e = net.edges[edgeId];
+  if (!e) return null;
+  const a = net.nodes[e.a]!;
+  const b = net.nodes[e.b]!;
+  const name = streetName(sim, edgeId);
+  const points = [
+    [a.x, a.z],
+    [(a.x + b.x) / 2, (a.z + b.z) / 2],
+    [b.x, b.z],
+  ];
+  const chosen: Site[] = [];
+  for (const [x, z] of points) {
+    const site = sitesFor(sim, FacilityKind.BusStop, x!, z!, 6, { radius: 18 }).find((s) => chosen.every((c) => Math.hypot((s.x0 - c.x0) * CELL, (s.y0 - c.y0) * CELL) > 56));
+    if (site) chosen.push(site);
+  }
+  if (chosen.length < 2) return null;
+  const spec = FACILITIES[FacilityKind.BusStop]!;
+  return {
+    title: `Start a bus line along ${name}`,
+    gist: `${chosen.length} stops along ${name}; the city runs the buses.`,
+    cost: spec.cost * chosen.length,
+    hourly: spec.upkeep * chosen.length,
+    facts: [
+      `${chosen.length} stops near ${name}, ${chosen.length > 2 ? 'at both ends and the middle' : 'at both ends'}; the city runs the buses between them.`,
+      'Residents within a few minutes walk of a stop leave the car at home; buses use the same roads but carry many people each.',
+      'Fares pay back part of the running cost.',
+    ],
+    actions: chosen.map((s) => ({ type: 'placeFacility', kind: FacilityKind.BusStop, x: s.i, y: s.j }) as Command),
+    impact: { ...NO_IMPACT, green: true },
+    x: (a.x + b.x) / 2,
+    z: (a.z + b.z) / 2,
+  };
+}
+
 function flexHours(sim: Sim): Draft | null {
   if (sim.state.policies?.flexHours) return null;
   return {
@@ -293,9 +334,9 @@ function sitesFor(sim: Sim, kind: FacilityKind, x: number, z: number, count: num
       if (!nearRoad) continue;
       const plan = sim.planFacility(kind, i, j);
       if (!plan.ok) continue;
-      const px = (plan.x + plan.size / 2) * CELL;
-      const pz = (plan.y + plan.size / 2) * CELL;
-      found.push({ i, j, x0: plan.x, y0: plan.y, size: plan.size, dist: Math.hypot(px - x, pz - z), homesM: nearestHome(sim, px, pz) });
+      const px = (plan.x + plan.w / 2) * CELL;
+      const pz = (plan.y + plan.h / 2) * CELL;
+      found.push({ i, j, x0: plan.x, y0: plan.y, size: Math.max(plan.w, plan.h), dist: Math.hypot(px - x, pz - z), homesM: nearestHome(sim, px, pz) });
     }
   }
   const score = (a: Site): number => (opts.awayFromHomes ? a.dist * 0.3 - Math.min(a.homesM, 600) * 2 : a.dist);
@@ -616,7 +657,7 @@ export function optionsFor(sim: Sim, issue: CityIssue): CouncilOption[] {
   switch (issue.kind) {
     case 'traffic': {
       const e = issue.edge ?? -1;
-      drafts = [widenRoad(sim, e), reliefRoad(sim, e), flexHours(sim)].filter((d): d is Draft => d !== null);
+      drafts = [widenRoad(sim, e), reliefRoad(sim, e), busLine(sim, e), flexHours(sim)].filter((d): d is Draft => d !== null);
       break;
     }
     case 'power':
@@ -650,7 +691,7 @@ export function optionsFor(sim: Sim, issue: CityIssue): CouncilOption[] {
   }
   drafts.push({
     title: 'Take no action for now',
-    gist: 'Nothing is built or changed; the problem is likely to continue.',
+    gist: 'Nothing changes; the problem likely continues.',
     cost: 0,
     hourly: 0,
     facts: ['Nothing is built or changed. The problem is likely to continue.'],
@@ -667,8 +708,8 @@ export function optionsFor(sim: Sim, issue: CityIssue): CouncilOption[] {
     if (!p.ok) continue;
     // The fork is the source of truth for money. Where it disagrees with the estimate the
     // option was drafted with (demolished shops and homes stop paying tax), say so.
-    const cost = -p.delta.budgetDelta;
-    const hourly = -p.delta.hourlyNetDelta;
+    const cost = -p.delta.budgetDelta || 0;
+    const hourly = -p.delta.hourlyNetDelta || 0;
     const facts = Math.abs(hourly - d.hourly) > 1 ? [...d.facts, `Counting the tax lost from what it demolishes, the hourly balance changes by ${money(-hourly)} in all.`] : d.facts;
     out.push({ ...d, cost, hourly, facts, id: String.fromCharCode(65 + out.length), effects: p.delta, feasibility: feasibility(limits, p) });
   }

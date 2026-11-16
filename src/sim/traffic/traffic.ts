@@ -8,7 +8,9 @@ import { FACING_DX, FACING_DY, ZoneType, zoneType, type Building } from '../zoni
 import { findPath } from './pathfinder';
 
 export const MAX_CARS = 2400;
-export const CAR_KINDS = 3;
+/** Body styles: saloon, SUV, van, and the bus (kind 3). */
+export const CAR_KINDS = 4;
+export const BUS_KIND = 3;
 export const CAR_COLORS = 10;
 
 const DT = TICK_MS / 1000;
@@ -18,6 +20,10 @@ const ACCEL = 3;
 const BRAKE = 7;
 const COMFORT_BRAKE = 3.6;
 const TURN_SPEED = 6.5;
+/** Extra room a car leaves behind a bus, which is about 7 m longer than a car. */
+const BUS_EXTRA = 7;
+/** Ticks a bus waits at a stop: about eight seconds at normal speed. */
+const BUS_DWELL = 160;
 /** A junction arm keeps right of way for at most this long once others are waiting. */
 const GREEN_TICKS = 220;
 /** A junction held by an approach that is not using it is handed on after this long. */
@@ -62,7 +68,7 @@ const enum Mode {
 
 export interface TrafficSource {
   policies?: { flexHours?: boolean };
-  stats?: { metroRiders?: number };
+  stats?: { metroRiders?: number; busRiders?: number };
   roads: RoadNetwork;
   buildings: ReadonlyArray<Building | null>;
   roadCell: Int32Array;
@@ -102,6 +108,18 @@ export class Traffic {
   readonly color = new Uint8Array(MAX_CARS);
   /** Speed in metres per second. */
   readonly v = new Float32Array(MAX_CARS);
+  /** For a bus: its line (an index into `busLines`); -1 for a car. */
+  readonly busLine = new Int16Array(MAX_CARS).fill(-1);
+  /** For a bus: the position in its line of the stop it is heading to or waiting at. */
+  readonly busNext = new Int16Array(MAX_CARS);
+  /** For a bus: ticks left waiting at the stop; 0 while driving. */
+  readonly dwell = new Uint16Array(MAX_CARS);
+  /** Buses in service now. */
+  buses = 0;
+  /** Bus lines, as stop building ids in visiting order. Set by the sim. */
+  private busLines: number[][] = [];
+  private busTargets: number[] = [];
+  private busesStale = false;
 
   /** Cars on the road per resident. Tests raise it to load the network. */
   carsPerPerson = 0.022;
@@ -190,6 +208,7 @@ export class Traffic {
     this.anchors.clear();
     this.paths.clear();
     this.listsAge = 9999;
+    this.buses = 0;
     const n = src.roads.nodes.length;
     this.users = new Int32Array(n).fill(-1);
     this.leftCount = new Int32Array(n);
@@ -309,6 +328,123 @@ export class Traffic {
     return best;
   }
 
+  /**
+   * Sets the bus lines and how many buses each runs. When the lines change, buses in
+   * service finish where they are and new ones start on the new lines.
+   */
+  setBusLines(lines: ReadonlyArray<{ stops: number[]; buses: number }>): void {
+    const next = lines.map((l) => l.stops.slice());
+    const same = next.length === this.busLines.length && next.every((l, i) => l.join(',') === this.busLines[i]!.join(','));
+    this.busTargets = lines.map((l) => l.buses);
+    if (same) return;
+    this.busLines = next;
+    this.busesStale = true;
+  }
+
+  /** Room in a lane at `s`: false if a vehicle is within a car length. */
+  private laneFree(edge: number, dir: number, lane: number, s: number, gap: number): boolean {
+    for (let k = 0; k < this.count; k++) {
+      if (this.mode[k] === Mode.Edge && this.edge[k] === edge && this.dir[k] === dir && this.lane[k] === lane && Math.abs(this.s[k]! - s) < gap) return false;
+    }
+    return true;
+  }
+
+  /** Puts a bus in service at stop `k` of line `line`, bound for the stop after it. */
+  private spawnBus(line: number, k: number): boolean {
+    const stops = this.busLines[line]!;
+    const here = this.src.buildings[stops[k]!];
+    if (this.count >= MAX_CARS || !here) return false;
+    const from = this.anchor(here);
+    if (!from) return false;
+    const e = this.src.roads.edges[from.edge]!;
+    const lane = LANES[e.type]!.length - 1;
+    if (!this.laneFree(from.edge, 0, lane, from.arc, CAR_SPACE + BUS_EXTRA + 3)) return false;
+    const i = this.count++;
+    this.edge[i] = from.edge;
+    this.dir[i] = 0;
+    this.lane[i] = lane;
+    this.s[i] = from.arc;
+    this.v[i] = 0;
+    this.mode[i] = Mode.Edge;
+    this.kind[i] = BUS_KIND;
+    this.color[i] = 0;
+    this.busLine[i] = line;
+    this.busNext[i] = k;
+    this.dwell[i] = 0;
+    this.path[i]!.length = 0;
+    // Head for the next stop straight away.
+    if (!this.nextStop(i)) {
+      this.count--;
+      this.busLine[i] = -1;
+      return false;
+    }
+    this.place(i);
+    this.px[i] = this.x[i]!;
+    this.py[i] = this.y[i]!;
+    this.pz[i] = this.z[i]!;
+    this.pheading[i] = this.heading[i]!;
+    return true;
+  }
+
+  /**
+   * Sends bus `i` on to the next stop of its line, from wherever it is. A stop it cannot
+   * reach is skipped. Returns false if the line has nowhere left to go (the bus is retired).
+   */
+  private nextStop(i: number): boolean {
+    const stops = this.busLines[this.busLine[i]!];
+    if (!stops || stops.length < 2) return false;
+    const net = this.src.roads;
+    const e = net.edges[this.edge[i]!];
+    if (!e) return false;
+    const arc = this.dir[i] === 0 ? this.s[i]! : e.length - this.s[i]!;
+    const from: Anchor = { edge: e.id, arc };
+    for (let tries = 1; tries < stops.length; tries++) {
+      const k = (this.busNext[i]! + tries) % stops.length;
+      const stop = this.src.buildings[stops[k]!];
+      const to = stop ? this.anchor(stop) : null;
+      if (!to) continue;
+      const path = findPath(net, from.edge, from.arc, to.edge, to.arc);
+      if (!path) continue;
+      let dir: number;
+      if (path.length > 0) dir = path[0] === e.b ? 0 : 1;
+      else dir = to.arc >= from.arc ? 0 : 1;
+      // Turning round means crossing to the other carriageway.
+      if (dir !== this.dir[i]) {
+        this.dir[i] = dir;
+        this.s[i] = e.length - this.s[i]!;
+        this.lane[i] = LANES[e.type]!.length - 1;
+      }
+      const mine = this.path[i]!;
+      mine.length = 0;
+      for (const nd of path) mine.push(nd);
+      this.pathIdx[i] = 0;
+      this.destEdge[i] = to.edge;
+      this.destArc[i] = to.arc;
+      this.busNext[i] = k;
+      return true;
+    }
+    return false;
+  }
+
+  /** Keeps each line running its share of buses: one new bus per tick at most. */
+  private serviceBuses(): void {
+    if (this.busesStale) {
+      for (let i = 0; i < this.count; i++) if (this.busLine[i]! >= 0) this.mode[i] = 255;
+      this.busesStale = false;
+      return;
+    }
+    const running = new Array<number>(this.busLines.length).fill(0);
+    for (let i = 0; i < this.count; i++) if (this.busLine[i]! >= 0 && this.mode[i] !== 255) running[this.busLine[i]!]!++;
+    for (let line = 0; line < this.busLines.length; line++) {
+      const target = this.busTargets[line] ?? 1;
+      const have = running[line]!;
+      if (have >= target) continue;
+      const stops = this.busLines[line]!;
+      // Spread the buses round the loop.
+      if (this.spawnBus(line, Math.floor((have * stops.length) / target) % stops.length)) return;
+    }
+  }
+
   /** Starts one trip between two random buildings. Returns false if it could not. */
   private spawn(): boolean {
     if (this.count >= MAX_CARS || this.homes.length === 0 || this.works.length === 0) return false;
@@ -333,11 +469,11 @@ export class Traffic {
     const lane = LANES[e.type]!.length - 1;
 
     // Only pull out if there is room in the lane.
-    for (let k = 0; k < this.count; k++) {
-      if (this.mode[k] === Mode.Edge && this.edge[k] === from.edge && this.dir[k] === dir && this.lane[k] === lane && Math.abs(this.s[k]! - s) < CAR_SPACE + 3) return false;
-    }
+    if (!this.laneFree(from.edge, dir, lane, s, CAR_SPACE + 3)) return false;
 
     const i = this.count++;
+    this.busLine[i] = -1;
+    this.dwell[i] = 0;
     this.edge[i] = from.edge;
     this.dir[i] = dir;
     this.lane[i] = lane;
@@ -369,8 +505,9 @@ export class Traffic {
     this.path[last] = tmp;
   }
 
-  private readonly fields: Array<Float32Array | Int32Array | Uint8Array> = [
+  private readonly fields: Array<Float32Array | Int32Array | Int16Array | Uint16Array | Uint8Array> = [
     this.x, this.y, this.z, this.heading, this.px, this.py, this.pz, this.pheading, this.kind, this.color, this.v,
+    this.busLine, this.busNext, this.dwell,
     this.edge, this.dir, this.lane, this.s, this.mode, this.pathIdx, this.destEdge, this.destArc,
     this.jt, this.jlen, this.jx0, this.jz0, this.jcx, this.jcz, this.jx1, this.jz1, this.jy0, this.jy1, this.jnode, this.jv, this.jleft,
     this.nextEdge, this.nextDir, this.nextLane, this.nextS,
@@ -585,8 +722,8 @@ export class Traffic {
   private wanted(): number {
     let people = 0;
     for (const id of this.homes) people += this.src.buildings[id]?.pop ?? 0;
-    // Metro riders leave their cars at home.
-    people = Math.max(0, people - (this.src.stats?.metroRiders ?? 0));
+    // Metro and bus riders leave their cars at home.
+    people = Math.max(0, people - (this.src.stats?.metroRiders ?? 0) - (this.src.stats?.busRiders ?? 0));
     return Math.min(MAX_CARS, Math.round(people * this.carsPerPerson * rushFactor(this.hour, this.src.policies?.flexHours === true)));
   }
 
@@ -596,10 +733,15 @@ export class Traffic {
     if (this.lockArm.length !== net.nodes.length || this.edgeCars.length !== net.edges.length) this.reset();
 
     if (++this.listsAge > 200) this.refreshLists();
+    this.serviceBuses();
+    let buses = 0;
+    for (let i = 0; i < this.count; i++) if (this.busLine[i]! >= 0) buses++;
+    this.buses = buses;
     const want = this.wanted();
     // At the start of a rush the roads fill quickly.
-    const burst = want > this.count * 1.3 ? 6 : 3;
-    for (let k = 0; k < burst && this.count < want; k++) this.spawn();
+    const cars = this.count - buses;
+    const burst = want > cars * 1.3 ? 6 : 3;
+    for (let k = 0; k < burst && this.count - buses < want; k++) this.spawn();
 
     const n = this.count;
     for (let i = 0; i < n; i++) {
@@ -647,12 +789,24 @@ export class Traffic {
       const vmax = ROAD_SPECS[e.type].speed * this.speedFactor;
       this.edgeCars[e.id]! += cnt;
       let leadS = Infinity;
+      let leadExtra = 0;
       for (let a = lo; a < lo + cnt; a++) {
         const i = order[a]!;
+        const bus = this.busLine[i]! >= 0;
+        // A bus at its stop: it holds its place (so the traffic behind waits), then moves on.
+        if (bus && this.dwell[i]! > 0) {
+          this.v[i] = 0;
+          // The queue behind sees it where it stands this tick, even if it turns round next.
+          leadS = this.s[i]!;
+          leadExtra = BUS_EXTRA;
+          if (--this.dwell[i]! === 0 && !this.nextStop(i)) this.mode[i] = 255;
+          this.place(i);
+          continue;
+        }
         const node = this.aheadNode(i);
         const last = this.pathIdx[i]! >= this.path[i]!.length;
         const stop = e.length - this.setback(e, node);
-        let room = leadS - this.s[i]! - CAR_SPACE;
+        let room = leadS - this.s[i]! - CAR_SPACE - leadExtra;
         let goal = Infinity;
         let enter = false;
         if (last) {
@@ -677,8 +831,17 @@ export class Traffic {
         speedSum += v;
         limitSum += vmax;
         leadS = s;
+        leadExtra = bus ? BUS_EXTRA : 0;
 
         if (last && s >= goal - 0.5) {
+          if (bus) {
+            // At the stop: pull up and wait for passengers.
+            this.s[i] = Math.min(s, goal);
+            this.v[i] = 0;
+            this.dwell[i] = BUS_DWELL;
+            this.place(i);
+            continue;
+          }
           this.mode[i] = 255; // arrived: removed below
           continue;
         }
@@ -761,7 +924,7 @@ export class Traffic {
     // Remove cars that arrived.
     for (let i = this.count - 1; i >= 0; i--) {
       if (this.mode[i] === 255) {
-        this.arrived++;
+        if (this.busLine[i]! < 0) this.arrived++;
         this.remove(i);
       }
     }

@@ -19,6 +19,10 @@ export const enum FacilityKind {
   ItPark = 12,
   University = 13,
   MetroStation = 14,
+  /** A bus shelter. Two or more on connected roads make a bus line. */
+  BusStop = 15,
+  /** Runway, terminal and cargo apron: trade, tourists and travel. One per city. */
+  Airport = 16,
 }
 
 /** Which coverage layer a service facility feeds. */
@@ -31,12 +35,19 @@ export const enum Service {
   Park = 5,
   /** Reach of metro stations that are connected to at least one other station. */
   Transit = 6,
+  /** Walking reach of bus stops that a bus line serves. */
+  Bus = 7,
 }
 
 export interface FacilitySpec {
   name: string;
-  /** Footprint side in cells (all footprints are square). */
+  /** Footprint side in cells. */
   size: number;
+  /**
+   * For a long facility (the airport): the footprint is `size` by `length` cells, turned
+   * whichever way fits the site and puts more of it along a road.
+   */
+  length?: number;
   cost: number;
   /** Hourly running cost. */
   upkeep: number;
@@ -56,6 +67,8 @@ export interface FacilitySpec {
   jobs?: number;
   /** Where its running cost appears in the budget. Defaults: utility without a service, else service. */
   budget?: 'utility' | 'service' | 'transit';
+  /** Steepest rise allowed across the site, metres (default 6). */
+  maxRelief?: number;
 }
 
 export const FACILITIES: Record<number, FacilitySpec> = {
@@ -72,6 +85,8 @@ export const FACILITIES: Record<number, FacilitySpec> = {
   [FacilityKind.ItPark]: { name: 'IT park', size: 4, cost: 28000, upkeep: 350, power: 0, water: 0, needsShore: false, blurb: 'Well-paid office jobs: draws new residents and raises tax income.', service: Service.None, radius: 0, jobs: 480, budget: 'service' },
   [FacilityKind.University]: { name: 'University', size: 5, cost: 32000, upkeep: 1100, power: 0, water: 0, needsShore: false, blurb: 'Educates a wide area, lifts land value and offers campus jobs.', service: Service.Education, radius: 90, jobs: 120 },
   [FacilityKind.MetroStation]: { name: 'Metro station', size: 2, cost: 9000, upkeep: 160, power: 0, water: 0, needsShore: false, blurb: 'Connect two or more with a metro line: fewer cars, higher land value, fare income.', service: Service.Transit, radius: 55, budget: 'transit' },
+  [FacilityKind.BusStop]: { name: 'Bus stop', size: 1, cost: 600, upkeep: 15, power: 0, water: 0, needsShore: false, blurb: 'Two or more on connected roads start a bus line: fewer cars, fare income.', service: Service.Bus, radius: 24, budget: 'transit' },
+  [FacilityKind.Airport]: { name: 'Airport', size: 14, length: 34, cost: 65000, upkeep: 900, power: 0, water: 0, needsShore: false, blurb: 'Exports from your industry, visiting tourists and trips for residents. Noisy near the runway.', service: Service.None, radius: 0, jobs: 260, budget: 'transit', landmark: false, maxRelief: 9 },
   [FacilityKind.TownHall]: { name: 'Town Hall', size: 4, cost: 0, upkeep: 0, power: 0, water: 0, needsShore: false, blurb: 'Seat of the city council. A civic square that lifts the land around it.', service: Service.Park, radius: 22, landmark: true },
 };
 
@@ -83,7 +98,7 @@ export const POWER_FACILITIES = [FacilityKind.CoalPlant, FacilityKind.WindTurbin
 export const WATER_FACILITIES = [FacilityKind.WaterTower, FacilityKind.WaterPump] as const;
 export const SERVICE_FACILITIES = [FacilityKind.Police, FacilityKind.FireStation, FacilityKind.Clinic, FacilityKind.School, FacilityKind.Park] as const;
 export const CAMPUS_FACILITIES = [FacilityKind.ItPark, FacilityKind.University] as const;
-export const TRANSIT_FACILITIES = [FacilityKind.MetroStation] as const;
+export const TRANSIT_FACILITIES = [FacilityKind.BusStop, FacilityKind.MetroStation, FacilityKind.Airport] as const;
 
 export interface FacilityPlan {
   ok: boolean;
@@ -91,7 +106,9 @@ export interface FacilityPlan {
   kind: FacilityKind;
   x: number;
   y: number;
-  size: number;
+  /** Footprint in cells along x and along y. */
+  w: number;
+  h: number;
   facing: Facing;
   cost: number;
 }
@@ -107,52 +124,48 @@ const MAX_RELIEF = 6;
 
 /**
  * Works out where a facility would go if placed with its centre on cell (ci, cj), and
- * whether that is allowed. Used both for the placement preview and by the command.
+ * whether that is allowed. Used both for the placement preview and by the command. A long
+ * facility is tried both ways round; the way that fits wins, and if both fit, the one with
+ * more of its long side along a road.
  */
 export function planFacility(s: PlaceLayers, kind: FacilityKind, ci: number, cj: number): FacilityPlan {
   const spec = FACILITIES[kind];
-  const plan: FacilityPlan = { ok: false, reason: '', kind, x: 0, y: 0, size: spec?.size ?? 1, facing: Facing.South, cost: spec?.cost ?? 0 };
-  if (!spec) {
-    plan.reason = 'Unknown facility';
-    return plan;
-  }
-  const n = spec.size;
-  const x = ci - Math.floor((n - 1) / 2);
-  const y = cj - Math.floor((n - 1) / 2);
-  plan.x = x;
-  plan.y = y;
-  if (x < 2 || y < 2 || x + n > MAP - 2 || y + n > MAP - 2) {
-    plan.reason = 'Outside the city limits';
-    return plan;
-  }
+  if (!spec) return { ok: false, reason: 'Unknown facility', kind, x: 0, y: 0, w: 1, h: 1, facing: Facing.South, cost: 0 };
+  const a = spec.size;
+  const b = spec.length ?? spec.size;
+  if (a === b) return planFootprint(s, kind, ci, cj, a, a).plan;
+  const across = planFootprint(s, kind, ci, cj, b, a);
+  const along = planFootprint(s, kind, ci, cj, a, b);
+  if (across.plan.ok !== along.plan.ok) return across.plan.ok ? across.plan : along.plan;
+  return across.touching >= along.touching ? across.plan : along.plan;
+}
+
+function planFootprint(s: PlaceLayers, kind: FacilityKind, ci: number, cj: number, w: number, h: number): { plan: FacilityPlan; touching: number } {
+  const spec = FACILITIES[kind]!;
+  const x = ci - Math.floor((w - 1) / 2);
+  const y = cj - Math.floor((h - 1) / 2);
+  const plan: FacilityPlan = { ok: false, reason: '', kind, x, y, w, h, facing: Facing.South, cost: spec.cost };
+  const fail = (reason: string): { plan: FacilityPlan; touching: number } => {
+    plan.reason = reason;
+    return { plan, touching: 0 };
+  };
+  if (x < 2 || y < 2 || x + w > MAP - 2 || y + h > MAP - 2) return fail('Outside the city limits');
   let lo = Infinity;
   let hi = -Infinity;
-  for (let j = y; j <= y + n; j++) {
-    for (let i = x; i <= x + n; i++) {
-      const h = s.heights[j * VERTS + i]!;
-      if (h < lo) lo = h;
-      if (h > hi) hi = h;
+  for (let j = y; j <= y + h; j++) {
+    for (let i = x; i <= x + w; i++) {
+      const v = s.heights[j * VERTS + i]!;
+      if (v < lo) lo = v;
+      if (v > hi) hi = v;
     }
   }
-  if (lo < 0.5) {
-    plan.reason = 'Cannot build in water';
-    return plan;
-  }
-  if (hi - lo > MAX_RELIEF) {
-    plan.reason = 'Ground is too steep';
-    return plan;
-  }
-  for (let j = y; j < y + n; j++) {
-    for (let i = x; i < x + n; i++) {
+  if (lo < 0.5) return fail('Cannot build in water');
+  if (hi - lo > (spec.maxRelief ?? MAX_RELIEF)) return fail('Ground is too steep');
+  for (let j = y; j < y + h; j++) {
+    for (let i = x; i < x + w; i++) {
       const k = j * MAP + i;
-      if (s.roadCell[k]! >= 0) {
-        plan.reason = 'A road is in the way';
-        return plan;
-      }
-      if (s.buildingCell[k]! >= 0) {
-        plan.reason = 'A building is in the way';
-        return plan;
-      }
+      if (s.roadCell[k]! >= 0) return fail('A road is in the way');
+      if (s.buildingCell[k]! >= 0) return fail('A building is in the way');
     }
   }
   // Face the side with the most road along it.
@@ -160,10 +173,11 @@ export function planFacility(s: PlaceLayers, kind: FacilityKind, ci: number, cj:
   for (let f = 0 as Facing; f < 4; f++) {
     const dx = FACING_DX[f]!;
     const dy = FACING_DY[f]!;
+    const n = dx === 0 ? w : h;
     let touching = 0;
     for (let t = 0; t < n; t++) {
-      const i = dx === 0 ? x + t : dx < 0 ? x - 1 : x + n;
-      const j = dy === 0 ? y + t : dy < 0 ? y - 1 : y + n;
+      const i = dx === 0 ? x + t : dx < 0 ? x - 1 : x + w;
+      const j = dy === 0 ? y + t : dy < 0 ? y - 1 : y + h;
       if (s.roadCell[j * MAP + i]! >= 0) touching++;
     }
     if (touching > best) {
@@ -171,14 +185,11 @@ export function planFacility(s: PlaceLayers, kind: FacilityKind, ci: number, cj:
       plan.facing = f;
     }
   }
-  if (best === 0 && !spec.landmark) {
-    plan.reason = 'Must be next to a road';
-    return plan;
-  }
+  if (best === 0 && !spec.landmark) return fail('Must be next to a road');
   if (spec.needsShore) {
     let wet = false;
-    for (let j = y - SHORE_REACH; j <= y + n + SHORE_REACH && !wet; j++) {
-      for (let i = x - SHORE_REACH; i <= x + n + SHORE_REACH; i++) {
+    for (let j = y - SHORE_REACH; j <= y + h + SHORE_REACH && !wet; j++) {
+      for (let i = x - SHORE_REACH; i <= x + w + SHORE_REACH; i++) {
         if (i < 0 || j < 0 || i > MAP || j > MAP) continue;
         if (s.heights[j * VERTS + i]! < -0.3) {
           wet = true;
@@ -186,13 +197,10 @@ export function planFacility(s: PlaceLayers, kind: FacilityKind, ci: number, cj:
         }
       }
     }
-    if (!wet) {
-      plan.reason = 'Must be close to water';
-      return plan;
-    }
+    if (!wet) return fail('Must be close to water');
   }
   plan.ok = true;
-  return plan;
+  return { plan, touching: best };
 }
 
 /**

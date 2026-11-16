@@ -5,7 +5,7 @@ import { OVERLAYS } from '../render/overlays/dataOverlay';
 import { CitizenFeed, CouncilChamber, IssuesMenu, MinisterRequestCard } from './council/Council';
 import { Inspector } from './council/Inspector';
 import { AssistantButton, AssistantPanel } from './assistant/Assistant';
-import { CAMPUS_FACILITIES, FACILITIES, POWER_FACILITIES, SERVICE_FACILITIES, TRANSIT_FACILITIES, WATER_FACILITIES } from '../sim/facilities';
+import { CAMPUS_FACILITIES, FACILITIES, FacilityKind, POWER_FACILITIES, SERVICE_FACILITIES, TRANSIT_FACILITIES, WATER_FACILITIES } from '../sim/facilities';
 import type { Speed } from '../sim/state';
 import {
   IconAvenue,
@@ -164,11 +164,12 @@ function BudgetPanel(): JSX.Element | null {
         {row('Residential tax', b.taxR, 1)}
         {row('Commercial tax', b.taxC, 1)}
         {row('Industrial tax', b.taxI, 1)}
-        {(b.fares > 0 || b.transit > 0) && row('Metro fares', b.fares, 1)}
+        {(b.fares > 0 || b.transit > 0) && row('Transit fares', b.fares, 1)}
+        {b.airport > 0 && row('Airport: trade, travel, tourists', b.airport, 1)}
         {row('Road upkeep', b.roads, -1)}
         {row('Utilities', b.utilities, -1)}
         {row('Services', b.services, -1)}
-        {(b.fares > 0 || b.transit > 0) && row('Metro upkeep', b.transit, -1)}
+        {(b.fares > 0 || b.transit > 0) && row('Transit upkeep', b.transit, -1)}
         {row('Loan payments', b.loans, -1)}
         <div class="ledger-row total">
           <span>Net</span>
@@ -587,11 +588,17 @@ function Toolbar(): JSX.Element {
         </div>
       )}
       {isMetro && (
-        <div class="panel options" role="group" aria-label="Metro">
-          <ToolButton active={tool === 'place'} label={`Station · ${usd(FACILITIES[TRANSIT_FACILITIES[0]]!.cost)}`} onClick={() => actions.setFacility(TRANSIT_FACILITIES[0])}>
+        <div class="panel options" role="group" aria-label="Transit">
+          <ToolButton active={tool === 'place' && fk === FacilityKind.BusStop} label={`Bus stop · ${usd(FACILITIES[FacilityKind.BusStop]!.cost)}`} onClick={() => actions.setFacility(FacilityKind.BusStop)}>
             <span class="opt-dot" aria-hidden="true" />
           </ToolButton>
-          <ToolButton active={tool === 'metro'} label="Line · $30 / m" onClick={() => actions.selectTool('metro')}>
+          <ToolButton active={tool === 'place' && fk === FacilityKind.MetroStation} label={`Metro station · ${usd(FACILITIES[FacilityKind.MetroStation]!.cost)}`} onClick={() => actions.setFacility(FacilityKind.MetroStation)}>
+            <span class="opt-dot" aria-hidden="true" />
+          </ToolButton>
+          <ToolButton active={tool === 'metro'} label="Metro line · $30 / m" onClick={() => actions.selectTool('metro')}>
+            <span class="opt-dot" aria-hidden="true" />
+          </ToolButton>
+          <ToolButton active={tool === 'place' && fk === FacilityKind.Airport} label={`Airport · ${usd(FACILITIES[FacilityKind.Airport]!.cost)}`} onClick={() => actions.setFacility(FacilityKind.Airport)}>
             <span class="opt-dot" aria-hidden="true" />
           </ToolButton>
         </div>
@@ -630,7 +637,7 @@ function Toolbar(): JSX.Element {
         <ToolButton active={tool === 'place' && isCampus} label="Campus" onClick={() => (tool === 'place' && isCampus ? actions.selectTool('none') : actions.setFacility(CAMPUS_FACILITIES[0]))}>
           <IconCampus size={18} />
         </ToolButton>
-        <ToolButton active={isMetro} label="Metro" onClick={() => (isMetro ? actions.selectTool('none') : actions.setFacility(TRANSIT_FACILITIES[0]))}>
+        <ToolButton active={isMetro} label="Transit" onClick={() => (isMetro ? actions.selectTool('none') : actions.setFacility(TRANSIT_FACILITIES[0]))}>
           <IconTrain size={18} />
         </ToolButton>
         <div class="toolbar-sep" />

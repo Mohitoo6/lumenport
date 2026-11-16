@@ -15,6 +15,7 @@ import { POWERED, WATERED, computeUtilities, newNetworks, type Networks } from '
 import { MAX_DEPTH, frontageOf, reachesRoad } from './zoning/lots';
 import { zoneAlongCells } from './zoning/along';
 import { roadAngle } from './zoning/orient';
+import { BUS, busLines, servedStops, type BusLine } from './transit/bus';
 import { METRO, activeStations, emptyMetro, planMetro, pruneMetro, type MetroPlan } from './transit/metro';
 import { ZoneType, zoneType } from './zoning/zones';
 import { FACING_DX, FACING_DY } from './zoning/zones';
@@ -70,6 +71,8 @@ export class Sim {
   readonly fields = new Fields();
   /** Vehicles on the roads. Derived, never saved. */
   readonly traffic: Traffic;
+  /** Bus lines, from where the stops are. Derived, never saved. */
+  busLines: BusLine[] = [];
   /** The season's weather at the current tick. Derived from the tick and the seed, never saved. */
   weather: Weather;
   private netDirty = true;
@@ -156,23 +159,37 @@ export class Sim {
     const st = s.stats;
     const labor = st.population * 0.55;
     const unemployment = labor > 0 ? Math.max(0, 1 - st.employed / labor) : 0;
-    const mood = this.fields.update(s.buildings, s.roads, s.roadCell, s.heights, this.traffic.density, s.tax, unemployment, st.congestion, activeStations(s));
+    // Stations on a metro line and stops on a bus line are the ones that serve anyone.
+    const live = activeStations(s);
+    for (const id of servedStops(this.busLines)) live.add(id);
+    const mood = this.fields.update(s.buildings, s.roads, s.roadCell, s.heights, this.traffic.density, s.tax, unemployment, st.congestion, live);
     // The season colours the mood a little: festivals lift it, heat and cold wear on it.
     st.happiness = Math.max(0, Math.min(1, mood + this.weather.mood));
     // Residents within reach of a connected station ride instead of driving.
+    // A resident near both takes the metro; the bus picks up some of the rest.
     const transit = this.fields.coverage[6]!;
+    const bus = this.fields.coverage[7]!;
     let riders = 0;
+    let busRiders = 0;
     for (const b of s.buildings) {
       if (!b || b.kind !== 0 || b.pop <= 0 || zoneType(b.zone) !== ZoneType.Residential) continue;
-      riders += b.pop * METRO.uptake * transit[(b.y + (b.h >> 1)) * MAP + b.x + (b.w >> 1)]!;
+      const k = (b.y + (b.h >> 1)) * MAP + b.x + (b.w >> 1);
+      const metro = METRO.uptake * transit[k]!;
+      riders += b.pop * metro;
+      busRiders += b.pop * (1 - metro) * BUS.uptake * bus[k]!;
     }
     st.metroRiders = Math.round(riders);
+    st.busRiders = Math.round(busRiders);
   }
 
   /** Recomputes power and water on every road network. */
   refreshUtilities(): void {
     const s = this.state;
     computeUtilities(s.buildings, s.roadCell, this.net, this.netDirty, Math.floor(s.tick / TICKS_PER_STEP), s.stats, { power: this.weather.powerDemand, water: this.weather.waterDemand });
+    // Bus lines follow the road networks and the stops on them.
+    this.busLines = busLines(s.buildings, this.net);
+    this.traffic.setBusLines(this.busLines);
+    s.stats.buses = this.busLines.reduce((a, l) => a + l.buses, 0);
     // Sandbox cities need no plants: everything counts as connected.
     if (s.sandbox) for (const b of s.buildings) if (b) b.flags |= POWERED | WATERED;
     this.netDirty = false;
@@ -470,7 +487,7 @@ export class Sim {
         if (!site) return fail('No flat land for a town hall');
         const plan = planFacility(s, FacilityKind.TownHall, site.x, site.y);
         const rng = new Rng(s.rng);
-        const b = spawnBuilding(s, { x: plan.x, y: plan.y, w: plan.size, h: plan.size, facing: plan.facing }, 0, rng, FacilityKind.TownHall);
+        const b = spawnBuilding(s, { x: plan.x, y: plan.y, w: plan.w, h: plan.h, facing: plan.facing }, 0, rng, FacilityKind.TownHall);
         s.rng = rng.state;
         // It stands from the first day.
         b.progress = 1;
@@ -483,12 +500,12 @@ export class Sim {
         return OK;
       }
       case 'placeFacility': {
-        if (isLandmark(cmd.kind) && s.buildings.some((b) => b && b.kind === cmd.kind)) return fail('The city already has one');
+        if ((isLandmark(cmd.kind) || cmd.kind === FacilityKind.Airport) && s.buildings.some((b) => b && b.kind === cmd.kind)) return fail('The city already has one');
         const plan = planFacility(s, cmd.kind, cmd.x, cmd.y);
         if (!plan.ok) return fail(plan.reason);
         if (!this.charge(plan.cost)) return fail('Not enough money');
         const rng = new Rng(s.rng);
-        const b = spawnBuilding(s, { x: plan.x, y: plan.y, w: plan.size, h: plan.size, facing: plan.facing }, 0, rng, plan.kind);
+        const b = spawnBuilding(s, { x: plan.x, y: plan.y, w: plan.w, h: plan.h, facing: plan.facing }, 0, rng, plan.kind);
         s.rng = rng.state;
         // Clear any zoning under it.
         const r = lotRect(b);

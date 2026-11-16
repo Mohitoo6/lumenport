@@ -15,6 +15,8 @@ import { loadPbr, loadTextureArray, loadWarnings } from '../render/assets/loader
 import { makeNoiseTexture, makeWaterNormalTexture } from '../render/assets/procedural';
 import { Atmosphere } from '../render/atmosphere';
 import { Rain } from '../render/weather/rain';
+import { Planes } from '../render/airport/planes';
+import { Pedestrians } from '../render/people/pedestrians';
 import { SEASON_SPECS, skyAt, type Sky, type Weather } from '../sim/seasons';
 import { RtsCamera, type CameraPose } from '../render/camera/rtsCamera';
 import { BuildingRenderer } from '../render/buildings/buildingRenderer';
@@ -108,6 +110,8 @@ export class Game {
   private chamber: Chamber | null = null;
   private readonly lookTmp = new Vector3();
   private rain: Rain | null = null;
+  private planes: Planes | null = null;
+  private people: Pedestrians | null = null;
   /** A sky set by a script (for screenshots), instead of the one the calendar gives. */
   private heldSky: Sky | null = null;
   /** The weather a script asked to show in the top bar along with `heldSky`. */
@@ -642,6 +646,11 @@ export class Game {
     // While paused the cars sit at their last tick position.
     this.vehicles?.update(this.sim.traffic, state.speed === 0 ? 1 : Math.min(1, this.acc / TICK_MS), this.atmosphere.night);
     this.metro?.update(dt * Math.min(state.speed, 2), this.atmosphere.night);
+    this.planes ??= new Planes(this.engine.scene);
+    this.planes.update(state, state.speed === 0 ? 1 : Math.min(1, this.acc / TICK_MS));
+    // People on the pavements, near the camera only. They walk at game speed.
+    this.people ??= new Pedestrians(this.engine.scene);
+    if (!cine) this.people.update(this.sim, { x: this.rig.pose.x, z: this.rig.pose.z }, this.rig.pose.dist, this.simHour(), sky?.rain ?? 0, dt * SPEED_FACTOR[state.speed]);
     if (inside && this.chamber) {
       const v = ui.council.value;
       const thinking = new Set<string>();
@@ -878,6 +887,15 @@ export class Game {
       if (spec.water > 0) rows.push(['Output', `${spec.water.toLocaleString('en-US')} water`]);
       if (spec.service !== Service.None) rows.push(['Reach', `${spec.radius * CELL} m`]);
       rows.push(['Upkeep', `$${spec.upkeep} / hour`]);
+      if (b.kind === FacilityKind.BusStop && b.progress >= 1) {
+        const line = this.sim.busLines.findIndex((l) => l.stops.includes(b.id));
+        const l = this.sim.busLines[line];
+        rows.push(l ? ['Bus line', `Line ${line + 1}: ${l.stops.length} stops, ${l.buses} bus${l.buses > 1 ? 'es' : ''}`, 'good'] : ['Bus line', 'Not served: place another stop on connected roads', 'bad']);
+      }
+      if (b.kind === FacilityKind.Airport && b.progress >= 1) {
+        const flights = Planes.flightsPerHour(this.sim.state.stats.population);
+        rows.push(['Flights', `${flights} an hour`], ['Earns', `$${projectBudget(this.sim.state.buildings, this.sim.state.roads, this.sim.state.tax, this.sim.state.loans, this.sim.state.stats, emptyReport(), this.sim.state.policies, this.sim.state.metro).airport.toLocaleString('en-US')} / hour`, 'good']);
+      }
     } else {
       const t = zoneType(b.zone);
       const cap = capacityOf(b);

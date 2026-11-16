@@ -87,6 +87,7 @@ function lensItems(o: CouncilOption, lens: readonly Lens[], limits: FiscalLimits
   if (has('traffic')) {
     if (e.trafficImpact.capacityDelta !== 0) out.push(`road capacity ${e.trafficImpact.capacityDelta > 0 ? '+' : ''}${e.trafficImpact.capacityDelta} vehicles`);
     if (e.trafficImpact.rushPeakFactor !== 1) out.push(`rush-hour peak at ${Math.round(e.trafficImpact.rushPeakFactor * 100)}% of today's`);
+    if (e.trafficImpact.transitRidersDelta > 0) out.push(`${e.trafficImpact.transitRidersDelta} residents switch from car to bus or metro`);
   }
   if (has('tax') && e.taxRateDelta.some((d) => d !== 0)) out.push(`tax ${e.taxRateDelta.map((d) => (d > 0 ? `+${d}` : String(d))).join('/')} points (homes/shops/industry)`);
   if (has('approval') && e.approvalDelta !== 0) out.push(`city happiness ${e.approvalDelta > 0 ? '+' : ''}${e.approvalDelta} points`);
@@ -167,6 +168,17 @@ function digest(statements: readonly Statement[]): string {
     .join('\n');
 }
 
+/**
+ * What the chair reads of the debate: the lead's opening proposal and each minister's
+ * last word. A round-1 statement that the same minister has since replaced in round 2 is
+ * dropped: the round-2 statement answers it, so the chair loses nothing it needs.
+ */
+export function finalPositions(statements: readonly Statement[], lead: MinistryId): Statement[] {
+  const last = new Map<MinistryId, Statement>();
+  for (const s of statements) last.set(s.minister, s);
+  return statements.filter((s) => last.get(s.minister) === s || (s.minister === lead && s.round === 1));
+}
+
 export interface TurnContext {
   issue: CityIssue;
   options: readonly CouncilOption[];
@@ -214,6 +226,6 @@ export function chiefTurn(ctx: TurnContext, tally: string): string {
   const parts = [`ISSUE: ${describeIssue(ctx.issue)}`, budgetLine(ctx.limits), `OPTIONS:\n${describeOptionsFor(ctx.options, 'all', ctx.limits, ctx.constraints)}`];
   if (ctx.memory.length) parts.push(`PAST DECISIONS:\n${ctx.memory.join('\n')}`);
   if (ctx.mayorNote) parts.push(mayorLine(ctx.mayorNote, ctx.constraints ?? []));
-  parts.push(`DEBATE:\n${digest(ctx.earlier)}`, `WHERE MINISTERS STAND: ${tally}`, 'Sum up and recommend one option to the mayor.');
+  parts.push(`DEBATE:\n${digest(finalPositions(ctx.earlier, ctx.issue.lead))}`, `WHERE MINISTERS STAND: ${tally}`, 'Sum up and recommend one option to the mayor.');
   return parts.join('\n\n');
 }

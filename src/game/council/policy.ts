@@ -56,10 +56,10 @@ export function score(id: MinistryId, o: CouncilOption, constraints: readonly Co
       v += e.powerSupplyDelta / 4 + e.waterSupplyDelta / 800 - (im.pollutes ? 2 : 0);
       break;
     case 'roads':
-      v += e.trafficImpact.capacityDelta / 15 + (1 - e.trafficImpact.rushPeakFactor) * 12;
+      v += e.trafficImpact.capacityDelta / 15 + (1 - e.trafficImpact.rushPeakFactor) * 12 + e.trafficImpact.transitRidersDelta / 40;
       break;
     case 'safety':
-      v += e.trafficImpact.capacityDelta / 30 + (1 - e.trafficImpact.rushPeakFactor) * 6;
+      v += e.trafficImpact.capacityDelta / 30 + (1 - e.trafficImpact.rushPeakFactor) * 6 + e.trafficImpact.transitRidersDelta / 80;
       break;
   }
   return v;
@@ -131,6 +131,7 @@ function merit(id: MinistryId, o: CouncilOption, limits: FiscalLimits, hi: boole
     case 'roads':
     case 'safety':
       if (e.trafficImpact.rushPeakFactor < 1) return hi ? 'भीड़ के समय का ट्रैफ़िक घटाता है' : `cuts the rush-hour peak to ${Math.round(e.trafficImpact.rushPeakFactor * 100)}% of today's`;
+      if (e.trafficImpact.transitRidersDelta > 0) return hi ? `${e.trafficImpact.transitRidersDelta} निवासियों को कार से बस पर लाता है` : `takes ${e.trafficImpact.transitRidersDelta} residents out of their cars`;
       if (e.trafficImpact.capacityDelta > 0) return hi ? 'सड़क की क्षमता बढ़ाता है' : `adds room for about ${e.trafficImpact.capacityDelta} more vehicles`;
       break;
     default:

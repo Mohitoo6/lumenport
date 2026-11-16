@@ -39,6 +39,7 @@ function effectChips(e: StateDelta): Chip[] {
   if (e.powerSupplyDelta !== 0) out.push({ text: `Power ${e.powerSupplyDelta > 0 ? '+' : '−'}${Math.abs(e.powerSupplyDelta)} MW`, tone: e.powerSupplyDelta > 0 ? 'good' : 'bad' });
   if (e.waterSupplyDelta !== 0) out.push({ text: `Water ${e.waterSupplyDelta > 0 ? '+' : '−'}${Math.abs(e.waterSupplyDelta).toLocaleString('en-US')}`, tone: e.waterSupplyDelta > 0 ? 'good' : 'bad' });
   if (e.trafficImpact.rushPeakFactor !== 1) out.push({ text: `Rush peak ${Math.round(e.trafficImpact.rushPeakFactor * 100)}%`, tone: e.trafficImpact.rushPeakFactor < 1 ? 'good' : 'bad' });
+  if (e.trafficImpact.transitRidersDelta > 0) out.push({ text: `${e.trafficImpact.transitRidersDelta} leave the car`, tone: 'good' });
   if (e.trafficImpact.capacityDelta !== 0) out.push({ text: `Road capacity ${e.trafficImpact.capacityDelta > 0 ? '+' : '−'}${Math.abs(e.trafficImpact.capacityDelta)}`, tone: e.trafficImpact.capacityDelta > 0 ? 'good' : 'bad' });
   if (e.approvalDelta !== 0) out.push({ text: `Happiness ${e.approvalDelta > 0 ? '+' : '−'}${Math.abs(e.approvalDelta)} pts`, tone: e.approvalDelta > 0 ? 'good' : 'bad' });
   return out;

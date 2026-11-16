@@ -40,7 +40,7 @@ export class PlaceTool implements Tool {
     const ok = plan.ok && !broke;
     ctx.preview.grid.value.x = p.x;
     ctx.preview.grid.value.y = p.z;
-    ctx.preview.showRect(plan.x * CELL, plan.y * CELL, (plan.x + plan.size) * CELL, (plan.y + plan.size) * CELL, ok ? 'ok' : 'bad', 0.6);
+    ctx.preview.showRect(plan.x * CELL, plan.y * CELL, (plan.x + plan.w) * CELL, (plan.y + plan.h) * CELL, ok ? 'ok' : 'bad', 0.6);
     if (ok) {
       const out = spec.power > 0 ? `${spec.power} MW` : `${spec.water.toLocaleString('en-US')} water`;
       ctx.hint(`${spec.name}  ·  ${money(spec.cost)}  ·  ${out}  ·  ${money(spec.upkeep)}/hour`, 'ok');

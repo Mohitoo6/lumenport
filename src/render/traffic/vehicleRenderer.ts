@@ -1,7 +1,7 @@
 import { BufferAttribute, BufferGeometry, DoubleSide, DynamicDrawUsage, Group, InstancedBufferAttribute, InstancedMesh, MeshBasicMaterial, MeshStandardMaterial } from 'three';
 import { angleDelta } from '../../core/math';
-import { CAR_KINDS, MAX_CARS, type Traffic } from '../../sim/traffic/traffic';
-import { CAR_PAINT, buildCars } from './carGeometry';
+import { BUS_KIND, CAR_KINDS, MAX_CARS, type Traffic } from '../../sim/traffic/traffic';
+import { BUS_PAINT, CAR_PAINT, buildCars } from './carGeometry';
 
 /**
  * Draws every car with one instanced mesh per body style. Positions are interpolated
@@ -102,7 +102,7 @@ export class VehicleRenderer {
       m[o + 14] = z;
       m[o + 15] = 1;
       if (lit) for (let c2 = 0; c2 < 16; c2++) lm[i * 16 + c2] = m[o + c2]!;
-      const paint = CAR_PAINT[t.color[i]!]!;
+      const paint = kind === BUS_KIND ? BUS_PAINT : CAR_PAINT[t.color[i]!]!;
       const col = mesh.instanceColor!.array;
       col[k * 3] = paint[0];
       col[k * 3 + 1] = paint[1];

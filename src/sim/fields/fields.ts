@@ -27,7 +27,7 @@ export class Fields {
   private watersideFor: Float32Array | null = null;
 
   constructor() {
-    for (let i = 0; i <= 6; i++) this.coverage.push(new Float32Array(N));
+    for (let i = 0; i <= 7; i++) this.coverage.push(new Float32Array(N));
   }
 
   /** Box blur of radius r, applied horizontally then vertically, `passes` times. */
@@ -112,10 +112,12 @@ export class Fields {
       if (!b || b.progress < 1) continue;
       if (b.kind !== 0) {
         const spec = FACILITIES[b.kind]!;
-        // A metro station only serves anyone once a line connects it to another station.
-        const live = spec.service !== Service.Transit || (transitActive?.has(b.id) ?? false);
+        // A metro station or bus stop only serves anyone once a line runs through it.
+        const live = (spec.service !== Service.Transit && spec.service !== Service.Bus) || (transitActive?.has(b.id) ?? false);
         if (spec.service !== Service.None && live) this.stampCoverage(this.coverage[spec.service]!, b, spec.radius);
         if (b.kind === FacilityKind.CoalPlant) this.stampLot(pol, b, 5);
+        // Aircraft noise: the runway side of an airport is no place for homes.
+        if (b.kind === FacilityKind.Airport) this.stampLot(pol, b, 0.9);
         continue;
       }
       const t = zoneType(b.zone);

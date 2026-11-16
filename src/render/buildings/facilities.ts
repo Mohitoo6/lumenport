@@ -625,6 +625,132 @@ function university(l: Lot): void {
   flagpole(g, 7, D / 2 - 2, navy);
 }
 
+/**
+ * A regional airport, laid out along the long side of its site: a runway with markings and
+ * edge lights, a parallel taxiway, an apron with parked aircraft and a cargo shed, and a
+ * glass terminal with a control tower facing the road.
+ */
+function airport(l: Lot): void {
+  const { g, W, D } = l;
+  ground(l, mat(Layer.Grass, [0.85, 1.0, 0.75], 6));
+  // Work in "runway" coordinates: u along the long side, v across it, v = +vMax at the road.
+  const long = W >= D;
+  const U = (long ? W : D) / 2;
+  const V = (long ? D : W) / 2;
+  const at = (u: number, v: number): [number, number] => (long ? [u, v] : [v, -u]);
+  const rect = (u0: number, v0: number, u1: number, v1: number): [number, number, number, number] => {
+    const [ax, az] = at(u0, v0);
+    const [bx, bz] = at(u1, v1);
+    return [Math.min(ax, bx), Math.min(az, bz), Math.max(ax, bx), Math.max(az, bz)];
+  };
+  const flat = (u0: number, v0: number, u1: number, v1: number, y: number, m: Mat): void => {
+    const [x0, z0, x1, z1] = rect(u0, v0, u1, v1);
+    g.flat(x0, z0, x1, z1, y, m);
+  };
+  const box = (u0: number, v0: number, u1: number, v1: number, y0: number, y1: number, m: Mat, w: Parameters<Geo['box']>[7] = NO_WIN, top?: Mat | null): void => {
+    const [x0, z0, x1, z1] = rect(u0, v0, u1, v1);
+    g.box(x0, z0, x1, z1, y0, y1, m, w, top);
+  };
+  const tarmac = mat(Layer.Asphalt, [0.82, 0.82, 0.84], 3);
+  const apronMat = mat(Layer.Concrete, [1.12, 1.12, 1.1], 3);
+  const paint = mat(Layer.Concrete, [2.2, 2.2, 2.15], 3);
+  const yellow = mat(Layer.Concrete, [2.0, 1.6, 0.3], 3);
+  // Runway on the far side of the site.
+  const rv = -V + 14;
+  const rw = 11;
+  flat(-U + 6, rv - rw, U - 6, rv + rw, 0.06, tarmac);
+  // Centre-line dashes, threshold bars and aiming points.
+  for (let u = -U + 30; u < U - 30; u += 18) flat(u, rv - 0.35, u + 9, rv + 0.35, 0.08, paint);
+  for (const end of [-1, 1]) {
+    const u0 = end < 0 ? -U + 8 : U - 20;
+    for (let k = -4; k <= 4; k++) flat(u0, rv + k * 2.2 - 0.6, u0 + 12, rv + k * 2.2 + 0.6, 0.08, paint);
+    const ua = end < 0 ? -U + 48 : U - 62;
+    flat(ua, rv - 6, ua + 14, rv - 4, 0.08, paint);
+    flat(ua, rv + 4, ua + 14, rv + 6, 0.08, paint);
+  }
+  // Edge lights.
+  const light = mat(Layer.Concrete, [3.2, 3.0, 2.2], 3);
+  for (let u = -U + 8; u <= U - 8; u += 14) {
+    for (const side of [-1, 1]) {
+      const [x, z] = at(u, rv + side * (rw + 0.8));
+      g.box(x - 0.2, z - 0.2, x + 0.2, z + 0.2, 0, 0.45, light);
+    }
+  }
+  // Taxiway parallel to the runway, with links at both ends.
+  const tv = rv + rw + 14;
+  flat(-U + 18, tv - 4.5, U - 18, tv + 4.5, 0.05, tarmac);
+  for (let u = -U + 22; u < U - 22; u += 10) flat(u, tv - 0.2, u + 5, tv + 0.2, 0.07, yellow);
+  for (const end of [-1, 1]) {
+    const u0 = end < 0 ? -U + 18 : U - 27;
+    flat(u0, rv + rw, u0 + 9, tv, 0.05, tarmac);
+  }
+  // Apron between the taxiway and the terminal.
+  const av0 = tv + 4.5;
+  const av1 = V - 18;
+  flat(-U + 30, av0, U - 30, av1, 0.05, apronMat);
+  for (let u = -U + 60; u < U - 60; u += 34) flat(u - 0.2, av0, u + 0.2, av1, 0.07, yellow);
+  // Terminal: a long glass hall with a deep roof, facing the road.
+  const glass = mat(Layer.Metal, [0.55, 0.78, 0.95], 2.4);
+  const frame = mat(Layer.Concrete, [1.5, 1.5, 1.48], 3);
+  const tu0 = -U * 0.32;
+  const tu1 = U * 0.32;
+  box(tu0, av1, tu1, V - 4, 0, 9, glass, win(Style.Curtain, 2.4, 4.5, 0.7), frame);
+  box(tu0 - 2, av1 - 2, tu1 + 2, V - 2.5, 9, 10, mat(Layer.Metal, [1.45, 1.47, 1.5], 2.5));
+  // Jet bridges reaching out to the apron.
+  for (const u of [tu0 + 14, 0, tu1 - 14]) box(u - 1.6, av1 - 16, u + 1.6, av1, 3, 6, frame, win(Style.Ribbon, 2, 3, 0.5));
+  // Control tower beside the terminal.
+  const [cx, cz] = at(tu1 + 16, av1 + 6);
+  g.cyl(cx, cz, 2.6, 2.2, 0, 30, 12, frame);
+  g.cyl(cx, cz, 4.6, 4.2, 30, 35, 12, glass, null);
+  g.cyl(cx, cz, 4.9, 4.9, 35, 36, 12, frame);
+  // Cargo shed at the other end of the apron.
+  box(-U + 34, av0 + 6, -U * 0.45, av1 - 2, 0, 11, mat(Layer.Metal, [0.95, 0.98, 1.02], 2.2), win(Style.Industrial, 6, 11, 0.3), mat(Layer.Roof3, [0.8, 0.82, 0.86], 3));
+  // Parked aircraft at the gates.
+  const white = mat(Layer.Plaster2, [1.9, 1.9, 1.88], 3);
+  const tail = mat(Layer.Plaster2, [0.2, 0.45, 1.3], 3);
+  for (const u of [tu0 + 14, 0, tu1 - 14]) {
+    const nose = av1 - 17;
+    const tailV = nose - 28;
+    // Fuselage along v, wings across u, fin at the tail.
+    box(u - 2, tailV, u + 2, nose, 1.6, 5.4, white);
+    box(u - 14, tailV + 11, u + 14, tailV + 15.5, 3.2, 3.6, white);
+    box(u - 6, tailV, u + 6, tailV + 3, 4.6, 5.0, white);
+    box(u - 0.25, tailV, u + 0.25, tailV + 5, 5.4, 11, tail);
+  }
+  // Car park and the access road along the front.
+  const [px0, pz0, px1, pz1] = rect(tu1 + 26, V - 16, U - 6, V - 2);
+  parking(g, px0, pz0, px1, pz1);
+  flat(-U + 6, V - 3, U - 6, V - 0.5, 0.04, PAVING);
+  flagpole(g, ...at(tu0 - 6, V - 3), [0.2, 0.45, 1.3]);
+}
+
+/**
+ * A bus shelter on a paved pad at the kerb: a glazed back wall on steel posts, a
+ * cantilevered roof, a bench, a timetable panel and the stop flag.
+ */
+function busStop(l: Lot): void {
+  const { g, W, D } = l;
+  ground(l, PAVING);
+  const steel = mat(Layer.Metal, [0.85, 0.9, 0.95], 2.2);
+  const glass = mat(Layer.Metal, [0.55, 0.78, 0.95], 2.4);
+  const red: RGB = [0.75, 0.08, 0.05];
+  const kerb = D / 2;
+  const z0 = kerb - 3.2;
+  const x0 = -W / 2 + 1.2;
+  const x1 = W / 2 - 1.2;
+  // Back wall of glass between two posts, and the roof.
+  for (const x of [x0, x1]) g.box(x - 0.08, z0 - 0.08, x + 0.08, z0 + 0.08, 0, 2.6, steel);
+  g.walls(x0, z0 - 0.05, x1, z0 + 0.05, 0.25, 2.3, glass, win(Style.Curtain, 1.4, 2.0, 0.85));
+  g.box(x0 - 0.3, z0 - 0.3, x1 + 0.3, z0 + 1.6, 2.6, 2.75, mat(Layer.Metal, [1.4, 1.42, 1.45], 2.5));
+  g.box(x0 - 0.3, z0 + 1.55, x1 + 0.3, z0 + 1.65, 2.45, 2.75, mat(Layer.Plaster2, red, 3), SIGN, null);
+  // Bench and the timetable board.
+  g.box(x0 + 0.6, z0 + 0.25, x1 - 1.3, z0 + 0.7, 0.42, 0.5, mat(Layer.Concrete, [0.9, 0.62, 0.38], 2));
+  g.box(x1 - 0.95, z0 + 0.1, x1 - 0.35, z0 + 0.22, 0.4, 2.1, mat(Layer.Plaster2, [1.6, 1.6, 1.55], 3), SIGN, null);
+  // The stop flag at the kerb.
+  g.cyl(x1 + 0.2, kerb - 0.5, 0.05, 0.05, 0, 3.1, 8, steel);
+  g.box(x1 - 0.1, kerb - 0.55, x1 + 0.5, kerb - 0.45, 2.5, 3.0, mat(Layer.Plaster2, red, 3), SIGN, null);
+}
+
 export function facility(l: Lot, kind: number): void {
   switch (kind) {
     case FacilityKind.CoalPlant:
@@ -665,6 +791,12 @@ export function facility(l: Lot, kind: number): void {
       break;
     case FacilityKind.TownHall:
       townHall(l);
+      break;
+    case FacilityKind.BusStop:
+      busStop(l);
+      break;
+    case FacilityKind.Airport:
+      airport(l);
       break;
     default:
       park(l);

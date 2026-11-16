@@ -277,6 +277,7 @@ function payloadRows(e: StateDelta): Array<[string, string]> {
   if (e.roadLengthDelta) rows.push(['roadLengthDelta', `${e.roadLengthDelta} m`]);
   if (e.trafficImpact.capacityDelta) rows.push(['trafficImpact.capacityDelta', `${e.trafficImpact.capacityDelta} vehicles`]);
   if (e.trafficImpact.rushPeakFactor !== 1) rows.push(['trafficImpact.rushPeakFactor', `×${e.trafficImpact.rushPeakFactor}`]);
+  if (e.trafficImpact.transitRidersDelta) rows.push(['trafficImpact.transitRidersDelta', `+${num(e.trafficImpact.transitRidersDelta)}`]);
   if (e.approvalDelta) rows.push(['approvalDelta', `${e.approvalDelta > 0 ? '+' : ''}${e.approvalDelta} pts`]);
   return rows;
 }

@@ -35,6 +35,22 @@ going on: power, water, traffic, pollution, crime, land value, happiness and cov
 
 Cities are saved in the browser (Menu, M): three slots plus an autosave every two minutes.
 
+## Transit and the airport
+
+Place bus stops beside roads (Transit): two or more on connected roads start a bus line,
+and buses run between them on the real roads, waiting at each stop. Residents near a served
+stop leave the car at home and pay fares. The metro works the same way on a viaduct. An
+airport, on a long flat site, earns from exports, travellers and tourists, lifts demand for
+shops and industry, and is noisy around the runway. People walk the pavements and wait at
+the stops.
+
+## Seasons
+
+The year follows the six Indian seasons, two months each. Summer heat raises power and
+water demand, the monsoon brings rain that slows traffic, winter mornings are foggy. Days
+are long in summer and short in winter, and grass and leaves change colour. The weather
+chip in the top bar says what the season is doing to the city.
+
 ## Time
 
 The city has one clock. A game hour takes a real minute at normal speed; the budget settles

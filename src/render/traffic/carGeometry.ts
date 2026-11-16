@@ -83,8 +83,28 @@ export function buildCars(): BufferGeometry[] {
     box(1.99, 0.18, 5.16, 0, 0.4, 0, TRIM),
     ...wheels(0.88, 1.65, -1.6, 0.37),
   ]);
-  return [saloon, suv, van];
+  // A city bus: 11.6 m, a long glass band, doors on the kerb side, a destination sign.
+  const DOOR: RGB = [0.1, 0.12, 0.14];
+  const SIGN: RGB = [1.6, 1.1, 0.25];
+  const bus = finish([
+    box(2.5, 2.25, 11.6, 0, 1.55, 0, PAINT),
+    // The window band on both sides and the windscreen.
+    box(2.52, 0.95, 10.4, 0, 2.05, -0.25, [GLASS, GLASS, PAINT, PAINT, GLASS, GLASS]),
+    box(2.3, 1.1, 0.06, 0, 1.95, 5.82, GLASS),
+    // Doors on the right (kerb) side.
+    box(0.04, 1.75, 1.1, 1.27, 1.35, 3.9, DOOR),
+    box(0.04, 1.75, 1.1, 1.27, 1.35, -0.6, DOOR),
+    box(1.6, 0.24, 0.05, 0, 2.62, 5.83, SIGN),
+    // Roof units and the bumper line.
+    box(1.6, 0.28, 3.2, 0, 2.82, -2.6, TRIM),
+    box(2.56, 0.26, 11.7, 0, 0.55, 0, TRIM),
+    ...wheels(1.05, 3.6, -3.4, 0.5),
+  ]);
+  return [saloon, suv, van, bus];
 }
+
+/** Bus livery, linear RGB: a city red. */
+export const BUS_PAINT: RGB = [0.62, 0.06, 0.04];
 
 /** Paint colours, linear RGB. Weighted toward the whites, greys and blacks real traffic has. */
 export const CAR_PAINT: RGB[] = [

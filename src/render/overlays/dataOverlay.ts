@@ -44,7 +44,7 @@ export const OVERLAYS: OverlayInfo[] = [
   { id: 'fire', name: 'Fire cover', low: 'Edge', high: 'Close', gradient: GOOD },
   { id: 'health', name: 'Health cover', low: 'Edge', high: 'Close', gradient: GOOD },
   { id: 'education', name: 'Education cover', low: 'Edge', high: 'Close', gradient: GOOD },
-  { id: 'transit', name: 'Metro reach', low: 'Edge', high: 'Close', gradient: GOOD },
+  { id: 'transit', name: 'Transit reach', low: 'Edge', high: 'Close', gradient: GOOD },
 ];
 
 const COVERAGE: Partial<Record<OverlayId, Service>> = {
@@ -163,8 +163,10 @@ export class DataOverlay {
       }
     } else {
       const a = f.coverage[COVERAGE[id]!]!;
+      // Transit reach is the metro's and the buses' together.
+      const b = id === 'transit' ? f.coverage[Service.Bus] : undefined;
       for (let k = 0; k < MAP * MAP; k++) {
-        const v = a[k]!;
+        const v = b ? Math.max(a[k]!, b[k]!) : a[k]!;
         if (v <= 0) continue;
         lerp3(TEAL, MINT, v, d, k * 4);
         d[k * 4 + 3] = 70 + v * 150;

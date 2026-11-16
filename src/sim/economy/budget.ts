@@ -1,3 +1,4 @@
+import { BUS } from '../transit/bus';
 import { METRO, metroLength, type MetroState } from '../transit/metro';
 import { FacilityKind, FACILITIES, Service } from '../facilities';
 import { ROAD_SPECS, type RoadNetwork } from '../roads/types';
@@ -46,8 +47,10 @@ export interface BudgetReport {
   services: number;
   /** Metro stations and lines. */
   transit: number;
-  /** Metro fares. */
+  /** Metro and bus fares. */
   fares: number;
+  /** The airport's earnings: cargo from exports, passenger fees and tourist spending. */
+  airport: number;
   loans: number;
   income: number;
   expense: number;
@@ -55,8 +58,15 @@ export interface BudgetReport {
 }
 
 export function emptyReport(): BudgetReport {
-  return { taxR: 0, taxC: 0, taxI: 0, roads: 0, utilities: 0, services: 0, transit: 0, fares: 0, loans: 0, income: 0, expense: 0, net: 0 };
+  return { taxR: 0, taxC: 0, taxI: 0, roads: 0, utilities: 0, services: 0, transit: 0, fares: 0, airport: 0, loans: 0, income: 0, expense: 0, net: 0 };
 }
+
+/**
+ * What an airport earns each hour: cargo for every industrial worker (their goods are
+ * exported), fees for every resident (some of them travel), and tourist spending in
+ * proportion to the shops and offices there are to spend it in.
+ */
+export const AIRPORT = { cargo: 0.6, passengers: 0.04, tourism: 0.14 };
 
 /** Hourly tax per resident or worker at a 1% rate. */
 const TAX_BASE = { r: 0.15, c: 0.26, i: 0.2 };
@@ -80,8 +90,10 @@ export function projectBudget(
   let utilities = 0;
   let services = 0;
   let transit = 0;
+  let airport = false;
   for (const b of buildings) {
     if (!b) continue;
+    if (b.kind === FacilityKind.Airport && b.progress >= 1) airport = true;
     if (b.kind !== 0) {
       const spec = FACILITIES[b.kind]!;
       const line = spec.budget ?? (spec.service === Service.None ? 'utility' : 'service');
@@ -108,10 +120,11 @@ export function projectBudget(
   out.utilities = utilities;
   if (policies.flexHours) services += POLICY_COST.flexHours;
   out.services = services;
-  out.transit = Math.round(transit + metroLength(metro) * METRO.upkeepPerMetre);
-  out.fares = Math.round((stats.metroRiders ?? 0) * METRO.fare);
+  out.transit = Math.round(transit + metroLength(metro) * METRO.upkeepPerMetre + (stats.buses ?? 0) * BUS.upkeepPerBus);
+  out.fares = Math.round((stats.metroRiders ?? 0) * METRO.fare + (stats.busRiders ?? 0) * BUS.fare);
   out.loans = loanCost;
-  out.income = out.taxR + out.taxC + out.taxI + out.fares;
+  out.airport = airport ? Math.round(workersI * AIRPORT.cargo + stats.population * AIRPORT.passengers + workersC * AIRPORT.tourism) : 0;
+  out.income = out.taxR + out.taxC + out.taxI + out.fares + out.airport;
   out.expense = out.roads + out.utilities + out.services + out.transit + out.loans;
   out.net = out.income - out.expense;
   return out;

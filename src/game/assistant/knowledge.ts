@@ -3,6 +3,7 @@ import { LOAN_TIERS } from '../../sim/economy/budget';
 import { FACILITIES, FacilityKind } from '../../sim/facilities';
 import { ROAD_SPECS, RoadType } from '../../sim/roads/types';
 import { MAX_DEPTH } from '../../sim/zoning/lots';
+import { BUS } from '../../sim/transit/bus';
 import { METRO } from '../../sim/transit/metro';
 
 /**
@@ -24,7 +25,7 @@ export interface ManualSection {
 const usd = (n: number): string => `$${n.toLocaleString('en-US')}`;
 
 const INTRO = `HOW THE GAME WORKS (Metropolis, a city builder; the player is the mayor)
-Toolbar at the bottom: Street, Avenue, Homes, Shops, Industry, De-zone, Power, Water, Services, Bulldoze. Top bar: date, speed, funds, population, happiness, demand bars, clock, Council button, Views (data overlays), Menu (M).
+Toolbar at the bottom: Street, Avenue, Homes, Shops, Industry, De-zone, Power, Water, Services, Campus, Transit, Bulldoze. Top bar: date, speed, funds, population, happiness, demand bars, clock, Council button, Views (data overlays), Menu (M).
 Time: one game hour takes a real minute at normal speed (speeds 2 and 3 are twice and four times as quick). The budget settles every hour, so every income and upkeep figure is per hour. A day is 24 hours with a rush at about 9:00 and 18:00. The calendar is the Indian one: each day stands for a month, and two months make a season.`;
 
 export function manualSections(): ManualSection[] {
@@ -93,11 +94,11 @@ ${facilities}
     },
     {
       id: 'metro',
-      about: /metro|station|train|transit|viaduct|मेट्रो|ट्रेन/i,
-      text: `Metro (toolbar: Metro)
-- Place Metro stations beside roads (Metro > Station), then draw a line (Metro > Line): click a station, click the ground to bend the line, click another station to build it. Cost ${usd(METRO.baseCost)} per line plus ${usd(METRO.costPerMetre)} per metre; upkeep ${usd(METRO.upkeepPerMetre)} per metre an hour plus each station's upkeep.
-- The line runs on a viaduct over roads, houses and small shops, but not through taller buildings or facilities: bend it around them.
-- A station only works once a line joins it to another station. Residents within reach (about ${Math.round(FACILITIES[FacilityKind.MetroStation]!.radius * CELL)} m) ride instead of driving: fewer cars, higher land value and happiness, and fares as income. Bulldoze the ground under a line to remove it.`,
+      about: /metro|station|train|transit|viaduct|bus|stop|airport|flight|plane|export|touris|travel|मेट्रो|ट्रेन|बस|हवाई/i,
+      text: `Transit (toolbar: Transit)
+- Bus stop: ${usd(FACILITIES[FacilityKind.BusStop]!.cost)}, placed beside a road. Two or more stops on connected roads start a bus line on their own; each line runs about one bus per two stops at ${usd(BUS.upkeepPerBus)}/hour a bus. Residents within about ${Math.round(FACILITIES[FacilityKind.BusStop]!.radius * CELL)} m of a served stop take the bus instead of driving (fewer cars, fares as income). Click a stop to see its line, or why it is not served.
+- Metro: place stations beside roads (Transit > Metro station), then draw a line (Transit > Metro line): click a station, click the ground to bend the line, click another station. Cost ${usd(METRO.baseCost)} per line plus ${usd(METRO.costPerMetre)} per metre; upkeep ${usd(METRO.upkeepPerMetre)} per metre an hour plus each station's. The viaduct passes over roads, houses and small shops, not taller buildings or facilities. Residents within about ${Math.round(FACILITIES[FacilityKind.MetroStation]!.radius * CELL)} m of a connected station ride instead of driving.
+- Airport: ${usd(FACILITIES[FacilityKind.Airport]!.cost)}, one per city, a long flat site (${FACILITIES[FacilityKind.Airport]!.size} by ${FACILITIES[FacilityKind.Airport]!.length} cells) beside a road. It earns from exports (per industrial worker), passenger fees (per resident) and tourists (per shop and office worker), raises demand for shops and industry, and gives ${FACILITIES[FacilityKind.Airport]!.jobs} jobs. Aircraft noise pollutes the land around it: keep homes away from the runway.`,
     },
     {
       id: 'campus',

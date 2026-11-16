@@ -346,6 +346,24 @@ describe('council session', () => {
     for (const r of log) if (r.schema) expect(r.schema.type).toBe('object');
   });
 
+  it('gives the chair each minister’s last word and the lead’s opening, not superseded statements', async () => {
+    const input = inputFor(sim);
+    const rebel = input.seats[1]!.id;
+    const log: LlmRequest[] = [];
+    const reply = (req: LlmRequest) => {
+      if (req.meta.role === 'chief') return { option: 'B', summary: 'B.', dissent: 'C.', conditions: '' };
+      if (req.meta.minister === rebel) return { speak: true, stance: 'oppose', option: 'C', say: `Round ${req.meta.round}: I back option C.`, condition: '' };
+      return { speak: true, stance: req.meta.lead ? 'propose' : 'support', option: 'B', say: `Round ${req.meta.round}: I back option B.`, condition: '' };
+    };
+    await hold(input, scripted(reply, log));
+    const chair = log.find((r) => r.meta.role === 'chief')!.user;
+    const debate = chair.slice(chair.indexOf('DEBATE:'), chair.indexOf('WHERE MINISTERS STAND'));
+    // The rebel spoke twice; the chair reads only the second. The lead's opening stays.
+    expect(debate).toContain(`R2 ${MINISTER_BY_ID[rebel].short} backs C`);
+    expect(debate).not.toContain(`R1 ${MINISTER_BY_ID[rebel].short} backs C`);
+    expect(debate).toContain(`R1 ${MINISTER_BY_ID[input.issue.lead].short} backs B`);
+  });
+
   it('puts remembered decisions in front of the agents they concern', async () => {
     const input = inputFor(sim);
     const line = 'Day 12 (13 Jan 2030), Budget deficit: Take a $20,000 loan (+$20,000 now, -$900/hour).';

@@ -40,6 +40,8 @@ export interface StateDelta {
     capacityDelta: number;
     /** Rush-hour demand as a share of today's peak (1 = unchanged). */
     rushPeakFactor: number;
+    /** Residents who would switch from the car to the bus or metro. */
+    transitRidersDelta: number;
   };
   /**
    * Change in city happiness, in points out of 100, once anything the option builds is
@@ -68,6 +70,8 @@ export interface Snapshot {
   flexHours: boolean;
   /** 0..100, or null when the data layers were not refreshed for this snapshot. */
   happiness: number | null;
+  /** Bus and metro riders, or null when the data layers were not refreshed. */
+  riders: number | null;
 }
 
 /** Reads the scalar state. `withHappiness` re-runs the data layers first (slower). */
@@ -120,6 +124,7 @@ export function snapshot(sim: Sim, withHappiness = false): Snapshot {
     roadCapacity,
     flexHours: s.policies?.flexHours === true,
     happiness: withHappiness ? s.stats.happiness * 100 : null,
+    riders: withHappiness ? (s.stats.metroRiders ?? 0) + (s.stats.busRiders ?? 0) : null,
   };
 }
 
@@ -145,6 +150,7 @@ export function diff(before: Snapshot, after: Snapshot): StateDelta {
     trafficImpact: {
       capacityDelta: Math.round(after.roadCapacity - before.roadCapacity),
       rushPeakFactor: flexOn ? Math.round(flexFactor * 100) / 100 : flexOff ? Math.round((1 / flexFactor) * 100) / 100 : 1,
+      transitRidersDelta: before.riders !== null && after.riders !== null ? Math.round(after.riders - before.riders) : 0,
     },
     approvalDelta: before.happiness !== null && after.happiness !== null ? round1(after.happiness - before.happiness) : 0,
   };
@@ -161,7 +167,7 @@ export const NO_DELTA: StateDelta = {
   jobsLost: 0,
   buildingsDemolished: 0,
   roadLengthDelta: 0,
-  trafficImpact: { capacityDelta: 0, rushPeakFactor: 1 },
+  trafficImpact: { capacityDelta: 0, rushPeakFactor: 1, transitRidersDelta: 0 },
   approvalDelta: 0,
 };
 
@@ -191,13 +197,17 @@ export function project(sim: Sim, actions: readonly Command[], opts: { unlimited
     if (!r.ok) return { ok: false, reason: r.reason ?? 'refused', failedAt: i };
   }
   let happinessBefore: number | null = null;
+  let ridersBefore: number | null = null;
   if (opts.withApproval) {
     happinessBefore = opts.baseline?.happiness ?? null;
+    ridersBefore = opts.baseline?.riders ?? null;
     // "Once built": what the option adds counts as finished for the projection.
     for (let id = known; id < fork.state.buildings.length; id++) {
       const b = fork.state.buildings[id];
       if (b && b.kind !== 0) b.progress = 1;
     }
+    // New stops join a bus line when the network is next refreshed.
+    fork.refreshUtilities();
     // The city's census runs once a day. Bring it up to date on the fork, so people who
     // lost a home or a job count as such when happiness is recomputed.
     const now = snapshot(fork, false);
@@ -206,7 +216,7 @@ export function project(sim: Sim, actions: readonly Command[], opts: { unlimited
     st.employed = Math.max(0, st.employed - Math.max(0, before.jobs - now.jobs));
   }
   const after = snapshot(fork, opts.withApproval === true);
-  return { ok: true, delta: diff({ ...before, happiness: happinessBefore }, after) };
+  return { ok: true, delta: diff({ ...before, happiness: happinessBefore, riders: ridersBefore }, after) };
 }
 
 /** The same world, untouched, measured the way `project` measures: the shared baseline. */

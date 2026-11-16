@@ -105,7 +105,7 @@ describe('facilities', () => {
     expect(sim.planFacility(FacilityKind.WindTurbine, 60, 49).reason).toBe('A road is in the way');
     const ok = sim.planFacility(FacilityKind.WindTurbine, 60, 51);
     expect(ok.ok).toBe(true);
-    expect(ok).toMatchObject({ x: 60, y: 51, size: 2 });
+    expect(ok).toMatchObject({ x: 60, y: 51, w: 2, h: 2 });
     expect(sim.apply({ type: 'placeFacility', kind: FacilityKind.WindTurbine, x: 60, y: 51 }).ok).toBe(true);
     expect(sim.planFacility(FacilityKind.WindTurbine, 61, 51).reason).toBe('A building is in the way');
     for (let j = 51; j <= 56; j++) for (let i = 70; i <= 76; i++) sim.state.heights[j * VERTS + i] = -3;

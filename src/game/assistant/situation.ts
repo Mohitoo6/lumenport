@@ -91,6 +91,7 @@ export function citySituation(sim: Sim, extra: { refusals: readonly Refusal[]; i
   const stations = s.buildings.filter((b) => b && b.kind === FacilityKind.MetroStation).length;
   const metroLines = (s.metro?.lines ?? []).filter((l) => l);
   const km = metroLines.reduce((t, l) => t + l!.length, 0) / 1000;
+  lines.push(`Buses: ${sim.busLines.length} line${sim.busLines.length === 1 ? '' : 's'}, ${s.buildings.filter((b) => b && b.kind === FacilityKind.BusStop).length} stops, ${st.busRiders ?? 0} riders. Airport: ${s.buildings.some((b) => b && b.kind === FacilityKind.Airport) ? 'yes' : 'none'}.`);
   lines.push(`Metro: ${stations} station${stations === 1 ? '' : 's'}, ${metroLines.length} line${metroLines.length === 1 ? '' : 's'} (${km.toFixed(1)} km), ${activeStations(s).size} stations connected, ${st.metroRiders ?? 0} daily riders; fares ${usd(budget.fares)}/hour, upkeep ${usd(budget.transit)}/hour.`);
   const counts = new Map<number, number>();
   let growing = 0;

@@ -1,4 +1,4 @@
-import { FACILITIES } from '../facilities';
+import { FACILITIES, FacilityKind } from '../facilities';
 import { clamp } from '../../core/math';
 import { POWERED, WATERED } from '../utilities/network';
 import { ZoneType, zoneType, type Building } from '../zoning/zones';
@@ -33,6 +33,9 @@ export interface CityStats {
   happiness: number;
   /** Residents who ride the metro instead of driving (optional for older saves). */
   metroRiders?: number;
+  /** Residents who take the bus instead of driving, and buses in service. */
+  busRiders?: number;
+  buses?: number;
 }
 
 export function emptyStats(): CityStats {
@@ -53,6 +56,8 @@ export function emptyStats(): CityStats {
     vehicles: 0,
     happiness: 0.5,
     metroRiders: 0,
+    busRiders: 0,
+    buses: 0,
   };
 }
 
@@ -147,9 +152,11 @@ export function economyStep(buildings: ReadonlyArray<Building | null>, tax: read
   const dR = (plannedJobs * 1.15 + 100 - plannedLabor) / Math.max(60, plannedLabor) + taxEffect(tax[1]!) + mood * 0.8;
   const targetC = population * 0.22 + 4;
   // Shops suffer when customers are stuck in traffic.
-  const dC = (targetC - plannedC) / Math.max(30, targetC) + taxEffect(tax[2]!) - stats.congestion * 0.5;
+  // An airport brings tourists to the shops and export markets to the factories.
+  const airport = buildings.some((b) => b && b.kind === FacilityKind.Airport && b.progress >= 1);
+  const dC = (targetC - plannedC) / Math.max(30, targetC) + taxEffect(tax[2]!) - stats.congestion * 0.5 + (airport ? 0.15 : 0);
   const targetI = population * 0.33 + 25;
-  const dI = (targetI - plannedI) / Math.max(40, targetI) + taxEffect(tax[3]!);
+  const dI = (targetI - plannedI) / Math.max(40, targetI) + taxEffect(tax[3]!) + (airport ? 0.1 : 0);
 
   stats.population = population;
   stats.housing = housing;
