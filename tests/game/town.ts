@@ -1,4 +1,5 @@
 import { TICKS_PER_STEP } from '../../src/core/constants';
+import type { CityIssue } from '../../src/game/council/issues';
 import { RoadType } from '../../src/sim/roads/types';
 import { Sim } from '../../src/sim/sim';
 
@@ -53,4 +54,32 @@ export function grownTown(steps: number, sandbox = false): Sim {
 
 export function runTicks(sim: Sim, n: number): void {
   for (let i = 0; i < n; i++) sim.tick();
+}
+
+/**
+ * A gridlock issue on a street lined with buildings, so that widening it would demolish
+ * some. Tests that need such a choice on the table use this, instead of relying on where
+ * the town's traffic happens to jam.
+ */
+export function jamWithDemolition(sim: Sim): CityIssue {
+  for (const e of sim.state.roads.edges) {
+    if (!e || e.type !== RoadType.Street || e.length < 60) continue;
+    const plan = sim.planUpgrade(e.id, RoadType.Avenue);
+    if (!plan.ok || plan.displaced.length === 0) continue;
+    const a = sim.state.roads.nodes[e.a]!;
+    const b = sim.state.roads.nodes[e.b]!;
+    return {
+      key: `traffic:test-${e.id}`,
+      kind: 'traffic',
+      lead: 'roads',
+      severity: 0.8,
+      title: 'Gridlock on a test street',
+      summary: 'A street lined with buildings is jammed in the rush hour.',
+      facts: ['Traffic on it: 12 cars per 100 m; it jams at about 7.'],
+      x: (a.x + b.x) / 2,
+      z: (a.z + b.z) / 2,
+      edge: e.id,
+    };
+  }
+  throw new Error('no street in the test town has buildings in the way of widening');
 }

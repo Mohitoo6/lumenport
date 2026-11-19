@@ -4,6 +4,7 @@ import { bezLength, bezPoint, bezTangent, closestOnPolyline, newClosest, paramAt
 import { edgePolyline, otherEnd } from '../roads/graph';
 import { NodeKind, nodeLayout, type NodeLayout } from '../roads/junction';
 import { ROAD_SPECS, RoadType, type RoadEdge, type RoadNetwork } from '../roads/types';
+import { FACILITIES, FacilityKind } from '../facilities';
 import { FACING_DX, FACING_DY, ZoneType, zoneType, type Building } from '../zoning/zones';
 import { findPath } from './pathfinder';
 
@@ -14,6 +15,22 @@ export const BUS_KIND = 3;
 export const CAR_COLORS = 10;
 
 const DT = TICK_MS / 1000;
+/** Share of trips that are not commutes but people driving about town: visits, errands, deliveries. */
+const THROUGH_SHARE = 0.2;
+/** Cars a quiet network still carries, per metre of road, whatever the population. */
+const BASELINE_PER_M = 1 / 140;
+const BASELINE_MAX = 70;
+/**
+ * How strongly a workplace draws traffic, per worker, against a shop's 1. Campuses and
+ * offices pull in people from all over the city; factories run shifts and deliveries.
+ */
+function draw(b: Building): number {
+  if (b.kind === FacilityKind.ItPark || b.kind === FacilityKind.University) return 1.6;
+  if (b.kind === FacilityKind.Airport) return 1.4;
+  if (b.kind !== 0) return 1.2;
+  return zoneType(b.zone) === ZoneType.Industrial ? 1.25 : 1;
+}
+
 /** Bumper-to-bumper spacing a stopped car keeps from the one ahead, plus its own length. */
 const CAR_SPACE = 5.6;
 const ACCEL = 3;
@@ -192,6 +209,13 @@ export class Traffic {
   private edgeCars = new Float32Array(0);
   private homes: number[] = [];
   private works: number[] = [];
+  /** Running totals of each list's weights, for weighted picks. */
+  private homeW: number[] = [];
+  private workW: number[] = [];
+  /** Every road edge with a running total of length, to pick a point anywhere on the network. */
+  private roadIds: number[] = [];
+  private roadW: number[] = [];
+  private roadLength = 0;
   private listsAge = 9999;
 
   constructor(private src: TrafficSource) {
@@ -303,29 +327,74 @@ export class Traffic {
     return path;
   }
 
+  /**
+   * Who travels where. Homes and workplaces are weighted by the square root of the people
+   * in them: a tower still draws more trips than a cottage, but not so many more that the
+   * traffic all piles onto one street. Offices, campuses and civic buildings with staff
+   * count as workplaces, weighted by how far they draw people from.
+   */
   private refreshLists(): void {
     this.listsAge = 0;
     this.homes.length = 0;
     this.works.length = 0;
+    this.homeW.length = 0;
+    this.workW.length = 0;
+    let hw = 0;
+    let ww = 0;
     for (const b of this.src.buildings) {
-      if (!b || b.kind !== 0 || b.pop <= 0) continue;
-      if (zoneType(b.zone) === ZoneType.Residential) this.homes.push(b.id);
-      else this.works.push(b.id);
-    }
-  }
-
-  /** Picks a building with probability roughly proportional to the people in it. */
-  private pick(list: number[]): Building | null {
-    let best: Building | null = null;
-    let bestPop = -1;
-    for (let k = 0; k < 3; k++) {
-      const b = this.src.buildings[list[this.rng.int(list.length)]!];
-      if (b && b.pop > bestPop) {
-        best = b;
-        bestPop = b.pop;
+      if (!b || b.pop <= 0 || b.progress < 1) continue;
+      if (b.kind !== 0 && !(FACILITIES[b.kind]?.jobs ?? 0)) continue;
+      const w = Math.sqrt(b.pop) * draw(b);
+      if (b.kind === 0 && zoneType(b.zone) === ZoneType.Residential) {
+        this.homes.push(b.id);
+        this.homeW.push((hw += Math.sqrt(b.pop)));
+      } else {
+        this.works.push(b.id);
+        this.workW.push((ww += w));
       }
     }
-    return best;
+    this.roadIds.length = 0;
+    this.roadW.length = 0;
+    let len = 0;
+    for (const e of this.src.roads.edges) {
+      if (!e || e.length < 12) continue;
+      this.roadIds.push(e.id);
+      this.roadW.push((len += e.length));
+    }
+    this.roadLength = len;
+  }
+
+  /** An index picked with probability proportional to its weight (running totals in `cum`). */
+  private weighted(cum: number[]): number {
+    const total = cum[cum.length - 1] ?? 0;
+    if (total <= 0) return -1;
+    const r = this.rng.next() * total;
+    let lo = 0;
+    let hi = cum.length - 1;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if (cum[mid]! < r) lo = mid + 1;
+      else hi = mid;
+    }
+    return lo;
+  }
+
+  private pick(list: number[], cum: number[]): Building | null {
+    const k = this.weighted(cum);
+    return k < 0 ? null : (this.src.buildings[list[k]!] ?? null);
+  }
+
+  /** A point somewhere on the network, any road equally likely per metre. */
+  private roadPoint(): Anchor | null {
+    const k = this.weighted(this.roadW);
+    if (k < 0) return null;
+    const e = this.src.roads.edges[this.roadIds[k]!];
+    if (!e) return null;
+    // Keep clear of the junction mouths at both ends, where cars come out of the turn.
+    const lo = this.setback(e, e.a) + 10;
+    const hi = e.length - this.setback(e, e.b) - 10;
+    if (hi <= lo) return null;
+    return { edge: e.id, arc: lo + this.rng.next() * (hi - lo) };
   }
 
   /**
@@ -341,10 +410,20 @@ export class Traffic {
     this.busesStale = true;
   }
 
-  /** Room in a lane at `s`: false if a vehicle is within a car length. */
+  /**
+   * Room in a lane at `s`: nothing within `gap` ahead, and nothing behind that could not
+   * stop in time for a vehicle pulling out in front of it.
+   */
   private laneFree(edge: number, dir: number, lane: number, s: number, gap: number): boolean {
     for (let k = 0; k < this.count; k++) {
-      if (this.mode[k] === Mode.Edge && this.edge[k] === edge && this.dir[k] === dir && this.lane[k] === lane && Math.abs(this.s[k]! - s) < gap) return false;
+      if (this.mode[k] !== Mode.Edge || this.edge[k] !== edge || this.dir[k] !== dir || this.lane[k] !== lane) continue;
+      const d = this.s[k]! - s;
+      if (d >= 0 && d < gap) return false;
+      if (d < 0) {
+        const v = this.v[k]!;
+        const stopping = (v * v) / (2 * COMFORT_BRAKE) + CAR_SPACE + BUS_EXTRA;
+        if (-d < Math.max(gap, stopping)) return false;
+      }
     }
     return true;
   }
@@ -445,19 +524,32 @@ export class Traffic {
     }
   }
 
-  /** Starts one trip between two random buildings. Returns false if it could not. */
-  private spawn(): boolean {
-    if (this.count >= MAX_CARS || this.homes.length === 0 || this.works.length === 0) return false;
-    const r = this.rng.next();
-    // Mostly commutes (to work in the morning, home in the evening), plus some trips
-    // between workplaces.
-    const toWork = commuteBias(this.hour);
-    const a = this.pick(r < toWork ? this.homes : this.works);
-    const b = this.pick(r < toWork || r > 0.92 ? this.works : this.homes);
-    if (!a || !b || a === b) return false;
-    const from = this.anchor(a);
-    const to = this.anchor(b);
-    if (!from || !to) return false;
+  /**
+   * Starts one trip. Returns false if it could not. Most are commutes (to work in the
+   * morning, home in the evening, between workplaces in the day); a fifth are people
+   * driving about town between any two points on the network, so every road that is built
+   * sees some traffic, and a network with nobody living on it yet still has a few cars.
+   */
+  private spawn(through = false): boolean {
+    if (this.count >= MAX_CARS || this.roadIds.length === 0) return false;
+    let from: Anchor | null;
+    let to: Anchor | null;
+    const commute = !through && this.homes.length > 0 && this.works.length > 0 && this.rng.next() >= THROUGH_SHARE;
+    if (commute) {
+      const r = this.rng.next();
+      const toWork = commuteBias(this.hour);
+      const a = r < toWork ? this.pick(this.homes, this.homeW) : this.pick(this.works, this.workW);
+      const b = r < toWork || r > 0.92 ? this.pick(this.works, this.workW) : this.pick(this.homes, this.homeW);
+      if (!a || !b || a === b) return false;
+      from = this.anchor(a);
+      to = this.anchor(b);
+    } else {
+      // From somewhere a resident lives (when there is anyone), to anywhere.
+      const home = this.homes.length > 0 && this.rng.next() < 0.5 ? this.pick(this.homes, this.homeW) : null;
+      from = home ? this.anchor(home) : this.roadPoint();
+      to = this.roadPoint();
+    }
+    if (!from || !to || (from.edge === to.edge && Math.abs(from.arc - to.arc) < 30)) return false;
     const path = this.route(from, to);
     if (!path) return false;
     const net = this.src.roads;
@@ -724,7 +816,10 @@ export class Traffic {
     for (const id of this.homes) people += this.src.buildings[id]?.pop ?? 0;
     // Metro and bus riders leave their cars at home.
     people = Math.max(0, people - (this.src.stats?.metroRiders ?? 0) - (this.src.stats?.busRiders ?? 0));
-    return Math.min(MAX_CARS, Math.round(people * this.carsPerPerson * rushFactor(this.hour, this.src.policies?.flexHours === true)));
+    const rush = rushFactor(this.hour, this.src.policies?.flexHours === true);
+    // A built network always carries a little traffic, quieter at night.
+    const baseline = Math.min(BASELINE_MAX, this.roadLength * BASELINE_PER_M) * Math.min(1, 0.35 + 0.65 * rush);
+    return Math.min(MAX_CARS, Math.round(Math.max(people * this.carsPerPerson * rush, baseline)));
   }
 
   /** Advances all traffic by one simulation tick. */

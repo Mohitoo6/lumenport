@@ -68,7 +68,8 @@ describe('pollution, crime and land value', () => {
     // A few cells away it is weaker; far away there is none.
     expect(at(f.pollution, 70, 60)).toBeGreaterThan(0);
     expect(at(f.pollution, 70, 60)).toBeLessThan(at(f.pollution, 70, 52));
-    expect(at(f.pollution, 130, 52)).toBe(0);
+    // Far away there is only a trace of exhaust from the passing traffic.
+    expect(at(f.pollution, 130, 52)).toBeLessThan(0.05);
     expect(at(f.landValue, 70, 52)).toBeLessThan(at(f.landValue, 130, 52) - 0.2);
   });
 

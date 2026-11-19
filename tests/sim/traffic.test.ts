@@ -170,4 +170,23 @@ describe('traffic', () => {
     run(a, 400);
     expect(a.traffic.count).toBeGreaterThan(0);
   });
+
+  it('puts cars on every road that is built, even before anyone lives there', () => {
+    const sim = flat();
+    road(sim, 400, 400, 1040, 400);
+    road(sim, 400, 560, 1040, 560);
+    road(sim, 480, 400, 480, 560);
+    road(sim, 960, 400, 960, 560);
+    sim.traffic.hour = 12;
+    const seen = new Set<number>();
+    let peak = 0;
+    for (let t = 0; t < 40; t++) {
+      run(sim, 50);
+      peak = Math.max(peak, sim.traffic.count);
+      for (let i = 0; i < sim.traffic.count; i++) seen.add(sim.traffic.debug(i).edge);
+    }
+    expect(peak).toBeGreaterThan(5);
+    const edges = sim.state.roads.edges.filter((e) => e && e.length >= 12);
+    for (const e of edges) expect(seen.has(e!.id), `edge ${e!.id} saw a car`).toBe(true);
+  });
 });

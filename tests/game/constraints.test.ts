@@ -2,13 +2,12 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { anyCompliant, parseInstruction, violations } from '../../src/game/council/constraints';
 import { NO_DELTA } from '../../src/game/council/effects';
 import { GraphState } from '../../src/game/council/graph';
-import { detectIssues } from '../../src/game/council/issues';
 import { DemoTransport, type LlmRequest, type Transport } from '../../src/game/council/llm';
 import { EpisodicMemory, OUTCOME_AFTER_HOURS, decisionRecord, memoryLine } from '../../src/game/council/memory';
 import { CouncilSession, prepareMeeting, type Decision, type SessionEvent, type SessionInput } from '../../src/game/council/session';
 import { memoryKV } from '../../src/game/council/storage';
 import type { Sim } from '../../src/sim/sim';
-import { grownTown, runTicks } from './town';
+import { grownTown, jamWithDemolition, runTicks } from './town';
 
 const ids = (note: string): string[] => parseInstruction(note).map((c) => c.id).sort();
 
@@ -72,7 +71,7 @@ describe('the instruction in a meeting', () => {
     sim = grownTown(150);
     sim.traffic.hour = 18;
     runTicks(sim, 1500);
-    const issue = detectIssues(sim).find((i) => i.kind === 'traffic')!;
+    const issue = jamWithDemolition(sim);
     const m = prepareMeeting(sim, issue);
     input = { city: 'Test', issue, options: m.options, seats: m.seats, briefings: m.briefings, limits: m.limits, mayorNote: '', lang: 'en' };
   });

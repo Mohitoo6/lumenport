@@ -4,7 +4,7 @@ import { detectIssues, type CityIssue } from '../../src/game/council/issues';
 import { optionsFor, type CouncilOption } from '../../src/game/council/options';
 import { LOAN_TIERS, emptyReport, projectBudget } from '../../src/sim/economy/budget';
 import type { Sim } from '../../src/sim/sim';
-import { grownTown, runTicks } from './town';
+import { grownTown, jamWithDemolition, runTicks } from './town';
 
 let sim: Sim;
 let table: Array<{ issue: CityIssue; options: CouncilOption[] }>;
@@ -38,7 +38,7 @@ describe('option effect payloads', () => {
   });
 
   it('counts the tax lost from demolished buildings, which a per-option estimate would miss', () => {
-    const demolishing = table.flatMap((t) => t.options).filter((o) => o.effects.jobsLost > 0 || o.effects.residentsDisplaced > 0);
+    const demolishing = optionsFor(sim, jamWithDemolition(sim)).filter((o) => o.effects.jobsLost > 0 || o.effects.residentsDisplaced > 0);
     expect(demolishing.length).toBeGreaterThan(0);
     for (const o of demolishing) expect(o.facts.join(' ')).toMatch(/tax lost/);
   });
