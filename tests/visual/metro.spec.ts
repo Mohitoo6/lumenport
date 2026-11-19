@@ -88,12 +88,12 @@ test('metro line, stations, IT park and university', async ({ page }) => {
   await page.evaluate(() => window.__game!.time(14.5));
   await page.evaluate((p) => window.__game!.camera(p, true), shots[0]![1]);
   await page.getByRole('button', { name: 'Views' }).click();
-  await page.getByRole('menuitemradio', { name: 'Metro reach' }).click();
+  await page.getByRole('menuitemradio', { name: 'Transit reach', exact: true }).click();
   await page.evaluate(() => window.__game!.frames(30));
   await page.screenshot({ path: `${DIR}/07-metro-reach.png` });
   await page.keyboard.press('KeyV');
   await page.getByRole('menuitemradio', { name: 'Normal view' }).click();
-  await page.getByRole('button', { name: 'Metro', exact: true }).click();
+  await page.getByRole('button', { name: 'Transit', exact: true }).click();
   await page.keyboard.press('KeyB');
   await page.evaluate(() => window.__game!.frames(10));
   await page.screenshot({ path: `${DIR}/08-toolbar-budget.png` });

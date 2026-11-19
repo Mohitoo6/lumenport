@@ -112,7 +112,7 @@ export interface IssueRow {
   severity: number;
 }
 
-export type ToolId = 'none' | 'road' | 'zone' | 'place' | 'bulldoze' | 'metro';
+export type ToolId = 'none' | 'road' | 'zone' | 'place' | 'bulldoze' | 'metro' | 'terrain';
 export type RoadModeId = 'straight' | 'curve';
 export type TimeMode = 'auto' | 'day' | 'night';
 
@@ -146,6 +146,8 @@ export const ui = {
   zoneDensity: signal(1),
   /** Zone brush: along roads (default) or a rectangle. */
   zoneMode: signal<'road' | 'area'>('road'),
+  sculptMode: signal<'raise' | 'lower' | 'flatten' | 'smooth'>('raise'),
+  sculptSize: signal(1),
   /** Facility being placed (a FacilityKind). */
   facility: signal(1),
   funds: signal(0),
@@ -224,6 +226,7 @@ export interface UiActions {
   setZone(type: number, density: number): void;
   setZoneMode(mode: 'road' | 'area'): void;
   setFacility(kind: number): void;
+  setSculpt(mode: 'raise' | 'lower' | 'flatten' | 'smooth', size: number): void;
   setTax(zone: number, rate: number): void;
   takeLoan(tier: number): void;
   setOverlay(id: OverlayId): void;
@@ -258,6 +261,7 @@ export const actions: UiActions = {
   setZone: () => {},
   setZoneMode: () => {},
   setFacility: () => {},
+  setSculpt: () => {},
   setTax: () => {},
   takeLoan: () => {},
   setOverlay: () => {},

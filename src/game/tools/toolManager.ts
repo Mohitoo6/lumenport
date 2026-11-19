@@ -10,6 +10,8 @@ import { PlaceTool } from './placeTool';
 import { RoadTool, type RoadMode } from './roadTool';
 import { ZoneTool } from './zoneTool';
 import { MetroTool } from './metroTool';
+import { SculptTool } from './sculptTool';
+import type { SculptMode } from '../../sim/map/sculpt';
 import type { Density, ZoneType } from '../../sim/zoning/zones';
 import type { GroundPoint, Tool, ToolContext } from './tool';
 
@@ -26,6 +28,7 @@ export class ToolManager {
   private readonly zone = new ZoneTool();
   private readonly place = new PlaceTool();
   private readonly metro = new MetroTool();
+  private readonly sculpt = new SculptTool();
   private dragging = false;
   private readonly ctx: ToolContext;
   private readonly hit = new Vector3();
@@ -70,7 +73,7 @@ export class ToolManager {
   private pendingHint: { text: string; tone: 'info' | 'ok' | 'bad' } | null = null;
 
   select(id: ToolId): void {
-    const next: Tool | null = id === 'road' ? this.road : id === 'bulldoze' ? this.bulldoze : id === 'zone' ? this.zone : id === 'place' ? this.place : id === 'metro' ? this.metro : null;
+    const next: Tool | null = id === 'road' ? this.road : id === 'bulldoze' ? this.bulldoze : id === 'zone' ? this.zone : id === 'place' ? this.place : id === 'metro' ? this.metro : id === 'terrain' ? this.sculpt : null;
     if (next === this.active) return;
     this.active?.deactivate(this.ctx);
     this.dragging = false;
@@ -112,6 +115,16 @@ export class ToolManager {
     ui.zoneMode.value = mode;
     this.ctx.preview.zoneOverlay?.clearPreview();
     if (this.active === this.zone) this.zone.describe(this.ctx);
+  }
+
+  /** Picks the terrain brush's action and size. */
+  setSculpt(mode: SculptMode, size: number): void {
+    this.sculpt.mode = mode;
+    this.sculpt.size = size;
+    ui.sculptMode.value = mode;
+    ui.sculptSize.value = size;
+    if (this.active === this.sculpt) this.sculpt.describe(this.ctx);
+    else this.select('terrain');
   }
 
   setFacility(kind: number): void {
@@ -216,6 +229,7 @@ export class ToolManager {
       this.toastTimer -= dt;
       if (this.toastTimer <= 0) ui.hint.value = this.active ? this.pendingHint : null;
     }
+    if (this.dragging) this.active?.hold?.(this.ctx, dt);
     if (cameraMoving && !this.dragging) this.repick();
   }
 }

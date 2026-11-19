@@ -11,6 +11,11 @@ import {
   IconAvenue,
   IconBolt,
   IconBulldoze,
+  IconDown,
+  IconHill,
+  IconLevel,
+  IconUp,
+  IconWave,
   IconClose,
   IconCurve,
   IconDrop,
@@ -515,6 +520,13 @@ function IconSquare(): JSX.Element {
   );
 }
 
+const SCULPT_MODES: ReadonlyArray<readonly ['raise' | 'lower' | 'flatten' | 'smooth', string, JSX.Element]> = [
+  ['raise', 'Raise', <IconUp key="u" />],
+  ['lower', 'Lower', <IconDown key="d" />],
+  ['flatten', 'Level', <IconLevel key="l" />],
+  ['smooth', 'Smooth', <IconWave key="w" />],
+];
+
 function Toolbar(): JSX.Element {
   const tool = ui.tool.value;
   const road = ui.roadType.value;
@@ -562,6 +574,23 @@ function Toolbar(): JSX.Element {
           <ToolButton active={mode === 'curve'} label="Curved" hotkey="C" onClick={() => actions.setRoadMode('curve')}>
             <IconCurve />
           </ToolButton>
+        </div>
+      )}
+      {tool === 'terrain' && (
+        <div class="panel options" role="group" aria-label="Terrain brush">
+          {SCULPT_MODES.map(([m, label, icon]) => (
+            <ToolButton key={m} active={ui.sculptMode.value === m} label={label} onClick={() => actions.setSculpt(m, ui.sculptSize.value)}>
+              {icon}
+            </ToolButton>
+          ))}
+          <div class="toolbar-sep" />
+          {(['Small', 'Medium', 'Large'] as const).map((name, i) => (
+            <ToolButton key={name} active={ui.sculptSize.value === i} label={`${name} brush`} onClick={() => actions.setSculpt(ui.sculptMode.value, i)}>
+              <svg width="18" height="18" viewBox="0 0 16 16" aria-hidden="true">
+                <circle cx="8" cy="8" r={2.5 + i * 2.3} fill="none" stroke="currentColor" stroke-width="1.6" />
+              </svg>
+            </ToolButton>
+          ))}
         </div>
       )}
       {tool === 'zone' && (
@@ -639,6 +668,9 @@ function Toolbar(): JSX.Element {
         </ToolButton>
         <ToolButton active={isMetro} label="Transit" onClick={() => (isMetro ? actions.selectTool('none') : actions.setFacility(TRANSIT_FACILITIES[0]))}>
           <IconTrain size={18} />
+        </ToolButton>
+        <ToolButton active={tool === 'terrain'} label="Terrain" onClick={() => (tool === 'terrain' ? actions.selectTool('none') : actions.setSculpt(ui.sculptMode.value, ui.sculptSize.value))}>
+          <IconHill size={18} />
         </ToolButton>
         <div class="toolbar-sep" />
         <ToolButton danger active={tool === 'bulldoze'} label="Bulldoze" hotkey="X" onClick={() => actions.selectTool(tool === 'bulldoze' ? 'none' : 'bulldoze')}>

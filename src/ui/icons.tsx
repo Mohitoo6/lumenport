@@ -82,6 +82,36 @@ export const IconCurve = (p: P): JSX.Element => (
   </Svg>
 );
 
+export const IconHill = (p: P): JSX.Element => (
+  <Svg {...p}>
+    <path d="M1.5 13l4.5-7 2.5 3.5 2-2.5 4 6z" />
+  </Svg>
+);
+
+export const IconUp = (p: P): JSX.Element => (
+  <Svg {...p}>
+    <path d="M2 13h12M8 11V3.5M5 6.5l3-3 3 3" />
+  </Svg>
+);
+
+export const IconDown = (p: P): JSX.Element => (
+  <Svg {...p}>
+    <path d="M2 13h12M8 3v7.5M5 7.5l3 3 3-3" />
+  </Svg>
+);
+
+export const IconLevel = (p: P): JSX.Element => (
+  <Svg {...p}>
+    <path d="M2 9h12M2 12.5c2-1 3-3 6-3s4 2 6 3M5 5.5h6" />
+  </Svg>
+);
+
+export const IconWave = (p: P): JSX.Element => (
+  <Svg {...p}>
+    <path d="M1.5 10c2-4 4-4 6.5 0s4.5 4 6.5 0" />
+  </Svg>
+);
+
 export const IconBulldoze = (p: P): JSX.Element => (
   <Svg {...p}>
     <path d="M2 11.5h7.5V8L7.5 5H4v6.5M9.5 9.5h2.2l2.3 3.3H2" />

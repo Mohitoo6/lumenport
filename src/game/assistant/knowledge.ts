@@ -1,3 +1,4 @@
+import { SCULPT } from '../../sim/map/sculpt';
 import { CELL } from '../../core/constants';
 import { LOAN_TIERS } from '../../sim/economy/budget';
 import { FACILITIES, FacilityKind } from '../../sim/facilities';
@@ -106,6 +107,14 @@ ${facilities}
       text: `Campus (toolbar: Campus)
 - IT park: well-paid office jobs (taxed more than shop jobs), which raise demand for homes.
 - University: education cover over a very wide area, higher land value, and campus jobs.`,
+    },
+    {
+      id: 'terrain',
+      about: /terrain|hill|mountain|valley|slope|raise|lower|flatten|level|ground|pahad|पहाड़|ज़मीन|जमीन|ढलान/i,
+      text: `Terrain (toolbar: Terrain)
+- Hold the left button and drag: Raise builds hills, Lower cuts valleys (never below dry land), Level flattens towards the height where you started, Smooth rounds off. Three brush sizes.
+- Ground under roads and buildings and water never moves; hills bank up beside them. Slopes stay below about 40%.
+- Earthworks cost ${usd(SCULPT.costPerM3)} per cubic metre of earth moved. Roads climb hills up to 14% grade: wind them along the slope. Level a terrace on a hilltop and homes grow there like anywhere else.`,
     },
     {
       id: 'controls',
