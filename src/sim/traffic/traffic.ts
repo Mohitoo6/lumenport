@@ -5,8 +5,9 @@ import { edgePolyline, otherEnd } from '../roads/graph';
 import { NodeKind, nodeLayout, type NodeLayout } from '../roads/junction';
 import { ROAD_SPECS, RoadType, type RoadEdge, type RoadNetwork } from '../roads/types';
 import { FACILITIES, FacilityKind } from '../facilities';
-import { FACING_DX, FACING_DY, ZoneType, zoneType, type Building } from '../zoning/zones';
+import { ZoneType, zoneType, type Building } from '../zoning/zones';
 import { findPath } from './pathfinder';
+import { frontCell } from '../roads/frontage';
 
 export const MAX_CARS = 2400;
 /** Body styles: saloon, SUV, van, and the bus (kind 3). */
@@ -297,20 +298,12 @@ export class Traffic {
     if (cached !== undefined) return cached;
     let found: Anchor | null = null;
     const { roads, roadCell } = this.src;
-    for (let k = 0; k < 4 && !found; k++) {
-      const f = (b.facing + k) % 4;
-      const dx = FACING_DX[f]!;
-      const dy = FACING_DY[f]!;
-      const n = dx === 0 ? b.w : b.h;
-      const i = dx === 0 ? b.x + (n >> 1) : dx < 0 ? b.x - 1 : b.x + b.w;
-      const j = dy === 0 ? b.y + (n >> 1) : dy < 0 ? b.y - 1 : b.y + b.h;
-      if (i < 0 || j < 0 || i >= MAP || j >= MAP) continue;
-      const id = roadCell[j * MAP + i]!;
-      const e = id >= 0 ? roads.edges[id] : null;
-      if (!e) continue;
+    const cell = frontCell(b, roadCell);
+    const e = cell >= 0 ? roads.edges[roadCell[cell]!] : null;
+    if (e) {
       const poly = edgePolyline(roads, e);
-      closestOnPolyline(poly, (i + 0.5) * CELL, (j + 0.5) * CELL, hit);
-      found = { edge: id, arc: Math.min(Math.max(hit.s, 1), e.length - 1) };
+      closestOnPolyline(poly, ((cell % MAP) + 0.5) * CELL, (Math.floor(cell / MAP) + 0.5) * CELL, hit);
+      found = { edge: e.id, arc: Math.min(Math.max(hit.s, 1), e.length - 1) };
     }
     this.anchors.set(b.id, found);
     return found;
