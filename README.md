@@ -44,6 +44,12 @@ airport, on a long flat site, earns from exports, travellers and tourists, lifts
 shops and industry, and is noisy around the runway. People walk the pavements and wait at
 the stops.
 
+## Hills
+
+The Terrain tool raises hills, cuts valleys, levels terraces and smooths slopes: hold the
+left button and drag. Roads, buildings and water stay where they are, and the ground banks
+up beside them. Wind a road up the slope and zone along it, and homes grow on the hill.
+
 ## Seasons
 
 The year follows the six Indian seasons, two months each. Summer heat raises power and
