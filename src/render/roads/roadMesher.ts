@@ -1,4 +1,5 @@
 import { heightAt } from '../../sim/map/terrain';
+import { ROAD_BED_DROP } from '../../sim/roads/terraform';
 import { bezPoint, bezTangent, type Polyline, type Pt } from '../../sim/roads/geometry';
 import { edgePolyline } from '../../sim/roads/graph';
 import { NodeKind, cornerDistances, type NodeArm, type NodeLayout } from '../../sim/roads/junction';
@@ -88,6 +89,11 @@ function tAtArc(poly: Polyline, s: number): number {
   const k = span > 0 ? (s - poly.s[lo]!) / span : 0;
   return poly.t[lo]! + (poly.t[hi]! - poly.t[lo]!) * k;
 }
+
+const ARC_TMP = { x: 0, z: 0, y: 0 };
+/** Share of the outer-bend sweep spent on each straight run in to and out of the turn. */
+const ELBOW_IN = 0.2;
+const cross2 = (ax: number, az: number, bx: number, bz: number): number => ax * bz - az * bx;
 
 export class RoadMesher {
   constructor(
@@ -404,9 +410,14 @@ export class RoadMesher {
     const asphalt = out.asphalt;
     const centre = asphalt.v(node.x, node.y, node.z, 0, 1, 0, node.x * ASPHALT_UV, node.z * ASPHALT_UV, 0, 0, FAR, FAR, LaneKind.Plain);
     const rim: number[] = [];
+    const rimPts: number[] = [];
     const addRim = (x: number, y: number, z: number): void => {
       rim.push(asphalt.v(x, y, z, 0, 1, 0, x * ASPHALT_UV, z * ASPHALT_UV, 0, 0, FAR, FAR, LaneKind.Plain));
+      rimPts.push(x, y, z);
     };
+    // Never below the graded ground: on a slope a flat fan between mouths of different
+    // heights can dip under the terrain the edges were graded to.
+    const lift = (x: number, y: number, z: number): number => Math.max(y, heightAt(this.heights, x, z) + ROAD_BED_DROP + 0.06);
 
     const Q = 7;
     for (let k = 0; k < n; k++) {
@@ -444,6 +455,43 @@ export class RoadMesher {
         ocz = node.z + i.dx * i.hw + i.dz * outer[0];
       }
 
+      // The outside of a sharp bend (the corner spans more than half a turn): there is no
+      // corner point to aim for, and a chord or control point there makes a spike. Instead
+      // the edge follows each road's own kerb line in to the node and turns round it at
+      // the road's half-width, like the outside of a real elbow.
+      const reflex = cross2(i.dx, i.dz, j.dx, j.dz) < -0.05;
+      // Heights follow the path too: from the mouth up to the node's height, round at it, and back out.
+      const elbow = (w: number, px: number, pz: number, qx: number, qz: number, u: number, out: { x: number; z: number; y: number }): void => {
+        // In at i's right-hand kerb, round the node, out along j's left-hand kerb.
+        const p1x = node.x - i.dz * w;
+        const p1z = node.z + i.dx * w;
+        const p2x = node.x + j.dz * w;
+        const p2z = node.z - j.dx * w;
+        const a0 = Math.atan2(p1z - node.z, p1x - node.x);
+        let da = Math.atan2(p2z - node.z, p2x - node.x) - a0;
+        while (da < 0) da += Math.PI * 2;
+        // The kerb line and the outer edge are swept in step (in, round, out over the same
+        // stretches of u), so the pavement between them never twists.
+        if (u <= ELBOW_IN) {
+          const k = u / ELBOW_IN;
+          out.x = px + (p1x - px) * k;
+          out.z = pz + (p1z - pz) * k;
+          out.y = mi.y + (node.y - mi.y) * k;
+          return;
+        }
+        if (u <= 1 - ELBOW_IN) {
+          const a = a0 + ((u - ELBOW_IN) / (1 - 2 * ELBOW_IN)) * da;
+          out.x = node.x + Math.cos(a) * w;
+          out.z = node.z + Math.sin(a) * w;
+          out.y = node.y;
+          return;
+        }
+        const k = (u - (1 - ELBOW_IN)) / ELBOW_IN;
+        out.x = p2x + (qx - p2x) * k;
+        out.z = p2z + (qz - p2z) * k;
+        out.y = node.y + (mj.y - node.y) * k;
+      };
+
       let pOuter = -1;
       let pTopIn = -1;
       let pTopIn2 = -1;
@@ -452,15 +500,31 @@ export class RoadMesher {
       let pFaceBot = -1;
       let pSkTop = -1;
       let pSkBot = -1;
-      for (let s = 0; s <= Q; s++) {
-        const u = s / Q;
+      // A long sweep round the outside of a sharp bend needs more points to look round.
+      const steps = reflex ? 20 : Q;
+      for (let s = 0; s <= steps; s++) {
+        const u = s / steps;
         const w = 1 - u;
-        const ix = w * w * cix + 2 * w * u * ccx + u * u * cjx;
-        const iz = w * w * ciz + 2 * w * u * ccz + u * u * cjz;
-        const ox = w * w * oix + 2 * w * u * ocx + u * u * ojx;
-        const oz = w * w * oiz + 2 * w * u * ocz + u * u * ojz;
-        const y = mi.y + (mj.y - mi.y) * u;
-        if (s < Q) addRim(ix, y, iz);
+        let ix = w * w * cix + 2 * w * u * ccx + u * u * cjx;
+        let iz = w * w * ciz + 2 * w * u * ccz + u * u * cjz;
+        let ox = w * w * oix + 2 * w * u * ocx + u * u * ojx;
+        let oz = w * w * oiz + 2 * w * u * ocz + u * u * ojz;
+        if (reflex) {
+          elbow(i.rw, cix, ciz, cjx, cjz, u, ARC_TMP);
+          ix = ARC_TMP.x;
+          iz = ARC_TMP.z;
+          elbow(i.hw, oix, oiz, ojx, ojz, u, ARC_TMP);
+          ox = ARC_TMP.x;
+          oz = ARC_TMP.z;
+        }
+        // The middle of a corner lies close to the node, where the ground was graded to the
+        // node's height: lift it there, or on a slope the corner sinks under the grass.
+        // Round the outside of a bend the surface is at the node's height throughout.
+        const along = mi.y + (mj.y - mi.y) * u;
+        const y0 = reflex ? ARC_TMP.y : along + (node.y - along) * Math.sin(Math.PI * u);
+        // The mouths must meet the edges exactly; in between, keep clear of the ground.
+        const y = s > 0 && s < steps && !this.isWet(ix, iz, y0) ? lift(ix, y0, iz) : y0;
+        if (s < steps) addRim(ix, y, iz);
 
         // Direction from curb to outer edge at this sample.
         let rx = ox - ix;
@@ -498,7 +562,38 @@ export class RoadMesher {
       }
     }
 
-    for (let m = 0; m < rim.length; m++) asphalt.tri(centre, rim[(m + 1) % rim.length]!, rim[m]!);
+    // The surface: a fan from the centre in rings, each ring kept above the ground.
+    const RINGS = 5;
+    const ring: number[][] = [];
+    for (let r = 1; r < RINGS; r++) {
+      const t = r / RINGS;
+      const row: number[] = [];
+      for (let m = 0; m < rim.length; m++) {
+        const x = node.x + (rimPts[m * 3]! - node.x) * t;
+        const z = node.z + (rimPts[m * 3 + 2]! - node.z) * t;
+        const y0 = node.y + (rimPts[m * 3 + 1]! - node.y) * t;
+        const y = this.isWet(x, z, y0) ? y0 : lift(x, y0, z);
+        row.push(asphalt.v(x, y, z, 0, 1, 0, x * ASPHALT_UV, z * ASPHALT_UV, 0, 0, FAR, FAR, LaneKind.Plain));
+      }
+      ring.push(row);
+    }
+    ring.push(rim);
+    const n2 = rim.length;
+    for (let m = 0; m < n2; m++) asphalt.tri(centre, ring[0]![(m + 1) % n2]!, ring[0]![m]!);
+    for (let r = 1; r < ring.length; r++) {
+      const inner = ring[r - 1]!;
+      const outer = ring[r]!;
+      for (let m = 0; m < n2; m++) {
+        const m1 = (m + 1) % n2;
+        asphalt.tri(inner[m]!, inner[m1]!, outer[m]!);
+        asphalt.tri(inner[m1]!, outer[m1]!, outer[m]!);
+      }
+    }
+  }
+
+  /** Over water (a junction on a bridge): the surface is a deck, not something to lift off the river bed. */
+  private isWet(x: number, z: number, y: number): boolean {
+    return heightAt(this.heights, x, z) < y - 1.0;
   }
 
   /** Rounded end of a dead-end road. */

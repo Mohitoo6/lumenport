@@ -57,7 +57,9 @@ export function levelUnderEdge(heights: Float32Array, lock: Uint8Array, net: Roa
       if (cur < WET) continue;
       const target = edgeHeight(net, e, hit.t) - ROAD_BED_DROP;
       if (hit.dist < inner) {
-        if (!lock[k]) heights[k] = target;
+        // Ground another road already graded may still go down (never up), so it cannot
+        // rise through this road where the two meet at different heights.
+        heights[k] = lock[k] ? Math.min(cur, target) : target;
         lock[k] = 1;
       } else if (!lock[k]) {
         heights[k] = cur + (target - cur) * smoothstep(outer, inner, hit.dist);
