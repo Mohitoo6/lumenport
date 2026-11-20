@@ -262,7 +262,6 @@ export class Game {
     actions.setZone = (type, density) => this.tools.setZone(type as 0 | 1 | 2 | 3, density as 1 | 2 | 3);
     actions.setFacility = (kind) => this.tools.setFacility(kind);
     actions.setZoneMode = (mode) => this.tools.setZoneMode(mode);
-    actions.setSculpt = (mode, size) => this.tools.setSculpt(mode, size);
     this.council = new CouncilController({
       sim,
       cityName: () => sim.state.cityName,

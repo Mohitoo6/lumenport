@@ -19,8 +19,6 @@ const MAX_STATIONS = 160;
 const p: Pt = { x: 0, z: 0 };
 const t: Pt = { x: 0, z: 0 };
 
-const BRUSH_SEGS = 72;
-
 export type PreviewTone = 'ok' | 'bad' | 'neutral' | 'remove';
 
 const TONES: Record<PreviewTone, Color> = {
@@ -57,8 +55,6 @@ export class ToolPreview {
   private readonly ribbonMat: ShaderMaterial;
   private readonly ring: Mesh;
   private readonly ringMat: ShaderMaterial;
-  /** The terrain brush: a thin band that lies on the ground, hills and all. */
-  private readonly brush: Mesh;
   private gridTarget = 0;
 
   constructor(private readonly getHeights: () => Float32Array) {
@@ -132,47 +128,6 @@ export class ToolPreview {
     this.ring.renderOrder = 901;
     this.ring.visible = false;
     this.group.add(this.ring);
-
-    const bg = new BufferGeometry();
-    bg.setAttribute('position', new BufferAttribute(new Float32Array(BRUSH_SEGS * 2 * 3), 3).setUsage(DynamicDrawUsage));
-    const tris: number[] = [];
-    for (let k = 0; k < BRUSH_SEGS; k++) {
-      const a = k * 2;
-      const b = ((k + 1) % BRUSH_SEGS) * 2;
-      tris.push(a, b, a + 1, b, b + 1, a + 1);
-    }
-    bg.setIndex(tris);
-    this.brush = new Mesh(bg, this.ringMat);
-    this.brush.renderOrder = 901;
-    this.brush.frustumCulled = false;
-    this.brush.visible = false;
-    this.group.add(this.brush);
-  }
-
-  /** A circle of `radius` metres draped over the ground, for brushes. */
-  showBrush(x: number, z: number, radius: number, tone: PreviewTone): void {
-    const pos = this.brush.geometry.getAttribute('position') as BufferAttribute;
-    const arr = pos.array as Float32Array;
-    const band = Math.max(0.9, radius * 0.035);
-    for (let k = 0; k < BRUSH_SEGS; k++) {
-      const t = (k / BRUSH_SEGS) * Math.PI * 2;
-      const c = Math.cos(t);
-      const sn = Math.sin(t);
-      for (let e = 0; e < 2; e++) {
-        const r = e === 0 ? radius - band : radius;
-        const px = x + c * r;
-        const pz = z + sn * r;
-        arr.set([px, this.ground(px, pz), pz], (k * 2 + e) * 3);
-      }
-    }
-    pos.needsUpdate = true;
-    (this.ringMat.uniforms.uColor!.value as Color).copy(TONES[tone]);
-    this.brush.visible = true;
-    this.ring.visible = false;
-  }
-
-  hideBrush(): void {
-    this.brush.visible = false;
   }
 
   private ground(x: number, z: number): number {

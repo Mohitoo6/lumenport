@@ -10,7 +10,6 @@ import { ROAD_SPECS } from './roads/types';
 import { Fields } from './fields/fields';
 import { weatherAt, type Weather } from './seasons';
 import { cellMinHeight } from './map/terrain';
-import { commitSculpt, planSculpt } from './map/sculpt';
 import { Traffic } from './traffic/traffic';
 import { POWERED, WATERED, computeUtilities, newNetworks, type Networks } from './utilities/network';
 import { MAX_DEPTH, frontageOf, reachesRoad } from './zoning/lots';
@@ -532,26 +531,6 @@ export class Sim {
         s.loans.push({ tier: cmd.tier, payment: loanPayment(tier), hoursLeft: tier.hours });
         s.funds += tier.amount;
         return OK;
-      }
-      case 'sculpt': {
-        // Metro pillars stand on the ground: leave it alone around them.
-        const keepOut: Array<{ x: number; z: number; r: number }> = [];
-        for (const l of s.metro?.lines ?? []) {
-          if (!l) continue;
-          for (let k = 0; k < l.pts.length; k += 2) if (Math.hypot(l.pts[k]! - cmd.x, l.pts[k + 1]! - cmd.z) < cmd.radius + 12) keepOut.push({ x: l.pts[k]!, z: l.pts[k + 1]!, r: 10 });
-        }
-        const plan = planSculpt(s.heights, s.roadLock, cmd, keepOut);
-        const r = plan.result.rect;
-        if (!r) return fail(cmd.mode === 'lower' ? 'Nothing to lower here: roads, buildings and water stay as they are' : 'Nothing to change here: roads, buildings and water stay as they are');
-        if (!this.charge(plan.result.cost)) return fail('Not enough money');
-        commitSculpt(s.heights, plan);
-        // Lots that were too steep may be buildable now, and the other way round.
-        this.frontier = null;
-        // Vertex rectangle to the cells that touch it.
-        const cells = { x0: Math.max(0, r.x0 - 1), y0: Math.max(0, r.y0 - 1), x1: Math.min(MAP - 1, r.x1), y1: Math.min(MAP - 1, r.y1) };
-        this.events.emit('terrainChanged', cells);
-        this.events.emit('treesChanged', cells);
-        return { ok: true, cost: plan.result.cost, count: Math.round(plan.result.volume) };
       }
       case 'setSandbox':
         s.sandbox = cmd.on;

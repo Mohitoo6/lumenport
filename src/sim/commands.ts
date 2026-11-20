@@ -1,5 +1,4 @@
 import type { RoadRequest } from './roads/plan';
-import type { SculptRequest } from './map/sculpt';
 import type { Speed } from './state';
 
 /** Every mutation of the game goes through a command. Commands are plain serialisable data. */
@@ -26,9 +25,7 @@ export type Command =
   | { type: 'setSandbox'; on: boolean }
   | { type: 'setPolicy'; policy: 'flexHours'; on: boolean }
   /** Places the town hall, already built, on the best site near the city centre. */
-  | { type: 'foundTownHall' }
-  /** One stroke of the terrain brush at (x, z) metres: raise, lower, flatten or smooth. */
-  | ({ type: 'sculpt' } & SculptRequest);
+  | { type: 'foundTownHall' };
 
 export interface CommandResult {
   ok: boolean;

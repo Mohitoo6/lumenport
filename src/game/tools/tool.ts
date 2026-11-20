@@ -33,8 +33,6 @@ export interface Tool {
   dragStart?(ctx: ToolContext, p: GroundPoint): void;
   dragMove?(ctx: ToolContext, p: GroundPoint | null): void;
   dragEnd?(ctx: ToolContext, p: GroundPoint | null): void;
-  /** Tools that act while the button is held (the terrain brush) implement this. */
-  hold?(ctx: ToolContext, dt: number): void;
 }
 
 export function money(n: number): string {
