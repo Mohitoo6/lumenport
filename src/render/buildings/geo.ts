@@ -353,4 +353,153 @@ export class Geo {
       }
     }
   }
+
+  /**
+   * A lightweight 3D railing along the horizontal segment (x0, z0) -> (x1, z1) from y0 to y1:
+   * top handrail, optional mid-rail, and evenly spaced vertical posts.
+   */
+  railing(
+    x0: number,
+    z0: number,
+    x1: number,
+    z1: number,
+    y0: number,
+    y1: number,
+    m: Mat,
+    postSpacing = 1.5,
+    thickness = 0.06,
+    midRail = true,
+  ): void {
+    const dx = x1 - x0;
+    const dz = z1 - z0;
+    const len = Math.hypot(dx, dz);
+    if (len < 0.08 || y1 - y0 < 0.08) return;
+    const tx = dx / len;
+    const tz = dz / len;
+    const nx = tz;
+    const nz = -tx;
+    const ht = thickness * 0.5;
+    const rh = Math.min(0.06, (y1 - y0) * 0.3);
+
+    // Top handrail: outer, inner, and top faces.
+    this.wall(x0 + nx * ht, z0 + nz * ht, x1 + nx * ht, z1 + nz * ht, y1 - rh, y1, m);
+    this.wall(x1 - nx * ht, z1 - nz * ht, x0 - nx * ht, z0 - nz * ht, y1 - rh, y1, m);
+    this.poly(
+      [
+        [x0 - nx * ht, y1, z0 - nz * ht],
+        [x1 - nx * ht, y1, z1 - nz * ht],
+        [x1 + nx * ht, y1, z1 + nz * ht],
+        [x0 + nx * ht, y1, z0 + nz * ht],
+      ],
+      m,
+    );
+
+    // Optional mid-rail.
+    if (midRail && y1 - y0 >= 0.45) {
+      const ym = (y0 + y1) * 0.5;
+      this.wall(x0 + nx * ht * 0.6, z0 + nz * ht * 0.6, x1 + nx * ht * 0.6, z1 + nz * ht * 0.6, ym - 0.02, ym + 0.02, m);
+      this.wall(x1 - nx * ht * 0.6, z1 - nz * ht * 0.6, x0 - nx * ht * 0.6, z0 - nz * ht * 0.6, ym - 0.02, ym + 0.02, m);
+    }
+
+    // Vertical posts (4-sided slim prisms without lids).
+    const posts = Math.max(2, Math.min(10, Math.round(len / postSpacing) + 1));
+    const pw = ht * 0.9;
+    const py1 = y1 - rh;
+    for (let i = 0; i < posts; i++) {
+      const f = i / (posts - 1);
+      const px = x0 + dx * f;
+      const pz = z0 + dz * f;
+      const ax = px - tx * pw - nx * pw;
+      const az = pz - tz * pw - nz * pw;
+      const bx = px + tx * pw - nx * pw;
+      const bz = pz + tz * pw - nz * pw;
+      const cx = px + tx * pw + nx * pw;
+      const cz = pz + tz * pw + nz * pw;
+      const ex = px - tx * pw + nx * pw;
+      const ez = pz - tz * pw + nz * pw;
+      this.wall(ax, az, bx, bz, y0, py1, m);
+      this.wall(bx, bz, cx, cz, y0, py1, m);
+      this.wall(cx, cz, ex, ez, y0, py1, m);
+      this.wall(ex, ez, ax, az, y0, py1, m);
+    }
+  }
+
+  /**
+   * An arched opening in a front-facing (+z) wall plane at `z` extending back to `z - depth`.
+   * Draws left/right piers from `y0` to `springY` and a segmental/semicircular arch spandrel
+   * up to `springY + rise + crown`.
+   */
+  arch(
+    cx: number,
+    z: number,
+    span: number,
+    y0: number,
+    springY: number,
+    rise: number,
+    depth: number,
+    m: Mat,
+    pierW = 0.32,
+    crown = 0.25,
+    segs = 6,
+  ): void {
+    const outer = span * 0.5;
+    const inner = outer - pierW;
+    if (inner < 0.2 || rise < 0.1 || depth < 0.05) return;
+    const z0 = z - depth;
+    const topY = springY + rise + crown;
+
+    // Side piers up to the spring line.
+    if (springY > y0 + 0.02) {
+      this.box(cx - outer, z0, cx - inner, z, y0, springY, m, NO_WIN, null);
+      this.box(cx + inner, z0, cx + outer, z, y0, springY, m, NO_WIN, null);
+    }
+    // Outer side cheeks above the spring line and top lid.
+    this.wall(cx - outer, z, cx - outer, z0, springY, topY, m);
+    this.wall(cx + outer, z0, cx + outer, z, springY, topY, m);
+    this.flat(cx - outer, z0, cx + outer, z, topY, m);
+
+    // Spandrel front/back faces and curved soffit.
+    for (let i = 0; i < segs; i++) {
+      const a0 = Math.PI - (i / segs) * Math.PI;
+      const a1 = Math.PI - ((i + 1) / segs) * Math.PI;
+      const xa = cx + Math.cos(a0) * inner;
+      const ya = springY + Math.sin(a0) * rise;
+      const xb = cx + Math.cos(a1) * inner;
+      const yb = springY + Math.sin(a1) * rise;
+      // Front spandrel (+z).
+      this.poly([[xa, ya, z], [xb, yb, z], [xb, topY, z], [xa, topY, z]], m, NO_WIN, false);
+      // Back spandrel (-z).
+      this.poly([[xb, yb, z0], [xa, ya, z0], [xa, topY, z0], [xb, topY, z0]], m, NO_WIN, false);
+      // Soffit underside.
+      this.poly([[xa, ya, z], [xa, ya, z0], [xb, yb, z0], [xb, yb, z]], m, NO_WIN, false);
+    }
+    // Close the outer pier corners above the spring line on front and back.
+    this.poly([[cx - outer, springY, z], [cx - inner, springY, z], [cx - inner, topY, z], [cx - outer, topY, z]], m, NO_WIN, false);
+    this.poly([[cx + inner, springY, z], [cx + outer, springY, z], [cx + outer, topY, z], [cx + inner, topY, z]], m, NO_WIN, false);
+    this.poly([[cx - inner, springY, z0], [cx - outer, springY, z0], [cx - outer, topY, z0], [cx - inner, topY, z0]], m, NO_WIN, false);
+    this.poly([[cx + outer, springY, z0], [cx + inner, springY, z0], [cx + inner, topY, z0], [cx + outer, topY, z0]], m, NO_WIN, false);
+  }
+
+  /**
+   * An axis-aligned flight of steps rising from `z1` (bottom, `y0`) to `z0` (top, `y1`),
+   * spanning `x0..x1`, with solid side cheeks.
+   */
+  stair(x0: number, z0: number, x1: number, z1: number, y0: number, y1: number, steps: number, m: Mat): void {
+    const n = Math.max(1, Math.round(steps));
+    if (x1 - x0 < 0.1 || z1 - z0 < 0.1 || y1 - y0 < 0.05) return;
+    const dz = (z1 - z0) / n;
+    const dy = (y1 - y0) / n;
+    for (let i = 0; i < n; i++) {
+      const zb = z1 - i * dz;
+      const za = zb - dz;
+      const ya = y0 + i * dy;
+      const yb = ya + dy;
+      this.wall(x1, zb, x0, zb, ya, yb, m);
+      this.flat(x0, za, x1, zb, yb, m);
+    }
+    // Side cheeks.
+    this.poly([[x1, y0, z1], [x1, y0, z0], [x1, y1, z0], [x1, y0 + dy, z1]], m, NO_WIN, false);
+    this.poly([[x0, y0, z0], [x0, y0, z1], [x0, y0 + dy, z1], [x0, y1, z0]], m, NO_WIN, false);
+  }
 }
+

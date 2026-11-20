@@ -12,7 +12,7 @@ export default defineConfig(({ mode }) => {
     server: { port: 5173, strictPort: false },
     build: { target: 'es2022', chunkSizeWarningLimit: 1500 },
     test: {
-      include: ['tests/sim/**/*.test.ts', 'tests/game/**/*.test.ts'],
+      include: ['tests/sim/**/*.test.ts', 'tests/game/**/*.test.ts', 'tests/render/**/*.test.ts'],
       environment: 'node',
       // Some tests simulate years of game time.
       testTimeout: 30_000,

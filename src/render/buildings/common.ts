@@ -33,15 +33,24 @@ export const HEDGE = mat(Layer.Grass, [0.42, 0.62, 0.3], 2.5);
 export const WOOD = mat(Layer.Plaster, [0.62, 0.44, 0.28], 2);
 export const LINE_WHITE = mat(Layer.Concrete, [2.1, 2.1, 2.05], 3);
 
+// Additional finishes shared across modern Indian architectural elements.
+export const IRON_DARK = mat(Layer.Metal, [0.3, 0.32, 0.36], 1.6);
+export const TERRACOTTA = mat(Layer.Roof2, [1.18, 0.72, 0.52], 2.2);
+export const SANDSTONE = mat(Layer.Plaster, [1.28, 1.08, 0.84], 2.8);
+export const GLASS_RAIL = mat(Layer.ConcreteWall, [0.34, 0.5, 0.6], 2.5);
+export const TANK_BLACK = mat(Layer.Metal, [0.22, 0.24, 0.28], 1.6);
+export const TANK_WHITE = mat(Layer.Plaster2, [1.32, 1.32, 1.28], 2);
+export const TANK_BLUE = mat(Layer.Plaster2, [0.24, 0.56, 0.96], 2);
+
 export const SIGN: Win = win(Style.Sign, 1, 1, 0);
 
 const FLAT_ROOFS: readonly Mat[] = [
   GRAVEL_ROOF,
   TAR_ROOF,
-  mat(Layer.Concrete, [1.25, 1.24, 1.2], 2.2), // pale gravel
-  mat(Layer.Concrete, [1.7, 1.7, 1.68], 3), // white membrane
-  mat(Layer.Asphalt, [0.78, 0.6, 0.5], 4), // red-brown felt
-  mat(Layer.Concrete, [0.7, 0.86, 0.74], 3), // green coating
+  mat(Layer.Concrete, [1.25, 1.24, 1.2], 2.2), // pale gravel / cool-roof lime wash
+  mat(Layer.Concrete, [1.7, 1.7, 1.68], 3), // white heat-reflective terrace
+  mat(Layer.Asphalt, [0.78, 0.6, 0.5], 4), // red-brown waterproofing / brick coba
+  mat(Layer.Concrete, [1.35, 1.15, 0.98], 2.6), // terracotta terrace tiles
   mat(Layer.Asphalt, [0.75, 0.76, 0.8], 4), // grey felt
 ];
 
@@ -95,6 +104,214 @@ export function acUnit(g: Geo, x: number, z: number, y: number, s = 1): void {
   g.cyl(x, z, 0.36 * s, 0.36 * s, y + 0.85 * s, y + 0.93 * s, 8, STEEL_DARK);
 }
 
+/** An overhead cylindrical HDPE water tank (Sintex-style) on a low masonry stand. */
+export function waterTank(g: Geo, x: number, z: number, y: number, r: Rng, scale = 1, raised = true): void {
+  const body = pick(r, [TANK_BLACK, TANK_BLACK, TANK_WHITE, TANK_BLUE] as const);
+  const standH = raised ? 0.45 * scale : 0;
+  const rad = 0.58 * scale;
+  const h = 1.15 * scale;
+  if (standH > 0) {
+    g.box(x - rad * 0.9, z - rad * 0.9, x + rad * 0.9, z + rad * 0.9, y, y + standH, CONCRETE);
+  }
+  const by = y + standH;
+  g.cyl(x, z, rad, rad, by, by + h, 8, body);
+  // Manhole lid on top.
+  g.cyl(x, z, rad * 0.38, rad * 0.38, by + h, by + h + 0.14 * scale, 6, body);
+}
+
+/**
+ * Staircase head-room (mumty) on an Indian flat roof: masonry shaft, overhanging drip-ledge
+ * roof slab, and a terrace door.
+ */
+export function stairTower(
+  g: Geo,
+  x0: number,
+  z0: number,
+  x1: number,
+  z1: number,
+  y: number,
+  h: number,
+  wall: Mat,
+  trim: Mat = WHITE_TRIM,
+): void {
+  g.walls(x0, z0, x1, z1, y, y + h, wall);
+  // Overhanging RCC roof slab.
+  g.box(x0 - 0.22, z0 - 0.22, x1 + 0.22, z1 + 0.22, y + h, y + h + 0.18, trim, NO_WIN, CONCRETE);
+  // Small terrace access door on the front face.
+  const cx = (x0 + x1) * 0.5;
+  const dw = Math.min(0.95, (x1 - x0) * 0.45);
+  if (dw > 0.45 && h > 2.1) {
+    frontPanel(g, cx, z1, dw, y + 0.05, y + 1.95, WOOD);
+  }
+}
+
+/**
+ * A projecting horizontal window sunshade (chhajja) along one face of a wall.
+ * Align `y` to `floorY + 0.80 * floorH` so it sits right over procedural Punched windows.
+ */
+export function chhajja(
+  g: Geo,
+  a0: number,
+  a1: number,
+  fixedCoord: number,
+  y: number,
+  depth = 0.48,
+  m: Mat = WHITE_TRIM,
+  side: 'front' | 'back' | 'left' | 'right' = 'front',
+): void {
+  const th = 0.12;
+  if (side === 'front') g.box(a0, fixedCoord, a1, fixedCoord + depth, y, y + th, m);
+  else if (side === 'back') g.box(a0, fixedCoord - depth, a1, fixedCoord, y, y + th, m);
+  else if (side === 'right') g.box(fixedCoord, a0, fixedCoord + depth, a1, y, y + th, m);
+  else g.box(fixedCoord - depth, a0, fixedCoord, a1, y, y + th, m);
+}
+
+export type BalconyStyle = 'parapet-rail' | 'railing' | 'glass' | 'solid';
+
+/**
+ * A projecting balcony on a front (+z) or back (-z) facade.
+ * Keeps triangle counts low so it scales cleanly from bungalows to 16-storey towers.
+ */
+export function balcony(
+  g: Geo,
+  x0: number,
+  x1: number,
+  z: number,
+  y: number,
+  depth: number,
+  slabMat: Mat,
+  railMat: Mat = IRON_DARK,
+  style: BalconyStyle = 'parapet-rail',
+  face: 'front' | 'back' = 'front',
+): void {
+  const z0 = face === 'front' ? z : z - depth;
+  const z1 = face === 'front' ? z + depth : z;
+  const edgeZ = face === 'front' ? z1 - 0.06 : z0 + 0.06;
+
+  // Floor slab.
+  g.box(x0, z0, x1, z1, y - 0.14, y, slabMat);
+
+  if (style === 'solid') {
+    const h = 1.0;
+    const zOut = face === 'front' ? z1 : z0;
+    if (face === 'front') {
+      g.wall(x1, zOut, x0, zOut, y, y + h, slabMat);
+      g.wall(x0, zOut, x1, zOut, y, y + h, slabMat);
+    } else {
+      g.wall(x0, zOut, x1, zOut, y, y + h, slabMat);
+      g.wall(x1, zOut, x0, zOut, y, y + h, slabMat);
+    }
+    g.wall(x1, z0, x1, z1, y, y + h, slabMat);
+    g.wall(x0, z1, x0, z0, y, y + h, slabMat);
+    g.box(x0 - 0.02, edgeZ - 0.07, x1 + 0.02, edgeZ + 0.07, y + h, y + h + 0.08, railMat);
+    return;
+  }
+
+  if (style === 'glass') {
+    const h = 1.02;
+    const zOut = face === 'front' ? z1 - 0.04 : z0 + 0.04;
+    // Glazed front panel + thin top metal rail (very low poly for high-rises).
+    if (face === 'front') {
+      g.wall(x1, zOut, x0, zOut, y, y + h - 0.06, GLASS_RAIL, win(Style.Curtain, Math.max(1.2, (x1 - x0) / 2), h, 0.5));
+      g.wall(x0, zOut, x1, zOut, y, y + h - 0.06, GLASS_RAIL);
+    } else {
+      g.wall(x0, zOut, x1, zOut, y, y + h - 0.06, GLASS_RAIL, win(Style.Curtain, Math.max(1.2, (x1 - x0) / 2), h, 0.5));
+      g.wall(x1, zOut, x0, zOut, y, y + h - 0.06, GLASS_RAIL);
+    }
+    g.wall(x1 - 0.03, z0, x1 - 0.03, z1, y, y + h - 0.06, GLASS_RAIL);
+    g.wall(x0 + 0.03, z1, x0 + 0.03, z0, y, y + h - 0.06, GLASS_RAIL);
+    g.box(x0, edgeZ - 0.04, x1, edgeZ + 0.04, y + h - 0.06, y + h, railMat);
+    return;
+  }
+
+  if (style === 'parapet-rail') {
+    const ph = 0.55;
+    const rh = 1.02;
+    const zOut = face === 'front' ? z1 : z0;
+    if (face === 'front') {
+      g.wall(x1, zOut, x0, zOut, y, y + ph, slabMat);
+      g.wall(x0, zOut, x1, zOut, y, y + ph, slabMat);
+    } else {
+      g.wall(x0, zOut, x1, zOut, y, y + ph, slabMat);
+      g.wall(x1, zOut, x0, zOut, y, y + ph, slabMat);
+    }
+    g.wall(x1, z0, x1, z1, y, y + ph, slabMat);
+    g.wall(x0, z1, x0, z0, y, y + ph, slabMat);
+    g.railing(x0 + 0.05, edgeZ, x1 - 0.05, edgeZ, y + ph, y + rh, railMat, 1.6, 0.05, false);
+    return;
+  }
+
+  // Full open railing on front and both sides.
+  const rh = 1.02;
+  g.railing(x0 + 0.05, edgeZ, x1 - 0.05, edgeZ, y, y + rh, railMat, 1.4, 0.05, true);
+  g.railing(x0 + 0.05, z0 + 0.05, x0 + 0.05, z1 - 0.05, y, y + rh, railMat, 1.4, 0.05, true);
+  g.railing(x1 - 0.05, z0 + 0.05, x1 - 0.05, z1 - 0.05, y, y + rh, railMat, 1.4, 0.05, true);
+}
+
+/**
+ * Perimeter compound wall with corner pillars and an optional front (+z) gate opening,
+ * taller gate piers, iron gate, and optional overhead entry lintel/arch.
+ */
+export function compoundWall(
+  g: Geo,
+  x0: number,
+  z0: number,
+  x1: number,
+  z1: number,
+  h: number,
+  wallMat: Mat,
+  pillarMat: Mat = WHITE_TRIM,
+  gate?: { cx: number; w: number; gateMat?: Mat; overhead?: boolean },
+): void {
+  const t = 0.22;
+  if (x1 - x0 < 2.5 || z1 - z0 < 2.5) return;
+
+  // Back, left, and right walls.
+  g.box(x0, z0, x1, z0 + t, 0, h, wallMat, NO_WIN, pillarMat);
+  g.box(x0, z0 + t, x0 + t, z1 - t, 0, h, wallMat, NO_WIN, pillarMat);
+  g.box(x1 - t, z0 + t, x1, z1 - t, 0, h, wallMat, NO_WIN, pillarMat);
+
+  // Corner pillars.
+  const ps = 0.19;
+  for (const [px, pz] of [
+    [x0 + ps, z0 + ps],
+    [x1 - ps, z0 + ps],
+    [x0 + ps, z1 - ps],
+    [x1 - ps, z1 - ps],
+  ] as const) {
+    g.box(px - ps, pz - ps, px + ps, pz + ps, 0, h + 0.18, pillarMat);
+  }
+
+  // Front wall (+z), split around the gate if present.
+  if (!gate) {
+    g.box(x0, z1 - t, x1, z1, 0, h, wallMat, NO_WIN, pillarMat);
+    return;
+  }
+  const gx0 = Math.max(x0 + 0.6, gate.cx - gate.w * 0.5);
+  const gx1 = Math.min(x1 - 0.6, gate.cx + gate.w * 0.5);
+  if (gx0 > x0 + t) g.box(x0, z1 - t, gx0, z1, 0, h, wallMat, NO_WIN, pillarMat);
+  if (x1 - t > gx1) g.box(gx1, z1 - t, x1, z1, 0, h, wallMat, NO_WIN, pillarMat);
+
+  // Gate piers.
+  const gp = 0.24;
+  const gh = h + (gate.overhead ? 1.45 : 0.45);
+  g.box(gx0 - gp, z1 - gp * 2, gx0 + gp, z1 + 0.04, 0, gh, pillarMat);
+  g.box(gx1 - gp, z1 - gp * 2, gx1 + gp, z1 + 0.04, 0, gh, pillarMat);
+  // Pier caps.
+  g.box(gx0 - gp - 0.05, z1 - gp * 2 - 0.05, gx0 + gp + 0.05, z1 + 0.09, gh, gh + 0.12, CONCRETE);
+  g.box(gx1 - gp - 0.05, z1 - gp * 2 - 0.05, gx1 + gp + 0.05, z1 + 0.09, gh, gh + 0.12, CONCRETE);
+
+  // Overhead lintel / society gate beam.
+  if (gate.overhead && gx1 - gx0 > 2.2) {
+    g.box(gx0 - gp - 0.1, z1 - gp * 2 - 0.05, gx1 + gp + 0.1, z1 + 0.09, gh + 0.12, gh + 0.62, pillarMat);
+  }
+
+  // Iron gate between piers.
+  if (gx1 - gx0 > 0.9) {
+    g.railing(gx0 + gp, z1 - t * 0.6, gx1 - gp, z1 - t * 0.6, 0.1, h + 0.15, gate.gateMat ?? IRON_DARK, 0.95, 0.05, true);
+  }
+}
+
 /** Roof-level plant: air handlers, a stair bulkhead, vents, sometimes a water tank. */
 export function rooftop(l: Lot, x0: number, z0: number, x1: number, z1: number, y: number, wall: Mat, tank = false): void {
   const { g, r } = l;
@@ -122,6 +339,77 @@ export function rooftop(l: Lot, x0: number, z0: number, x1: number, z1: number, 
     for (const [ox, oz] of [[-0.8, -0.8], [0.8, -0.8], [0.8, 0.8], [-0.8, 0.8]] as const) g.box(tx + ox - 0.07, tz + oz - 0.07, tx + ox + 0.07, tz + oz + 0.07, y, y + 1.6, legs);
     g.cyl(tx, tz, 1.25, 1.25, y + 1.6, y + 3.7, 10, WOOD, null);
     g.cyl(tx, tz, 1.35, 0, y + 3.7, y + 4.5, 10, mat(Layer.Metal, [0.8, 0.8, 0.82], 2));
+  }
+}
+
+/**
+ * Indian residential flat-roof furnishings: a mumty stair tower, 1-4 Sintex water tanks
+ * (placed on the mumty or terrace), AC units, and an optional solar water heater.
+ */
+export function indianRooftop(
+  l: Lot,
+  x0: number,
+  z0: number,
+  x1: number,
+  z1: number,
+  y: number,
+  wall: Mat,
+  trim: Mat = WHITE_TRIM,
+  tankCount = 1,
+): void {
+  const { g, r } = l;
+  const w = x1 - x0;
+  const d = z1 - z0;
+  if (w < 3.6 || d < 3.6) return;
+
+  // Staircase mumty placed toward the back/side of the terrace.
+  const mw = Math.min(3.2, Math.max(2.1, w * 0.28));
+  const md = Math.min(3.4, Math.max(2.2, d * 0.3));
+  const side = r.chance(0.5) ? -1 : 1;
+  const mx0 = side < 0 ? x0 + 0.7 : x1 - 0.7 - mw;
+  const mx1 = mx0 + mw;
+  const mz0 = z0 + 0.7;
+  const mz1 = mz0 + md;
+  const mh = 2.45;
+  stairTower(g, mx0, mz0, mx1, mz1, y, mh, wall, trim);
+
+  // Place overhead water tanks on top of the mumty slab (or beside it if many).
+  const onMumty = Math.min(tankCount, mw > 2.6 ? 2 : 1);
+  for (let i = 0; i < onMumty; i++) {
+    const tx = mx0 + ((i + 0.5) / onMumty) * mw;
+    const tz = (mz0 + mz1) * 0.5;
+    waterTank(g, tx, tz, y + mh + 0.18, r, 0.85, false);
+  }
+  const extra = tankCount - onMumty;
+  for (let i = 0; i < extra; i++) {
+    const tx = side < 0 ? Math.min(x1 - 1.2, mx1 + 1.1 + i * 1.45) : Math.max(x0 + 1.2, mx0 - 1.1 - i * 1.45);
+    if (tx > x0 + 0.9 && tx < x1 - 0.9) {
+      waterTank(g, tx, mz0 + 1.1, y, r, 0.92, true);
+    }
+  }
+
+  // Outdoor AC unit(s) tucked near the opposite back corner.
+  const ax = side < 0 ? x1 - 1.3 : x0 + 1.3;
+  const az = z0 + 1.4;
+  if (Math.abs(ax - (mx0 + mx1) * 0.5) > mw * 0.65) {
+    acUnit(g, ax, az, y, 0.72);
+  }
+
+  // Occasional rooftop solar water heater (angled dark panel + horizontal cylinder).
+  if (w > 6.5 && d > 5.5 && r.chance(0.35)) {
+    const sx = side < 0 ? x1 - 2.3 : x0 + 2.3;
+    const sz = z1 - 2.2;
+    const panel = mat(Layer.ConcreteWall, [0.14, 0.2, 0.34], 2);
+    g.poly(
+      [
+        [sx - 0.95, y + 1.05, sz - 0.6],
+        [sx + 0.95, y + 1.05, sz - 0.6],
+        [sx + 0.95, y + 0.35, sz + 0.6],
+        [sx - 0.95, y + 0.35, sz + 0.6],
+      ],
+      panel,
+    );
+    g.box(sx - 0.95, sz - 0.78, sx + 0.95, sz - 0.42, y + 1.05, y + 1.4, WHITE_TRIM);
   }
 }
 
@@ -178,3 +466,4 @@ export function door(g: Geo, cx: number, z: number, y: number, tint: RGB, w = 1.
 
 export { Geo, Layer, NO_WIN, Style, mat, win };
 export type { Mat, RGB, Win };
+
