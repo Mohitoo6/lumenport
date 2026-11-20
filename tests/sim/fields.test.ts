@@ -47,6 +47,20 @@ describe('service coverage', () => {
     expect(at(sim.fields.coverage[Service.Health]!, 80, 51)).toBe(0);
   });
 
+  it('reaches much further from a hospital than from a clinic', () => {
+    const sim = town();
+    expect(place(sim, FacilityKind.Hospital, 80, 53).ok).toBe(true);
+    run(sim, 8);
+    const b = sim.state.buildings.find((x) => x && x.kind === FacilityKind.Hospital)!;
+    const cx = Math.round(b.x + b.w / 2);
+    const cy = Math.round(b.y + b.h / 2);
+    const cov = sim.fields.coverage[Service.Health]!;
+    const clinicReach = FACILITIES[FacilityKind.Clinic]!.radius;
+    expect(at(cov, cx, cy)).toBeGreaterThan(0.95);
+    expect(at(cov, cx + clinicReach + 5, cy)).toBeGreaterThan(0.3);
+    expect(FACILITIES[FacilityKind.Hospital]!.jobs).toBeGreaterThan(0);
+  });
+
   it('is paid for under services, not utilities', () => {
     const sim = town();
     sim.state.sandbox = false;

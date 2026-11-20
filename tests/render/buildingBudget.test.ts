@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { generateBuilding } from '../../src/render/buildings/generate';
+import { FacilityKind } from '../../src/sim/facilities';
 import { Facing, ZoneType, zoneCode, type Building } from '../../src/sim/zoning/zones';
 
 const lot = (w: number, h: number, density: number, level: number, seed: number): Building => ({
@@ -32,5 +33,25 @@ describe('residential buildings', () => {
       }
     }
     console.log(report.join('\n'));
+  });
+});
+
+describe('the hospital', () => {
+  it('fits its budget either way round and is the same every time for one seed', () => {
+    for (const [w, h, facing] of [[5, 6, Facing.South], [6, 5, Facing.South], [5, 6, Facing.East]] as const) {
+      for (let s = 0; s < 12; s++) {
+        const b: Building = { id: 1, kind: FacilityKind.Hospital, zone: 0, x: 10, y: 10, w, h, facing, level: 1, progress: 1, seed: 77 + s * 104729, baseY: 0, pop: 0, flags: 0 };
+        const g = generateBuilding(b);
+        expect(g.idx.length / 3).toBeLessThan(8000);
+        expect(generateBuilding(b).pos).toEqual(g.pos);
+        // Everything stays inside the lot (5 by 6 cells of 8 m around its centre).
+        const cx = (b.x + w / 2) * 8;
+        const cz = (b.y + h / 2) * 8;
+        for (let i = 0; i < g.pos.length; i += 3) {
+          expect(Math.abs(g.pos[i]! - cx)).toBeLessThanOrEqual((w * 8) / 2 + 0.01);
+          expect(Math.abs(g.pos[i + 2]! - cz)).toBeLessThanOrEqual((h * 8) / 2 + 0.01);
+        }
+      }
+    }
   });
 });

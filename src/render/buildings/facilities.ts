@@ -3,6 +3,7 @@ import {
   ASPHALT,
   CONCRETE,
   CONCRETE_DARK,
+  GLASS_RAIL,
   LAWN,
   LINE_WHITE,
   Layer,
@@ -13,7 +14,11 @@ import {
   STEEL_DARK,
   Style,
   WHITE_TRIM,
+  TAR_ROOF,
   WOOD,
+  acUnit,
+  chhajja,
+  compoundWall,
   fence,
   flatRoof,
   frontPanel,
@@ -21,9 +26,13 @@ import {
   hedge,
   mat,
   parking,
+  pick,
   roofFinish,
   rooftop,
   shrub,
+  stairTower,
+  vary,
+  waterTank,
   win,
   type Geo,
   type Lot,
@@ -751,6 +760,168 @@ function busStop(l: Lot): void {
   g.box(x1 - 0.1, kerb - 0.55, x1 + 0.5, kerb - 0.45, 2.5, 3.0, mat(Layer.Plaster2, red, 3), SIGN, null);
 }
 
+/** A red cross on a white square plate, standing on a front (+z) face. */
+function redCross(g: Geo, cx: number, cy: number, z: number, s: number): void {
+  const red = mat(Layer.Plaster2, [1.9, 0.16, 0.14], 3);
+  g.box(cx - s / 2, z, cx + s / 2, z + 0.12, cy - s / 2, cy + s / 2, mat(Layer.Plaster2, [1.6, 1.6, 1.58], 3), SIGN, null);
+  g.box(cx - s * 0.12, z + 0.12, cx + s * 0.12, z + 0.2, cy - s * 0.36, cy + s * 0.36, red, SIGN, null);
+  g.box(cx - s * 0.36, z + 0.12, cx + s * 0.36, z + 0.2, cy - s * 0.12, cy + s * 0.12, red, SIGN, null);
+}
+
+/** An ambulance parked along z, nose toward the road. */
+function ambulance(g: Geo, x: number, z: number): void {
+  const body = mat(Layer.Plaster2, [1.55, 1.55, 1.52], 3);
+  g.box(x - 1.0, z - 2.6, x + 1.0, z + 1.4, 0.35, 2.55, body, NO_WIN, body);
+  g.box(x - 1.0, z + 1.4, x + 1.0, z + 2.6, 0.35, 1.65, body, NO_WIN, body);
+  g.box(x - 0.9, z + 1.38, x + 0.9, z + 1.45, 1.65, 2.35, mat(Layer.Metal, [0.3, 0.4, 0.5], 2));
+  g.box(x - 1.02, z - 2.6, x + 1.02, z + 2.6, 1.1, 1.35, mat(Layer.Plaster2, [1.8, 0.2, 0.16], 3));
+  g.box(x - 0.5, z + 1.0, x + 0.5, z + 1.3, 2.55, 2.75, mat(Layer.Plaster2, [0.3, 0.5, 1.9], 3), SIGN, null);
+  for (const [wx, wz] of [[-0.95, -1.7], [0.95, -1.7], [-0.95, 1.8], [0.95, 1.8]] as const) g.cyl(x + wx, z + wz, 0.36, 0.36, 0, 0.72, 6, STEEL_DARK);
+}
+
+/**
+ * A multi-speciality hospital in the style of the homes: a white ward tower with chhajja
+ * sunshades and a glazed lift core, a helipad and water tanks on the roof, a two-storey OPD
+ * podium with a green terrace, a porte-cochere for drop-off, an emergency wing with its own
+ * canopy and an ambulance, oxygen tanks in the service yard, and a gated, landscaped
+ * compound with parking.
+ */
+function hospital(l: Lot): void {
+  const { g, r, W, D } = l;
+  ground(l, PAVING);
+  const white = mat(Layer.Plaster2, vary(r, [1.36, 1.34, 1.28], 0.04), 3);
+  const accentTint = pick(r, [[0.3, 0.78, 0.82], [0.32, 0.55, 0.95], [0.42, 0.8, 0.55]] as const);
+  const accent = mat(Layer.Plaster2, accentTint, 3);
+  const glass = mat(Layer.Metal, [accentTint[0] * 1.5, accentTint[1] * 1.3, accentTint[2] * 1.25], 2.6);
+  const red: RGB = [0.85, 0.1, 0.08];
+
+  // Compound wall with a gated entrance on the road side.
+  const gateX = -W * 0.12;
+  compoundWall(g, -W / 2 + 0.4, -D / 2 + 0.4, W / 2 - 0.4, D / 2 - 0.4, 1.5, white, accent, { cx: gateX, w: 9, overhead: true });
+
+  const fh = 3.6;
+  const plinth = 0.6;
+  const tw = Math.min(W - 9, 36);
+  const tx0 = -tw / 2;
+  const tx1 = tw / 2;
+  const tz0 = -D / 2 + 3.5;
+  const tz1 = tz0 + Math.min(15, D * 0.3);
+  const floors = 7 + r.int(2);
+  const top = plinth + floors * fh;
+
+  // Ward tower in two steps: a tall block and a lower one, joined by a glazed lift core.
+  const cx = tx0 + tw * 0.6;
+  const lowTop = top - 2 * fh;
+  const blocks: Array<[number, number, number]> = [
+    [tx0, cx - 2.6, top],
+    [cx + 2.6, tx1, lowTop],
+  ];
+  for (const [x0, x1, yTop] of blocks) {
+    g.walls(x0, tz0, x1, tz1, 0, plinth, CONCRETE_DARK);
+    g.walls(x0, tz0, x1, tz1, plinth, yTop, white, win(Style.Ribbon, fitBay(x1 - x0, 2.8), fh, 0.5));
+    for (let y = plinth + fh * 1.78; y < yTop - 0.5; y += fh) {
+      chhajja(g, x0, x1, tz1, y, 0.55, WHITE_TRIM, 'front');
+      chhajja(g, x0, x1, tz0, y, 0.55, WHITE_TRIM, 'back');
+    }
+    flatRoof(g, x0, tz0, x1, tz1, yTop, white, mat(Layer.Concrete, [1.35, 1.35, 1.32], 3), 0.9);
+    // Crown: an accent fascia wrapping the top floor.
+    g.box(x0 - 0.35, tz0 - 0.35, x1 + 0.35, tz1 + 0.35, yTop - 0.35, yTop + 0.95, accent, NO_WIN, null);
+  }
+  // Vertical fins on the tall block's front.
+  const fins = Math.max(2, Math.round((cx - 2.6 - tx0) / 4.5));
+  for (let i = 0; i <= fins; i++) {
+    const fx = tx0 + 0.15 + ((cx - 2.6 - tx0 - 0.3) * i) / fins;
+    g.box(fx - 0.14, tz1, fx + 0.14, tz1 + 0.75, plinth + fh, top - 0.35, WHITE_TRIM, NO_WIN, null);
+  }
+  g.box(cx - 2.6, tz0 + 0.6, cx + 2.6, tz1 - 0.2, plinth, top + 2.6, white, NO_WIN, CONCRETE);
+  g.box(cx - 2.6, tz1 - 0.2, cx + 2.6, tz1 + 1.4, plinth, top + 3.6, glass, win(Style.Curtain, 1.3, fh, 0.6), CONCRETE);
+  redCross(g, cx, top + 1.7, tz1 + 1.4, 2.6);
+  // Lit name board high on the tall block, beside a red cross.
+  const bx0 = tx0 + 2;
+  const bx1 = Math.min(cx - 5.5, bx0 + 13);
+  g.box(bx0, tz1 + 0.75, bx1, tz1 + 0.95, top - fh - 0.1, top - 0.6, mat(Layer.Plaster2, accentTint, 3), SIGN, null);
+  redCross(g, bx1 + 1.8, top - fh / 2 - 0.35, tz1 + 0.75, 2.6);
+
+  // Roof: helipad on the tall block; lift room, water tanks and plant on the low one.
+  const hx = tx0 + Math.min(6.4, (cx - 2.6 - tx0) / 2);
+  const hz = (tz0 + tz1) / 2;
+  const pad = Math.min(5.2, (tz1 - tz0) / 2 - 0.8, (cx - 2.6 - tx0) / 2 - 0.8);
+  g.cyl(hx, hz, pad, pad, top, top + 0.18, 16, mat(Layer.Concrete, [2.0, 1.6, 0.25], 3));
+  g.cyl(hx, hz, pad - 0.45, pad - 0.45, top, top + 0.2, 16, mat(Layer.Asphalt, [0.55, 0.56, 0.6], 4));
+  const hm = mat(Layer.Concrete, [2.1, 2.1, 2.05], 3);
+  g.flat(hx - 1.6, hz - 2, hx - 1.0, hz + 2, top + 0.22, hm);
+  g.flat(hx + 1.0, hz - 2, hx + 1.6, hz + 2, top + 0.22, hm);
+  g.flat(hx - 1.0, hz - 0.3, hx + 1.0, hz + 0.3, top + 0.22, hm);
+  stairTower(g, tx1 - 7.5, tz0 + 1.2, tx1 - 3.5, tz0 + 5.2, lowTop, 3, white, WHITE_TRIM);
+  for (let i = 0; i < 3; i++) waterTank(g, tx1 - 7 + i * 1.5, tz0 + 3.2, lowTop + 3.18, r, 0.85, false);
+  for (let i = 0; i < 3; i++) acUnit(g, tx1 - 2.4, tz0 + 2 + i * 2.6, lowTop, 1.1);
+  for (let i = 0; i < 2; i++) acUnit(g, cx + 4.5 + i * 3, tz1 - 2.5, lowTop, 1.1);
+
+  // OPD podium in front of the tower, with a green terrace.
+  const pz0 = tz1;
+  const pz1 = pz0 + 9;
+  const px0 = tx0;
+  const px1 = tx1 - 10;
+  const ph = plinth + 2 * 4.2;
+  g.walls(px0, pz0, px1, pz1, 0, plinth, CONCRETE_DARK);
+  g.walls(px0, pz0, px1, pz1, plinth, plinth + 4.2, glass, win(Style.Storefront, 3, 4.2, 0.6));
+  g.walls(px0, pz0, px1, pz1, plinth + 4.2, ph, white, win(Style.Ribbon, fitBay(px1 - px0, 2.8), 4.2, 0.5));
+  chhajja(g, px0, px1, pz1, plinth + 4.2 + 3.3, 0.7, WHITE_TRIM, 'front');
+  flatRoof(g, px0, pz0, px1, pz1, ph, white, mat(Layer.Grass, [0.55, 0.85, 0.45], 4), 1.0);
+  g.railing(px0 + 0.3, pz1 - 0.2, px1 - 0.3, pz1 - 0.2, ph + 1.0, ph + 1.6, GLASS_RAIL, 2.2, 0.05, false);
+  for (let i = 0; i < 4; i++) shrub(g, px0 + 3 + i * ((px1 - px0 - 6) / 3), pz0 + 3, 0.8);
+  // Name board along the podium.
+  g.box(px0 + 2, pz1 + 0.05, px1 - 2, pz1 + 0.25, plinth + 4.5, plinth + 5.6, mat(Layer.Plaster2, accentTint, 3), SIGN, CONCRETE_DARK);
+
+  // Porte-cochere for drop-off at the main door.
+  const dx = (px0 + px1) / 2;
+  const cz1 = pz1 + 7;
+  g.box(dx - 5.5, pz1, dx + 5.5, cz1, 4.6, 5.1, white, NO_WIN, CONCRETE);
+  g.box(dx - 5.6, cz1 - 0.1, dx + 5.6, cz1 + 0.1, 4.3, 5.2, accent);
+  for (const ox of [-4.8, 4.8]) g.cyl(dx + ox, cz1 - 0.8, 0.3, 0.3, 0, 4.6, 8, WHITE_TRIM);
+  frontPanel(g, dx, pz1, 6, plinth, 3.6, mat(Layer.Metal, [0.45, 0.6, 0.7], 2), win(Style.Storefront, 2, 3, 0.7));
+  g.stair(dx - 4, pz1, dx + 4, pz1 + 1.4, 0, plinth, 3, CONCRETE);
+
+  // Emergency wing at the side: single storey, red band, its own canopy and ambulance.
+  const ex0 = px1 + 0.6;
+  const ex1 = tx1;
+  const ez1 = pz1 - 1;
+  const eh = 5.2;
+  g.walls(ex0, pz0, ex1, ez1, 0, eh, white, win(Style.Ribbon, fitBay(ex1 - ex0, 2.6), eh, 0.5));
+  g.walls(ex0 - 0.05, pz0, ex1 + 0.05, ez1 + 0.05, eh - 1.1, eh, mat(Layer.Plaster2, red, 3));
+  flatRoof(g, ex0, pz0, ex1, ez1, eh, white, mat(Layer.Concrete, [1.35, 1.35, 1.32], 3));
+  const emx = (ex0 + ex1) / 2;
+  g.box(ex0 + 0.3, ez1, ex1 - 0.3, ez1 + 6.5, 4.2, 4.55, white, NO_WIN, CONCRETE);
+  g.box(ex0 + 0.3, ez1 + 6.4, ex1 - 0.3, ez1 + 6.6, 3.7, 4.55, mat(Layer.Plaster2, red, 3), SIGN, null);
+  for (const ox of [ex0 + 0.8, ex1 - 0.8]) g.cyl(ox, ez1 + 6, 0.22, 0.22, 0, 4.2, 8, WHITE_TRIM);
+  frontPanel(g, emx, ez1, 4.4, 0, 3.4, mat(Layer.Metal, [0.45, 0.6, 0.7], 2), win(Style.Storefront, 2.2, 3, 0.8));
+  redCross(g, ex1 - 1.6, eh + 1.2, ez1 + 0.3, 1.8);
+  ambulance(g, emx - 1.4, ez1 + 3.6);
+
+  // Forecourt: a drive along the front, a lane to the gate, parking and a lawn.
+  const fz = pz1 + 0.2;
+  const lane = Math.min(cz1 + 2.5, D / 2 - 1);
+  g.flat(-W / 2 + 1, fz, W / 2 - 1, lane, 0.03, ASPHALT);
+  g.flat(gateX - 4, lane, gateX + 4, D / 2 - 0.4, 0.03, ASPHALT);
+  g.flat(dx - 1.2, fz + 1.5, dx + 1.2, cz1 - 1, 0.045, mat(Layer.Concrete, [2.0, 1.7, 0.3], 3));
+  if (D / 2 - 1 - lane > 4) {
+    parking(g, gateX + 4.6, lane + 0.4, W / 2 - 1, D / 2 - 1);
+    g.flat(-W / 2 + 1, lane + 0.4, gateX - 4.6, D / 2 - 1, 0.035, LAWN);
+    for (let i = 0; i < 3; i++) g.tree(-W / 2 + 3 + i * ((gateX - 6 + W / 2 - 3) / 2), lane + (D / 2 - lane) / 2, 0.6 + r.next() * 0.2, i);
+    flagpole(g, gateX - 5.5, D / 2 - 2, [1.6, 0.55, 0.15]);
+  }
+
+  // Service yard behind: liquid-oxygen tanks and a generator room; trees along the walls.
+  g.cyl(tx1 + 2.2, tz0 + 1.6, 1.0, 1.0, 0, 6.5, 10, mat(Layer.Plaster2, [1.5, 1.5, 1.48], 3));
+  g.cyl(tx1 + 2.2, tz0 + 1.6, 1.0, 0.2, 6.5, 7.2, 10, mat(Layer.Plaster2, [1.5, 1.5, 1.48], 3));
+  g.box(tx0 - 3.6, tz0 + 1, tx0 - 0.8, tz0 + 6, 0, 3, CONCRETE_DARK, NO_WIN, TAR_ROOF);
+  for (let i = 0; i < 4; i++) g.tree(-W / 2 + 4 + i * ((W - 8) / 3), -D / 2 + 1.7, 0.55 + r.next() * 0.2, i + 3);
+  for (let i = 0; i < 2; i++) {
+    g.tree(-W / 2 + 2.2, tz1 + i * 6, 0.5, i + 7);
+    g.tree(W / 2 - 2.2, tz1 + 2 + i * 6, 0.5, i + 9);
+  }
+}
+
 export function facility(l: Lot, kind: number): void {
   switch (kind) {
     case FacilityKind.CoalPlant:
@@ -797,6 +968,9 @@ export function facility(l: Lot, kind: number): void {
       break;
     case FacilityKind.Airport:
       airport(l);
+      break;
+    case FacilityKind.Hospital:
+      hospital(l);
       break;
     default:
       park(l);

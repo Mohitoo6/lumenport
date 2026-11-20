@@ -75,7 +75,7 @@ export function briefing(sim: Sim, id: MinistryId): string[] {
       ];
     case 'health':
       return [
-        `Clinics: ${count(sim, FacilityKind.Clinic)}. Residents without a clinic within reach: ${pct(uncovered(sim, Service.Health))}.`,
+        `Clinics: ${count(sim, FacilityKind.Clinic)}. Hospitals: ${count(sim, FacilityKind.Hospital)}. Residents without a clinic within reach: ${pct(uncovered(sim, Service.Health))}.`,
         `Residents breathing polluted air (above 30%): ${homesAbove(sim, sim.fields.pollution, 0.3)} of ${pop}.`,
         `City happiness: ${pct(st.happiness)}.`,
       ];

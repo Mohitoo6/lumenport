@@ -23,6 +23,8 @@ export const enum FacilityKind {
   BusStop = 15,
   /** Runway, terminal and cargo apron: trade, tourists and travel. One per city. */
   Airport = 16,
+  /** A large multi-speciality hospital: wide health cover, jobs and an emergency wing. */
+  Hospital = 17,
 }
 
 /** Which coverage layer a service facility feeds. */
@@ -87,6 +89,7 @@ export const FACILITIES: Record<number, FacilitySpec> = {
   [FacilityKind.MetroStation]: { name: 'Metro station', size: 2, cost: 9000, upkeep: 160, power: 0, water: 0, needsShore: false, blurb: 'Connect two or more with a metro line: fewer cars, higher land value, fare income.', service: Service.Transit, radius: 55, budget: 'transit' },
   [FacilityKind.BusStop]: { name: 'Bus stop', size: 1, cost: 600, upkeep: 15, power: 0, water: 0, needsShore: false, blurb: 'Two or more on connected roads start a bus line: fewer cars, fare income.', service: Service.Bus, radius: 24, budget: 'transit' },
   [FacilityKind.Airport]: { name: 'Airport', size: 14, length: 34, cost: 65000, upkeep: 900, power: 0, water: 0, needsShore: false, blurb: 'Exports from your industry, visiting tourists and trips for residents. Noisy near the runway.', service: Service.None, radius: 0, jobs: 260, budget: 'transit', landmark: false, maxRelief: 9 },
+  [FacilityKind.Hospital]: { name: 'Hospital', size: 5, length: 6, cost: 24000, upkeep: 950, power: 0, water: 0, needsShore: false, blurb: 'A large multi-speciality hospital: health cover for a whole district, an emergency wing and jobs for doctors and nurses.', service: Service.Health, radius: 80, jobs: 220 },
   [FacilityKind.TownHall]: { name: 'Town Hall', size: 4, cost: 0, upkeep: 0, power: 0, water: 0, needsShore: false, blurb: 'Seat of the city council. A civic square that lifts the land around it.', service: Service.Park, radius: 22, landmark: true },
 };
 
@@ -96,7 +99,7 @@ export function isLandmark(kind: number): boolean {
 
 export const POWER_FACILITIES = [FacilityKind.CoalPlant, FacilityKind.WindTurbine, FacilityKind.SolarFarm] as const;
 export const WATER_FACILITIES = [FacilityKind.WaterTower, FacilityKind.WaterPump] as const;
-export const SERVICE_FACILITIES = [FacilityKind.Police, FacilityKind.FireStation, FacilityKind.Clinic, FacilityKind.School, FacilityKind.Park] as const;
+export const SERVICE_FACILITIES = [FacilityKind.Police, FacilityKind.FireStation, FacilityKind.Clinic, FacilityKind.Hospital, FacilityKind.School, FacilityKind.Park] as const;
 export const CAMPUS_FACILITIES = [FacilityKind.ItPark, FacilityKind.University] as const;
 export const TRANSIT_FACILITIES = [FacilityKind.BusStop, FacilityKind.MetroStation, FacilityKind.Airport] as const;
 

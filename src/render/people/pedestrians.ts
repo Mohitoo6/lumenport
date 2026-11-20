@@ -45,6 +45,8 @@ function footfall(b: Building, stations: Set<number>, stops: Set<number>): numbe
       return stops.has(b.id) ? 3 : 0.3;
     case FacilityKind.Park:
       return 2.5;
+    case FacilityKind.Hospital:
+      return 10;
     case FacilityKind.Clinic:
     case FacilityKind.TownHall:
       return 2;
