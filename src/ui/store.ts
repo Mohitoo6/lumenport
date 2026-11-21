@@ -129,6 +129,26 @@ export interface Hint {
 }
 
 /** Reactive values the HUD renders. The game writes them; components only read. */
+const SCROLL_KEY = 'metropolis.scroll.v1';
+
+function readScrollMode(): import('../game/input').ScrollMode {
+  try {
+    const v = localStorage.getItem(SCROLL_KEY);
+    return v === 'zoom' || v === 'pan' ? v : 'auto';
+  } catch {
+    return 'auto';
+  }
+}
+
+export function saveScrollMode(mode: import('../game/input').ScrollMode): void {
+  ui.scrollMode.value = mode;
+  try {
+    localStorage.setItem(SCROLL_KEY, mode);
+  } catch {
+    /* private window: the choice lasts until the page closes */
+  }
+}
+
 export const ui = {
   loading: signal<string | null>('Starting'),
   cityName: signal('New Haven'),
@@ -197,6 +217,8 @@ export const ui = {
   cinema: signal<CinemaStage>('off'),
   assistant: signal<{ open: boolean; busy: boolean; messages: AssistantMessage[] }>({ open: false, busy: false, messages: [] }),
   quality: signal<import('../render/quality').QualityId>('balanced'),
+  /** What a two-finger scroll or mouse wheel does (remembered in this browser). */
+  scrollMode: signal<import('../game/input').ScrollMode>(readScrollMode()),
   request: signal<MinisterRequest | null>(null),
   posts: signal<Post[]>([]),
   issues: signal<IssueRow[]>([]),

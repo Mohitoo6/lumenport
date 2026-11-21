@@ -245,7 +245,12 @@ export class Game {
     sim.events.on('zonesChanged', (r) => this.zones.update(r));
     sim.events.on('speedChanged', (s) => (ui.speed.value = s as 0 | 1 | 2 | 3));
 
-    this.input = new CameraInput(this.canvas, this.rig, () => sim.state.heights, { edgeScroll: !this.options.shots });
+    this.input = new CameraInput(this.canvas, this.rig, () => sim.state.heights, {
+      edgeScroll: !this.options.shots,
+      // Zoning paints with a drag; every other tool (and no tool) lets a drag move the map.
+      leftDragPans: () => ui.tool.value !== 'zone',
+      scrollMode: () => ui.scrollMode.value,
+    });
     this.tools = new ToolManager(
       this.canvas,
       this.rig,

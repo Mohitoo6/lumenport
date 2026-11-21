@@ -28,9 +28,9 @@ unhappier until the books are fixed.
 
 | Action | Input |
 |---|---|
-| Move | W A S D or arrow keys, Shift + drag, or push the screen edge |
-| Rotate / tilt | Q E / R F, or right-drag (Alt + drag on a trackpad) |
-| Zoom | Scroll or pinch |
+| Move | Drag the map (any tool but zoning), two-finger swipe on a trackpad, one finger on a touch screen, W A S D or arrow keys, or push the screen edge |
+| Rotate / tilt | Q E / R F, right-drag (Alt + drag or two-finger click-drag on a trackpad), or twist two fingers on a touch screen |
+| Zoom | Mouse wheel or pinch. Menu > Scroll chooses what a trackpad swipe or wheel does (Auto, Move map, Zoom) |
 | Use a tool | Left click (drag to zone). Right click or Esc steps back |
 | Inspect a building | Click it with no tool selected |
 | Bulldoze / curved roads | X / C |

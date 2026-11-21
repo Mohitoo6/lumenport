@@ -35,7 +35,7 @@ import {
   IconSun,
   IconWarn,
 } from './icons';
-import { actions, ui } from './store';
+import { actions, saveScrollMode, ui } from './store';
 import { QUALITY, type QualityId } from '../render/quality';
 
 const QUALITY_NOTE: Record<QualityId, string> = {
@@ -386,6 +386,30 @@ function Menu(): JSX.Element | null {
       </section>
 
       <section>
+        <h3 class="label">Scroll (trackpad or wheel)</h3>
+        <div class="seg seg-wide" role="group" aria-label="What scrolling does">
+          {(
+            [
+              ['auto', 'Auto'],
+              ['pan', 'Move map'],
+              ['zoom', 'Zoom'],
+            ] as const
+          ).map(([id, label]) => (
+            <button type="button" key={id} class={ui.scrollMode.value === id ? 'is-on' : ''} aria-pressed={ui.scrollMode.value === id} onClick={() => saveScrollMode(id)}>
+              {label}
+            </button>
+          ))}
+        </div>
+        <p class="muted menu-note">
+          {ui.scrollMode.value === 'auto'
+            ? 'Two-finger swipe moves the map, pinch zooms; a mouse wheel zooms.'
+            : ui.scrollMode.value === 'pan'
+              ? 'Scrolling moves the map; pinch (or Ctrl + scroll) zooms.'
+              : 'Scrolling always zooms; drag the map to move it.'}
+        </p>
+      </section>
+
+      <section>
         <label class="check">
           <input type="checkbox" checked={!ui.muted.value} onChange={(e) => actions.setMuted(!(e.target as HTMLInputElement).checked)} />
           <span>Sound</span>
@@ -491,12 +515,13 @@ function TopBar(): JSX.Element {
 }
 
 const HELP: Array<[string[], string]> = [
+  [['Drag'], 'Move the map'],
+  [['2-finger swipe'], 'Move (trackpad)'],
+  [['Pinch', 'Wheel'], 'Zoom'],
   [['W', 'A', 'S', 'D'], 'Move'],
   [['Q', 'E'], 'Rotate'],
   [['R', 'F'], 'Tilt'],
-  [['Scroll'], 'Zoom'],
   [['Right-drag'], 'Orbit'],
-  [['Shift', 'Drag'], 'Grab'],
   [['Esc'], 'Cancel tool'],
   [['B'], 'Budget'],
   [['V'], 'Data views'],
@@ -768,7 +793,7 @@ function Welcome(): JSX.Element | null {
           <kbd>W</kbd>
           <kbd>A</kbd>
           <kbd>S</kbd>
-          <kbd>D</kbd> move · <kbd>Q</kbd>
+          <kbd>D</kbd> or drag to move · <kbd>Q</kbd>
           <kbd>E</kbd> rotate · scroll to zoom · <kbd>M</kbd> menu and saves
         </div>
         <div class="welcome-foot">
