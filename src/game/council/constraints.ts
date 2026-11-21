@@ -66,7 +66,42 @@ export function parseInstruction(note: string): Constraint[] {
     if (/\btax(?:es)?\b/.test(rest) && /\b(?:rais\w*|ris\w*|increas\w*|hik\w*|higher|new|more)\b/.test(rest)) add({ id: 'no_tax_rise', label: 'no tax rise' });
     if (/\b(?:coal|pollut\w*)\b/.test(rest)) add({ id: 'no_polluter', label: 'no new polluter' });
   }
+  hindi(note, add);
   return [...out.values()];
+}
+
+// Hindi, in Devanagari or in Latin letters (Hinglish). Hindi puts the verb last and the
+// negation next to it ("ghar mat todo", "koi ghar nahi tootna chahiye"), so a sentence with
+// a negation is searched whole rather than from the negation on. `\b` does not work on
+// Devanagari in JavaScript, so those words are matched as plain substrings.
+const HI_NEG = /(?:^|[^a-z])(?:mat|nahi|nahin|na|bina|mana)(?![a-z])|मत|नहीं|नही|ना |बिना|मना/i;
+const HI_CAP = /(?:rs\.?|₹|\$)?\s*(\d[\d,]*(?:\.\d+)?)\s*(k\b|thousand|lakh|lac|hazaa?r|लाख|हज़ार|हजार)?\s*(?:rupe\w*|रुपय?े|रुपए|dollars?)?\s*(?:se|से)\s*(kam|कम|zyada|jyada|ज़्यादा|ज्यादा|adhik|अधिक)/gi;
+
+function hindi(note: string, add: (c: Constraint) => void): void {
+  const unit = (u: string | undefined): string | undefined => (u && /लाख/.test(u) ? 'lakh' : u && /हज़ार|हजार|hazaa?r/i.test(u) ? 'thousand' : u);
+  for (const sentence of note.split(/[.;!?\n।]+/)) {
+    const s = sentence.toLowerCase();
+    const neg = HI_NEG.test(s);
+    for (const m of s.matchAll(HI_CAP)) {
+      // "X se kam" is a cap; "X se zyada" is a cap only when forbidden ("... mat karo").
+      if (!/kam|कम/.test(m[3]!) && !neg) continue;
+      const limit = amount(m[1]!, unit(m[2]));
+      const hourly = /ghant|घंट|per hour|an hour|hourly/.test(s);
+      add(hourly ? { id: 'max_hourly', limit, label: `at most ${usd(limit)} an hour` } : { id: 'max_cost', limit, label: `upfront cost at most ${usd(limit)}` });
+    }
+    if (!neg) continue;
+    const homes = /(?:^|[^a-z])(?:ghar|gharon|makaan|makan|log|logon|parivar)(?![a-z])|घर|मकान|लोग|परिवार/.test(s);
+    const work = /(?:^|[^a-z])(?:dukaan|dukan|dukaanein|naukri|naukriyan|factory|daftar|office)(?![a-z])|दुकान|नौकरी|फैक्ट्री|दफ़्तर|दफ्तर/.test(s);
+    if (/tod|toot|tut|gira|ujaad|ujad|तोड़|तोड|टूट|गिरा|उजाड़/.test(s)) {
+      if (homes && !work) add({ id: 'no_displacement', label: 'no homes demolished' });
+      else if (work && !homes) add({ id: 'no_job_loss', label: 'no workplaces demolished' });
+      else add({ id: 'no_demolition', label: 'nothing demolished' });
+    }
+    if (/(?:^|[^a-z])(?:loan|karz|karza|karja|udhaar|udhar)(?![a-z])|कर्ज|क़र्ज़|कर्ज़|लोन|उधार/.test(s)) add({ id: 'no_debt', label: 'no new debt' });
+    if (/(?:^|[^a-z])(?:tax|taxes)(?![a-z])|टैक्स|कर /.test(s) && /badh|badha|बढ़|बढा|ज़्यादा|ज्यादा|zyada/.test(s)) add({ id: 'no_tax_rise', label: 'no tax rise' });
+    if (/pradushan|pollution|coal|koyla|प्रदूषण|कोयला/.test(s)) add({ id: 'no_polluter', label: 'no new polluter' });
+    if (/(?:^|[^a-z])(?:naukri|naukriyan|rozgar)(?![a-z])|नौकरी|रोज़गार|रोजगार/.test(s) && /jaa|ja |chhin|khatam|जा|छिन|खत्म/.test(s) && !/tod|toot|gira|तोड़|गिरा/.test(s)) add({ id: 'no_job_loss', label: 'no jobs lost' });
+  }
 }
 
 /** How an option breaks the mayor's instruction, in words; empty when it respects it. */

@@ -41,7 +41,7 @@ export interface SeasonSpec {
 
 /**
  * Spring is the baseline: every multiplier is 1 and there is no rain or mist, so a new
- * city (founded in Chaitra) starts in neutral weather.
+ * city (founded in March) starts in neutral weather.
  */
 export const SEASON_SPECS: Record<SeasonId, SeasonSpec> = {
   vasant: { id: 'vasant', high: 31, low: 17, sunrise: 6.2, sunset: 18.5, sunHeight: 62, power: 1, water: 1, rain: 0, mist: 0, haze: 0.05, mood: 0, foliage: [1, 1, 1], effect: 'Mild and clear. Nothing strains the city.' },

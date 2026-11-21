@@ -1,5 +1,6 @@
 import { CELL, MAP } from '../../core/constants';
 import { emptyReport, projectBudget, LOAN_TIERS, loanPayment, POLICY_COST } from '../../sim/economy/budget';
+import { NEUTRAL_TAX } from '../../sim/economy/economy';
 import { FACILITIES, FacilityKind } from '../../sim/facilities';
 import type { Command } from '../../sim/commands';
 import { cellMinHeight } from '../../sim/map/terrain';
@@ -502,6 +503,25 @@ function budgetOptions(sim: Sim): Draft[] {
     return projectBudget(s.buildings, s.roads, tax, s.loans, s.stats, emptyReport(), s.policies, s.metro).income - now;
   };
   const up = (v: number, by: number): number => Math.min(20, v + by);
+  // Rates well below the standard rate are the cause, not a lever to nudge: offer to restore them.
+  const low = [1, 2, 3].filter((z) => s.tax[z]! < NEUTRAL_TAX - 2);
+  if (low.length) {
+    const std: [number, number, number, number] = [0, Math.max(s.tax[1], NEUTRAL_TAX), Math.max(s.tax[2], NEUTRAL_TAX), Math.max(s.tax[3], NEUTRAL_TAX)];
+    const g0 = gain(std);
+    const names = low.map((z) => ['', 'homes', 'shops', 'industry'][z]).join(', ');
+    out.push({
+      title: `Restore taxes to the standard ${NEUTRAL_TAX}%`,
+      gist: `About ${money(g0)} more an hour: ${names} ${low.length > 1 ? 'are' : 'is'} taxed below the standard rate, which neither attracts nor repels residents and business.`,
+      cost: 0,
+      hourly: -g0,
+      facts: [
+        `Rates go to ${std[1]}% / ${std[2]}% / ${std[3]}% (homes / shops / industry): about ${money(g0)} more an hour.`,
+        `At ${NEUTRAL_TAX}% a tax neither speeds up nor slows down growth; below it, the city gives up income to grow faster.`,
+      ],
+      actions: low.map((z) => ({ type: 'setTax', zone: z, rate: NEUTRAL_TAX }) as Command),
+      impact: { ...NO_IMPACT, tax: true },
+    });
+  }
   const all: [number, number, number, number] = [0, up(s.tax[1], 2), up(s.tax[2], 2), up(s.tax[3], 2)];
   const g1 = gain(all);
   out.push({

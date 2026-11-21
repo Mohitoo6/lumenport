@@ -25,7 +25,9 @@ export type Command =
   | { type: 'setSandbox'; on: boolean }
   | { type: 'setPolicy'; policy: 'flexHours'; on: boolean }
   /** Places the town hall, already built, on the best site near the city centre. */
-  | { type: 'foundTownHall' };
+  | { type: 'foundTownHall' }
+  /** The mayor approved a council decision (counts toward the council goal). */
+  | { type: 'recordCouncilDecision' };
 
 export interface CommandResult {
   ok: boolean;

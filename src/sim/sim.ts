@@ -5,6 +5,7 @@ import { OK, fail, type Command, type CommandResult } from './commands';
 import { demolishEdge, executePlan, executeUpgrade, planRoad, planUpgrade, type UpgradePlan, type RoadChange, type RoadPlan, type RoadRequest } from './roads/plan';
 import { LOAN_TIERS, loanPayment, projectBudget } from './economy/budget';
 import { economyStep, growthRateFor } from './economy/economy';
+import { advanceGoals, type Goal } from './goals';
 import { FacilityKind, findTownHallSite, isLandmark, planFacility, type FacilityPlan } from './facilities';
 import { ROAD_SPECS } from './roads/types';
 import { Fields } from './fields/fields';
@@ -48,6 +49,8 @@ export type SimEvents = {
   dayPassed: number;
   /** An hour's budget was settled; the report is in state.report. */
   hourPassed: number;
+  /** A goal was reached (and its grant paid, outside sandbox). */
+  goalReached: Goal;
   /** A command was applied (or refused). */
   command: { cmd: Command; result: CommandResult };
   /** A whole new state was installed (new game or load). */
@@ -140,6 +143,7 @@ export class Sim {
       // The layers change slowly; every few steps is plenty.
       if (step % 4 === 0) this.refreshFields();
       economyStep(s.buildings, s.tax, s.stats);
+      for (const g of advanceGoals(s)) this.events.emit('goalReached', g);
       this.events.emit('stepPassed', step);
       // The budget settles on the hour.
       if (s.tick % TICKS_PER_HOUR === 0) this.settleBudget(s.tick / TICKS_PER_HOUR);
@@ -481,6 +485,9 @@ export class Sim {
         this.events.emit('buildingsChanged', { changed: [], removed: [b] });
         return OK;
       }
+      case 'recordCouncilDecision':
+        s.councilDecisions = (s.councilDecisions ?? 0) + 1;
+        return OK;
       case 'foundTownHall': {
         if (s.buildings.some((b) => b && b.kind === FacilityKind.TownHall)) return fail('The city already has a town hall');
         const site = findTownHallSite(s, MAP >> 1, MAP >> 1);

@@ -1,5 +1,5 @@
 import { Vector3 } from 'three';
-import { MONTH_NAMES, SEASONS, SPEED_FACTOR, START_YEAR, TICK_MS, WORLD } from '../core/constants';
+import { MONTH_NAMES, SEASONS, SPEED_FACTOR, TICK_MS, WORLD } from '../core/constants';
 import { GameAudio } from '../audio/audio';
 import { saves } from '../platform/idb';
 import { cloneState, metaOf, validateState } from '../sim/save/serialize';
@@ -51,6 +51,7 @@ import { heightAt } from '../sim/map/terrain';
 import { TreeSpecies } from '../sim/map/trees';
 import { Sim } from '../sim/sim';
 import { dateOf } from '../sim/state';
+import { GOALS, currentGoal } from '../sim/goals';
 import { actions, ui } from '../ui/store';
 import { ToolManager } from './tools/toolManager';
 
@@ -97,6 +98,7 @@ export class Game {
   private frameMs = 0;
   private lastDay = -1;
   private hudTimer = 1;
+  private goalTimer: ReturnType<typeof setTimeout> | undefined;
   private clockHeld = false;
   /** A fixed time of day for scripted runs, or null to follow the simulation. */
   private heldHour: number | null = null;
@@ -279,7 +281,7 @@ export class Game {
     actions.closeCouncil = () => this.closeCouncil();
     this.assistant = new AssistantController({
       sim,
-      issues: () => this.council.issues.map((i) => ({ key: i.key, title: i.title, severity: i.severity })),
+      issues: () => this.council.issues.map((i) => ({ key: i.key, title: i.title, severity: i.severity, summary: i.summary })),
       tool: () => this.toolLabel(),
       hour: () => this.simHour(),
     });
@@ -342,6 +344,13 @@ export class Game {
     };
     ui.muted.value = this.audio.muted;
     sim.events.on('stateReplaced', () => this.onStateReplaced());
+    sim.events.on('goalReached', (g) => {
+      const next = currentGoal(sim.state);
+      ui.goalBanner.value = { title: g.title, reward: sim.state.sandbox ? 0 : g.reward, next: next?.title ?? null };
+      this.audio.play('notify');
+      clearTimeout(this.goalTimer);
+      this.goalTimer = setTimeout(() => (ui.goalBanner.value = null), 6000);
+    });
     sim.events.on('command', ({ cmd, result }) => {
       this.assistant?.noteCommand(cmd, result);
       if (!result.ok) {
@@ -692,7 +701,7 @@ export class Game {
     const d = dateOf(state.tick);
     if (d.totalDays !== this.lastDay) {
       this.lastDay = d.totalDays;
-      ui.dateLabel.value = `${MONTH_NAMES[d.month]}, Year ${d.year - START_YEAR + 1}`;
+      ui.dateLabel.value = `${MONTH_NAMES[d.month]} ${d.year}`;
       ui.season.value = SEASONS[d.season]!.id;
     }
     this.hudTimer += dt;
@@ -716,6 +725,11 @@ export class Game {
       const season = SEASONS.find((x) => x.id === w.season)!;
       ui.weather.value = { season: w.season, name: season.name, english: season.english, temperature: w.temperature, rain: w.rain, mist: w.mist, effect: SEASON_SPECS[w.season].effect };
       ui.alerts.value = this.alerts();
+      const g = currentGoal(state);
+      if (g) {
+        const [now, target] = g.progress(state);
+        ui.goal.value = { index: state.goalsDone ?? 0, total: GOALS.length, title: g.title, hint: g.hint, now: Math.min(now, target), target, reward: state.sandbox ? 0 : g.reward };
+      } else ui.goal.value = null;
       ui.inspect.value = this.inspectId >= 0 ? this.describe(this.inspectId) : null;
     }
     this.fpsFrames++;

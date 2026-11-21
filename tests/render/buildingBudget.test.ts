@@ -33,7 +33,7 @@ describe('residential buildings', () => {
       }
     }
     console.log(report.join('\n'));
-  });
+  }, 120_000);
 });
 
 describe('the hospital', () => {

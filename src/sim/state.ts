@@ -1,5 +1,5 @@
 import { emptyMetro, type MetroState } from './transit/metro';
-import { DAYS_PER_MONTH, MAP, MONTHS_PER_YEAR, START_HOUR, START_YEAR, TICKS_PER_DAY, TICKS_PER_HOUR, VERTS } from '../core/constants';
+import { DAYS_PER_MONTH, MAP, MONTHS_PER_YEAR, START_HOUR, START_MONTH, START_YEAR, TICKS_PER_DAY, TICKS_PER_HOUR, VERTS } from '../core/constants';
 import { generateHeights } from './map/terrain';
 import { generateTrees } from './map/trees';
 import { emptyNetwork, type RoadNetwork } from './roads/types';
@@ -55,6 +55,10 @@ export interface GameState {
   policies?: Policies;
   /** Metro lines. Optional so older saves load unchanged. */
   metro?: MetroState;
+  /** How many goals in `GOALS` (goals.ts) are done, in order. Optional for older saves. */
+  goalsDone?: number;
+  /** Council decisions the mayor has approved. Optional for older saves. */
+  councilDecisions?: number;
 }
 
 
@@ -84,6 +88,8 @@ export function createState(seed: number, cityName = 'New Haven'): GameState {
     stats: emptyStats(),
     policies: {},
     metro: emptyMetro(),
+    goalsDone: 0,
+    councilDecisions: 0,
   };
 }
 
@@ -111,13 +117,15 @@ export interface CalendarDate {
 export function dateOf(tick: number, fraction = 0): CalendarDate {
   const t = tick + fraction + START_HOUR * TICKS_PER_HOUR;
   const totalDays = Math.floor(t / TICKS_PER_DAY);
-  const totalMonths = Math.floor(totalDays / DAYS_PER_MONTH);
+  // Months counted from January of the founding year.
+  const totalMonths = Math.floor(totalDays / DAYS_PER_MONTH) + START_MONTH;
   const month = totalMonths % MONTHS_PER_YEAR;
   return {
     hour: (t % TICKS_PER_DAY) / TICKS_PER_HOUR,
     day: (totalDays % DAYS_PER_MONTH) + 1,
     month,
-    season: Math.floor(month / 2),
+    // Spring is March and April, so seasons count from month 2.
+    season: Math.floor(((month - 2 + MONTHS_PER_YEAR) % MONTHS_PER_YEAR) / 2),
     year: START_YEAR + Math.floor(totalMonths / MONTHS_PER_YEAR),
     totalDays,
     totalHours: Math.floor(tick / TICKS_PER_HOUR),

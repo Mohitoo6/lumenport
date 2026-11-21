@@ -34,16 +34,22 @@ export const START_YEAR = 2030;
 /** Ticks advanced per frame-second at each speed setting: paused, normal, fast, fastest. */
 export const SPEED_FACTOR = [0, 1, 2, 4] as const;
 
-/** The months of the Indian national calendar, starting with Chaitra (March to April). */
-export const MONTH_NAMES = ['Chaitra', 'Vaishakha', 'Jyeshtha', 'Ashadha', 'Shravana', 'Bhadrapada', 'Ashwin', 'Kartika', 'Margashirsha', 'Pausha', 'Magha', 'Phalguna'] as const;
+/** The months of the (Gregorian) calendar the HUD shows, January first. */
+export const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'] as const;
+/** A new city is founded in March (index into MONTH_NAMES), at the start of spring. */
+export const START_MONTH = 2;
 
-/** The six seasons (ritu), two months each, in calendar order. */
+/**
+ * The six seasons of the Indian climate, two months each, in order from spring
+ * (March and April). The city lives on the Gregorian calendar; these are its weather:
+ * summer in May and June, the monsoon in July and August, winter in January and February.
+ */
 export const SEASONS = [
-  { id: 'vasant', name: 'Vasant', english: 'Spring' },
-  { id: 'grishma', name: 'Grishma', english: 'Summer' },
-  { id: 'varsha', name: 'Varsha', english: 'Monsoon' },
-  { id: 'sharad', name: 'Sharad', english: 'Autumn' },
-  { id: 'hemant', name: 'Hemant', english: 'Early winter' },
-  { id: 'shishir', name: 'Shishir', english: 'Winter' },
+  { id: 'vasant', name: 'Spring', english: 'Spring' },
+  { id: 'grishma', name: 'Summer', english: 'Summer' },
+  { id: 'varsha', name: 'Monsoon', english: 'Monsoon' },
+  { id: 'sharad', name: 'Autumn', english: 'Autumn' },
+  { id: 'hemant', name: 'Late autumn', english: 'Late autumn' },
+  { id: 'shishir', name: 'Winter', english: 'Winter' },
 ] as const;
 export type SeasonId = (typeof SEASONS)[number]['id'];

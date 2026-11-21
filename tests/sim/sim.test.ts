@@ -39,20 +39,22 @@ describe('sim clock', () => {
     for (let i = 0; i < TICKS_PER_HOUR * 36; i++) sim.tick();
     expect(hours).toBe(36);
     expect(days).toBe(1);
-    expect(dateOf(sim.state.tick)).toMatchObject({ hour: 20, totalDays: 1, totalHours: 36, month: 1, year: START_YEAR });
+    expect(dateOf(sim.state.tick)).toMatchObject({ hour: 20, totalDays: 1, totalHours: 36, month: 3, year: START_YEAR });
   });
 
-  it('starts at eight on a Chaitra morning, turns the day at midnight and the year after twelve days', () => {
-    expect(dateOf(0)).toMatchObject({ hour: START_HOUR, day: 1, month: 0, season: 0, year: START_YEAR, totalDays: 0, totalHours: 0 });
+  it('starts at eight on a March morning, turns the day at midnight and the year in January', () => {
+    expect(dateOf(0)).toMatchObject({ hour: START_HOUR, day: 1, month: 2, season: 0, year: START_YEAR, totalDays: 0, totalHours: 0 });
     expect(dateOf(TICKS_PER_HOUR / 2).hour).toBe(START_HOUR + 0.5);
     // Part of a tick moves the clock, so it can be drawn smoothly between ticks.
     expect(dateOf(0, 0.5).hour).toBeGreaterThan(START_HOUR);
     expect(dateOf(0, 0.5).hour).toBeLessThan(dateOf(1).hour);
-    expect(dateOf(TICKS_PER_HOUR * (24 - START_HOUR))).toMatchObject({ hour: 0, month: 1, totalDays: 1 });
-    expect(dateOf(TICKS_PER_DAY * 12).year).toBe(START_YEAR + 1);
-    // Each day stands for a month, and two months make a season: day five is Shravana, in the monsoon.
+    expect(dateOf(TICKS_PER_HOUR * (24 - START_HOUR))).toMatchObject({ hour: 0, month: 3, totalDays: 1 });
+    // Day ten is January of the next year; winter is January and February.
+    expect(dateOf(TICKS_PER_DAY * 9)).toMatchObject({ month: 11, year: START_YEAR });
+    expect(dateOf(TICKS_PER_DAY * 10)).toMatchObject({ month: 0, season: 5, year: START_YEAR + 1 });
+    // Each day stands for a month, and two months make a season: day five is July, in the monsoon.
     const fifth = dateOf(TICKS_PER_DAY * 4);
-    expect(MONTH_NAMES[fifth.month]).toBe('Shravana');
+    expect(MONTH_NAMES[fifth.month]).toBe('July');
     expect(SEASONS[fifth.season]!.english).toBe('Monsoon');
     expect(TICKS_PER_HOUR * TICK_MS).toBe(60_000);
   });

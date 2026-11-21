@@ -10,7 +10,7 @@ import type { SchemaOutcome } from '../council/schemas';
 import { estimateTokens } from '../council/telemetry';
 import { assistantSystem, assistantUser, checkAssistantReply, isDevanagari, offlineReply, type AssistantAction, type AssistantReply, type ChatTurn } from './assistant';
 import { manualFor } from './knowledge';
-import { cityAlerts, citySituation, type KnownIssue, type Refusal } from './situation';
+import { cityAlerts, citySituation, goalLine, type KnownIssue, type Refusal } from './situation';
 
 export interface Completion {
   text: string;
@@ -66,7 +66,7 @@ const HISTORY = 6;
 const REFUSALS = 6;
 
 /** The budget in one line, for the offline answer. */
-function moneyLine(sim: Sim): string {
+export function moneyLine(sim: Sim): string {
   const s = sim.state;
   const b = projectBudget(s.buildings, s.roads, s.tax, s.loans, s.stats, emptyReport(), s.policies, s.metro);
   const usd = (n: number): string => `${n < 0 ? '-' : ''}$${Math.abs(Math.round(n)).toLocaleString('en-US')}`;
@@ -171,7 +171,7 @@ export class AssistantController {
       if (numbers.ungrounded.length) reply.flags = numbers.ungrounded.map((v) => v.toLocaleString('en-US'));
     }
     if (!reply) call.source = call.source === 'llm' ? 'offline' : call.source;
-    reply ??= offlineReply(cityAlerts(this.host.sim), issues, isDevanagari(question), question, { money: moneyLine(this.host.sim) });
+    reply ??= offlineReply(cityAlerts(this.host.sim), issues, isDevanagari(question), question, { money: moneyLine(this.host.sim), goal: goalLine(this.host.sim.state) });
     this.onCall(call);
     this.history.push({ role: 'player', text: question }, { role: 'assistant', text: reply.answer });
     if (this.history.length > HISTORY * 2) this.history.splice(0, this.history.length - HISTORY * 2);

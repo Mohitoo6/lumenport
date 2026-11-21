@@ -38,9 +38,12 @@ export function score(id: MinistryId, o: CouncilOption, constraints: readonly Co
     case 'welfare':
       v -= e.residentsDisplaced / 5 + e.jobsLost / 12 + taxUp * 0.8;
       v += e.approvalDelta * 2;
+      // A city that pays its way keeps its services running; a loan only postpones that.
+      v += Math.max(0, e.hourlyNetDelta) / 150 - e.debtDelta / 40000;
       break;
     case 'planning':
       v -= e.residentsDisplaced / 6 + e.buildingsDemolished / 2 + taxUp * 0.5 + (im.pollutes ? 5 : 0);
+      v += Math.max(0, e.hourlyNetDelta) / 150 - e.debtDelta / 40000;
       break;
     case 'health':
       v -= (im.clinicM < 300 ? 6 : 0) + (im.pollutes ? 8 : 0) + e.residentsDisplaced / 20;
@@ -226,7 +229,10 @@ export function policyVerdict(options: readonly CouncilOption[], tally: Record<s
   const allowed = compliant.some((o) => o.actions.length > 0) ? compliant : affordable;
   const pool = allowed.length ? allowed : [options[options.length - 1]!];
   const backing = (o: CouncilOption): number => tally[o.id]?.length ?? 0;
-  const pick = [...pool].sort((a, b) => backing(b) - backing(a) || Number(b.actions.length > 0) - Number(a.actions.length > 0))[0]!;
+  // A tie goes to the option the ministers in the room rate best overall, then to acting.
+  const room = [...new Set(Object.values(tally).flat())];
+  const merit = (o: CouncilOption): number => room.reduce((t, m) => t + score(m, o, constraints), 0);
+  const pick = [...pool].sort((a, b) => backing(b) - backing(a) || merit(b) - merit(a) || Number(b.actions.length > 0) - Number(a.actions.length > 0))[0]!;
   const names = (ms: MinistryId[]): string => ms.map((m) => MINISTER_BY_ID[m].short).join(', ');
   const others = Object.entries(tally).filter(([id, ms]) => id !== pick.id && ms.length > 0);
   const spend = Math.max(0, -pick.effects.budgetDelta);
@@ -234,7 +240,7 @@ export function policyVerdict(options: readonly CouncilOption[], tally: Record<s
     option: pick.id,
     summary: hi
       ? `परिषद विकल्प ${pick.id} (${pick.title}) की सिफ़ारिश करती है${backing(pick) ? `; ${names(tally[pick.id]!)} इसके पक्ष में हैं` : ''}। ${pick.gist}`
-      : `The council recommends option ${pick.id}, ${pick.title.toLowerCase()}${backing(pick) ? `, backed by ${names(tally[pick.id]!)}` : ''}. ${pick.gist}${spend > 0 ? ` It costs ${usd(spend)} now.` : ''}`,
+      : `The council recommends option ${pick.id}, ${pick.title.charAt(0).toLowerCase()}${pick.title.slice(1)}${backing(pick) ? `, backed by ${names(tally[pick.id]!)}` : ''}. ${pick.gist}${spend > 0 ? ` It costs ${usd(spend)} now.` : ''}`,
     dissent: others.length ? (hi ? others.map(([id, ms]) => `${names(ms)} विकल्प ${id} चाहते हैं`).join('; ') + '।' : others.map(([id, ms]) => `${names(ms)} would rather have option ${id}`).join('; ') + '.') : '',
     conditions: '',
   };

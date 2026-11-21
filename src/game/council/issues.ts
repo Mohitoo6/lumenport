@@ -57,7 +57,7 @@ export interface CityIssue {
 function seasonFact(sim: Sim, what: 'power' | 'water' | 'traffic'): string | null {
   const w = sim.weather;
   const season = SEASONS.find((x) => x.id === w.season)!;
-  const label = `${season.name} (${season.english.toLowerCase()})`;
+  const label = season.english.toLowerCase();
   if (what === 'traffic') {
     if (w.roadSpeed > 0.97) return null;
     return `Weather: ${w.rain > w.mist ? 'rain' : 'mist'} is holding traffic to ${Math.round(w.roadSpeed * 100)}% of the speed limit; it is ${label}.`;
@@ -130,7 +130,10 @@ function utilityIssue(sim: Sim, what: 'power' | 'water'): CityIssue | null {
   const supply = what === 'power' ? st.powerSupply : st.waterSupply;
   const demand = what === 'power' ? st.powerDemand : st.waterDemand;
   const unserved = what === 'power' ? st.unpowered : st.unwatered;
-  if (supply <= 0 || (demand < supply * 0.9 && unserved === 0)) return null;
+  // No supply at all is a blackout when finished buildings are waiting for it (a brand
+  // new city with nothing built yet is not a problem for the council).
+  if (supply <= 0 ? unserved === 0 || demand <= 0 : demand < supply * 0.9 && unserved === 0) return null;
+  const none = supply <= 0;
   // Find the network that is worst off and a point on it.
   const net = sim.net;
   let comp = -1;
@@ -182,11 +185,11 @@ function utilityIssue(sim: Sim, what: 'power' | 'water'): CityIssue | null {
     key: `${what}:${comp}`,
     kind: what,
     lead: 'energy',
-    severity: clamp01((demand / supply - 0.85) * 2.5 + (unserved > 0 ? 0.3 : 0)),
-    title: short ? `${what === 'power' ? 'Power' : 'Water'} shortage` : `${what === 'power' ? 'Power' : 'Water'} nearly at capacity`,
+    severity: none ? 1 : clamp01((demand / supply - 0.85) * 2.5 + (unserved > 0 ? 0.3 : 0)),
+    title: none ? (what === 'power' ? 'Blackout: no power supply' : 'No water supply') : short ? `${what === 'power' ? 'Power' : 'Water'} shortage` : `${what === 'power' ? 'Power' : 'Water'} nearly at capacity`,
     summary: `${what === 'power' ? 'Power' : 'Water'} demand is ${fmt(demand)} ${unit} against ${fmt(supply)} supplied${unserved ? `; ${unserved} buildings are cut off` : ''}.`,
     facts: [
-      `City ${what}: demand ${fmt(demand)} ${unit}, supply ${fmt(supply)} ${unit} (${Math.round((demand / supply) * 100)}% used).`,
+      none ? `City ${what}: demand ${fmt(demand)} ${unit} and no supply at all: no ${what === 'power' ? 'power plant' : 'water source'} is connected to the homes' roads.` : `City ${what}: demand ${fmt(demand)} ${unit}, supply ${fmt(supply)} ${unit} (${Math.round((demand / supply) * 100)}% used).`,
       `Buildings currently without ${what}: ${unserved}${affected ? `, including homes for ${affected} residents` : ''}.`,
       `Without ${what}, residents move out and nothing new is built on that street.`,
       `The worst-off area is ${describePlace(sim, cx, cz)}.`,
@@ -303,11 +306,12 @@ function budgetIssue(sim: Sim): CityIssue | null {
   const r = s.report;
   if (r.net >= 0 || s.funds > 30000) return null;
   const hours = r.net < 0 ? Math.floor(s.funds / -r.net) : 99;
+  // Six hours or less from an empty treasury is as urgent as anything gets.
   return {
     key: 'budget',
     kind: 'budget',
     lead: 'finance',
-    severity: clamp01(1 - hours / 18),
+    severity: hours <= 6 ? 1 : clamp01(1 - hours / 24),
     title: 'Budget deficit',
     summary: `The city loses ${money(-r.net)} an hour and has ${money(s.funds)} left: about ${hours} hours.`,
     facts: [
@@ -376,5 +380,7 @@ export function detectIssues(sim: Sim): CityIssue[] {
     demandIssue(sim, 'jobs'),
     demandIssue(sim, 'housing'),
   ];
-  return out.filter((i): i is CityIssue => i !== null).sort((a, b) => b.severity - a.severity);
+  // Ties (several problems at full severity) go to what stops the city soonest.
+  const order: IssueKind[] = ['budget', 'power', 'water', 'traffic', 'fire', 'health', 'crime', 'pollution', 'education', 'jobs', 'housing'];
+  return out.filter((i): i is CityIssue => i !== null).sort((a, b) => b.severity - a.severity || order.indexOf(a.kind) - order.indexOf(b.kind));
 }

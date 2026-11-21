@@ -94,18 +94,84 @@ function Stats(): JSX.Element {
   );
 }
 
+const money = (n: number): string => `$${n.toLocaleString('en-US')}`;
+
+/** The goal being worked on: what to do, how far along, and the grant it pays. */
+function GoalCard(): JSX.Element | null {
+  const g = ui.goal.value;
+  if (!g) return null;
+  const share = g.target > 0 ? g.now / g.target : 0;
+  const counted = g.target > 1;
+  if (ui.goalCollapsed.value) {
+    return (
+      <button type="button" class="panel goal goal-mini" title={`${g.title}. ${g.hint}`} onClick={() => (ui.goalCollapsed.value = false)}>
+        <span class="goal-step">
+          Goal {g.index + 1}/{g.total}
+        </span>
+        <span class="goal-mini-title">{g.title}</span>
+        <span class="goal-ring" style={{ background: `conic-gradient(var(--accent) ${Math.round(share * 100)}%, rgba(255, 255, 255, 0.15) 0)` }} aria-hidden="true" />
+      </button>
+    );
+  }
+  return (
+    <section class="panel goal" aria-label="Current goal">
+      <div class="goal-head">
+        <span class="goal-step">
+          Goal {g.index + 1} of {g.total}
+        </span>
+        {g.reward > 0 && <span class="goal-reward">+{money(g.reward)}</span>}
+        <button type="button" class="icon-btn" aria-label="Minimise goal" title="Minimise" onClick={() => (ui.goalCollapsed.value = true)}>
+          <IconClose size={11} />
+        </button>
+      </div>
+      <div class="goal-title">{g.title}</div>
+      <div class="goal-hint">{g.hint}</div>
+      {counted && (
+        <div class="goal-progress">
+          <div class="goal-track">
+            <span style={{ width: `${Math.min(100, share * 100)}%` }} />
+          </div>
+          <span class="goal-count">
+            {g.now.toLocaleString('en-US')} / {g.target.toLocaleString('en-US')}
+          </span>
+        </div>
+      )}
+    </section>
+  );
+}
+
+/** A short banner when a goal is reached. */
+function GoalBanner(): JSX.Element | null {
+  const b = ui.goalBanner.value;
+  if (!b) return null;
+  return (
+    <div class="goal-banner" role="status">
+      <div class="goal-banner-kicker">Goal reached</div>
+      <div class="goal-banner-title">{b.title}</div>
+      <div class="goal-banner-sub">
+        {b.reward > 0 ? `City grant ${money(b.reward)}. ` : ''}
+        {b.next ? `Next: ${b.next}` : 'Every goal is done: the city is yours.'}
+      </div>
+    </div>
+  );
+}
+
 function Alerts(): JSX.Element | null {
   const list = ui.alerts.value;
-  if (list.length === 0) return null;
   return (
-    <ul class="alerts" aria-live="polite">
-      {list.map((a) => (
-        <li key={a}>
-          <IconWarn size={13} />
-          {a}
-        </li>
-      ))}
-    </ul>
+    <div class="left-stack">
+      <GoalCard />
+      {list.length > 0 && (
+        <ul class="alerts" aria-live="polite">
+          {list.map((a) => (
+            <li key={a}>
+              <IconWarn size={13} />
+              {a}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   );
 }
 
@@ -362,7 +428,7 @@ function Weather(): JSX.Element {
   const misty = w.mist > 0.3;
   const state = raining ? (w.rain > 0.6 ? 'Heavy rain' : 'Rain') : misty ? 'Mist' : ui.isNight.value ? 'Clear night' : 'Clear';
   return (
-    <div class="panel weather" title={`${w.name} (${w.english.toLowerCase()}). ${w.effect}`} aria-label={`${w.english}, ${w.temperature} degrees, ${state.toLowerCase()}`}>
+    <div class="panel weather" title={`${w.english}. ${w.effect}`} aria-label={`${w.english}, ${w.temperature} degrees, ${state.toLowerCase()}`}>
       {raining ? <IconRain /> : misty ? <IconMist /> : ui.isNight.value ? <IconMoon /> : <IconSun />}
       <span class="weather-text">
         <span class="weather-season">{w.english}</span>
@@ -678,6 +744,7 @@ function Hud(): JSX.Element {
         <>
           <TopBar />
           <Alerts />
+          <GoalBanner />
           <BudgetPanel />
           <Menu />
           <Inspect />

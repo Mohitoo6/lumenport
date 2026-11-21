@@ -1,6 +1,7 @@
 import { defineConfig } from 'vitest/config';
 
-// The AI council evaluation: real providers, slow, spends free-tier quota.
+// AI evaluations. eval:offline is free (no model calls, about 10 s); eval:council and
+// eval:assistant use real providers, are slow and spend free-tier quota.
 // EVAL_COUNCIL=1 npx vitest run --config vitest.eval.config.ts
 export default defineConfig({
   test: {

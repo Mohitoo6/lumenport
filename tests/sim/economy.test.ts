@@ -263,3 +263,36 @@ describe('population and demand', () => {
     expect(JSON.stringify(b.state.buildings)).toBe(JSON.stringify(a.state.buildings));
   });
 });
+
+describe('demand for shops', () => {
+  /** A finished, served zoned building of this type with room for `cap` people. */
+  const lot = (zone: number, w: number, h: number): Building =>
+    ({ kind: 0, zone, w, h, level: 1, progress: 1, flags: POWERED | WATERED, pop: 0 }) as unknown as Building;
+
+  it('is not used up by office, hospital or airport jobs (the "shops need more customers" bug)', async () => {
+    const { economyStep, emptyStats } = await import('../../src/sim/economy/economy');
+    // About 3,000 residents and a handful of shops.
+    const homes = Array.from({ length: 200 }, () => lot(zoneCode(ZoneType.Residential, 2), 2, 2));
+    const shops = Array.from({ length: 10 }, () => lot(C1, 2, 2));
+    const big = [FacilityKind.ItPark, FacilityKind.Hospital, FacilityKind.Airport].map(
+      (kind) => ({ kind, zone: 0, w: 4, h: 4, level: 1, progress: 1, flags: POWERED | WATERED, pop: 0 }) as unknown as Building,
+    );
+    const stats = emptyStats();
+    // Let people move in.
+    for (let d = 0; d < 40; d++) economyStep([...homes, ...shops, ...big], [0, 9, 9, 9], stats);
+    expect(stats.population).toBeGreaterThan(2500);
+    expect(stats.demand[2]).toBeGreaterThan(0.5);
+    // Offices still count as jobs for the homes, and their workers are employed.
+    expect(stats.jobsC).toBeGreaterThan(960);
+  });
+
+  it('falls once the shops match the customers', async () => {
+    const { economyStep, emptyStats } = await import('../../src/sim/economy/economy');
+    const homes = Array.from({ length: 200 }, () => lot(zoneCode(ZoneType.Residential, 2), 2, 2));
+    // 0.22 shop jobs per resident: about 660 jobs, 6 per low-density 2x2 shop.
+    const shops = Array.from({ length: 120 }, () => lot(C1, 2, 2));
+    const stats = emptyStats();
+    for (let d = 0; d < 40; d++) economyStep([...homes, ...shops], [0, 9, 9, 9], stats);
+    expect(stats.demand[2]).toBeLessThan(0.1);
+  });
+});

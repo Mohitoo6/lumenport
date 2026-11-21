@@ -1,4 +1,4 @@
-import { MONTH_NAMES, START_YEAR } from '../../core/constants';
+import { MONTH_NAMES } from '../../core/constants';
 import { Rng } from '../../core/rng';
 import type { Command } from '../../sim/commands';
 import type { Sim } from '../../sim/sim';
@@ -126,7 +126,7 @@ export class CouncilController {
   /** Now, in game hours since the city was founded, with the day number and calendar label. */
   private when(): { at: number; day: number; date: string } {
     const d = dateOf(this.host.sim.state.tick);
-    return { at: d.totalHours, day: d.totalDays + 1, date: `${MONTH_NAMES[d.month]}, Year ${d.year - START_YEAR + 1}` };
+    return { at: d.totalHours, day: d.totalDays + 1, date: `${MONTH_NAMES[d.month]} ${d.year}` };
   }
 
   update(dt: number): void {
@@ -514,6 +514,7 @@ export class CouncilController {
       this.patch(() => ({ result: { ok: false, text: `Could not carry out option ${option.id}: ${report.reason ?? 'refused'}. ${why}` } }));
       return;
     }
+    sim.apply({ type: 'recordCouncilDecision' });
     const backers = [...this.backers].filter(([, o]) => o === option.id).map(([m]) => m);
     const attribution: Attribution = { chosen: option.id, recommended, followedChair, proposedBy: cur.firstBacker.get(option.id) ?? null, backers };
     const observed = report.observed ?? option.effects;

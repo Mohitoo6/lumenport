@@ -159,17 +159,21 @@ export const ui = {
   power: signal<[number, number]>([0, 0]),
   water: signal<[number, number]>([0, 0]),
   alerts: signal<string[]>([]),
+  /** The goal being worked on (null when all are done), and a banner for one just reached. */
+  goal: signal<{ index: number; total: number; title: string; hint: string; now: number; target: number; reward: number } | null>(null),
+  goalBanner: signal<{ title: string; reward: number; next: string | null } | null>(null),
+  goalCollapsed: signal(false),
   sandbox: signal(false),
   showBudget: signal(false),
   happiness: signal(0.5),
   /** Time of day as HH:MM, whether it is dark, and how the clock is driven. */
   clock: signal('08:00'),
-  /** The current season (ritu), which the sky, weather and HUD follow. */
+  /** The current season, which the sky, weather and HUD follow. */
   season: signal<import('../core/constants').SeasonId>('vasant'),
   /** The weather now, for the top bar. */
   weather: signal<{ season: import('../core/constants').SeasonId; name: string; english: string; temperature: number; rain: number; mist: number; effect: string }>({
     season: 'vasant',
-    name: 'Vasant',
+    name: 'Spring',
     english: 'Spring',
     temperature: 24,
     rain: 0,

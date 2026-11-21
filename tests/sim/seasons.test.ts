@@ -10,7 +10,7 @@ import { grownTown, runTicks } from '../game/town';
 const at = (month: number, hour: number): number => (month * 24 + hour - START_HOUR) * TICKS_PER_HOUR;
 
 describe('the Indian year', () => {
-  it('has six seasons of two months, starting with spring in Chaitra', () => {
+  it('has six seasons of two months, starting with spring in March', () => {
     expect(SEASONS.map((s) => s.id)).toEqual(['vasant', 'grishma', 'varsha', 'sharad', 'hemant', 'shishir']);
     for (let month = 0; month < 12; month++) expect(seasonAt(at(month, 12)).id).toBe(SEASONS[Math.floor(month / 2)]!.id);
     // The year comes round again.
@@ -141,7 +141,7 @@ describe('seasons in the simulation', () => {
     const utility = issues.find((i) => i.kind === 'power' || i.kind === 'water');
     if (utility) {
       const fact = utility.facts.find((f) => f.startsWith('Season:'));
-      expect(fact).toMatch(/Grishma \(summer\)/);
+      expect(fact).toMatch(/it is summer/);
       expect(fact).toMatch(utility.kind === 'power' ? /125% of its spring level/ : /120% of its spring level/);
     }
     // In spring the same detectors say nothing about the season.

@@ -1,4 +1,4 @@
-import { MAP, MONTH_NAMES, SEASONS, START_YEAR } from '../../core/constants';
+import { MAP, MONTH_NAMES, SEASONS } from '../../core/constants';
 import { emptyReport, projectBudget } from '../../sim/economy/budget';
 import { FACILITIES, FacilityKind } from '../../sim/facilities';
 import type { Sim } from '../../sim/sim';
@@ -8,6 +8,17 @@ import { frontageOf } from '../../sim/zoning/lots';
 import { ZoneType } from '../../sim/zoning/zones';
 import { activeStations } from '../../sim/transit/metro';
 import { STALL_REASON, stalledZones } from '../advice';
+import { GOALS, currentGoal } from '../../sim/goals';
+
+/** The goal the player is working on, with progress and the grant it pays: one line. */
+export function goalLine(s: Sim['state']): string {
+  const g = currentGoal(s);
+  if (!g) return 'every goal is done.';
+  const [now, target] = g.progress(s);
+  const counted = target > 1 ? ` (${Math.min(now, target).toLocaleString('en-US')} of ${target.toLocaleString('en-US')})` : '';
+  const grant = g.reward > 0 && !s.sandbox ? ` Grant when reached: $${g.reward.toLocaleString('en-US')}.` : '';
+  return `goal ${(s.goalsDone ?? 0) + 1} of ${GOALS.length}, "${g.title}"${counted}. How: ${g.hint}${grant}`;
+}
 
 /** Something the player tried that the game refused, with the game's own reason. */
 export interface Refusal {
@@ -21,6 +32,8 @@ export interface KnownIssue {
   key: string;
   title: string;
   severity: number;
+  /** One factual sentence about it, for the offline answer. */
+  summary?: string;
 }
 
 const ZONE_NAME: Record<number, string> = { [ZoneType.Residential]: 'Homes', [ZoneType.Commercial]: 'Shops', [ZoneType.Industrial]: 'Industry' };
@@ -79,7 +92,7 @@ export function citySituation(sim: Sim, extra: { refusals: readonly Refusal[]; i
   const usd = (n: number): string => `${n < 0 ? '-' : ''}$${Math.abs(Math.round(n)).toLocaleString('en-US')}`;
   const budget = projectBudget(s.buildings, s.roads, s.tax, s.loans, st, emptyReport(), s.policies, s.metro);
   const lines: string[] = [];
-  lines.push(`City: ${s.cityName}. ${MONTH_NAMES[d.month]} (${SEASONS[d.season]!.english.toLowerCase()}), year ${d.year - START_YEAR + 1}, ${String(Math.floor(extra.hour)).padStart(2, '0')}:00. Speed ${s.speed === 0 ? 'paused' : s.speed}.${s.sandbox ? ' Sandbox mode (unlimited money, no utilities needed).' : ''}`);
+  lines.push(`City: ${s.cityName}. ${MONTH_NAMES[d.month]} ${d.year} (${SEASONS[d.season]!.english.toLowerCase()}), ${String(Math.floor(extra.hour)).padStart(2, '0')}:00. Speed ${s.speed === 0 ? 'paused' : s.speed}.${s.sandbox ? ' Sandbox mode (unlimited money, no utilities needed).' : ''}`);
   lines.push(`Weather: ${sim.weather.temperature} degrees${sim.weather.rain > 0.12 ? ', raining' : sim.weather.mist > 0.3 ? ', misty' : ''}. ${SEASON_SPECS[sim.weather.season].effect}`);
   lines.push(`Money: ${s.sandbox ? 'unlimited' : usd(s.funds)}; projected hourly ${budget.net >= 0 ? 'surplus' : 'deficit'} ${usd(budget.net)} (income ${usd(budget.income)}, spending ${usd(budget.expense)}: roads ${usd(budget.roads)}, utilities ${usd(budget.utilities)}, services ${usd(budget.services)}, loans ${usd(budget.loans)}). Taxes: homes ${s.tax[1]}%, shops ${s.tax[2]}%, industry ${s.tax[3]}%. Loans: ${s.loans.length}.`);
   lines.push(`People: ${st.population} residents, ${st.employed} employed, homes for ${st.housing}; jobs: shops ${st.jobsC}, industry ${st.jobsI}. Happiness ${Math.round(st.happiness * 100)}%.`);
@@ -121,5 +134,6 @@ export function citySituation(sim: Sim, extra: { refusals: readonly Refusal[]; i
   );
   lines.push(`Recent things the game refused: ${extra.refusals.length ? extra.refusals.map((r) => `${r.what} (${r.when}): "${r.reason}"`).join('; ') : 'none'}.`);
   lines.push(`Tool in hand: ${extra.tool}.`);
+  lines.push(`Current goal: ${goalLine(s)}`);
   return lines.join('\n');
 }

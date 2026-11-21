@@ -157,13 +157,27 @@ export function parseAssistantReply(text: string, issues: readonly KnownIssue[],
  * Without the AI: the same warnings the HUD shows, and the council's top problem. Honest
  * about being limited.
  */
-export function offlineReply(alerts: readonly string[], issues: readonly KnownIssue[], hindi: boolean, question = '', facts: { money?: string } = {}): AssistantReply {
+export function offlineReply(alerts: readonly string[], issues: readonly KnownIssue[], hindi: boolean, question = '', facts: { money?: string; goal?: string } = {}): AssistantReply {
+  // "What should I do?" is answered by the goal chain, which always knows the next step.
+  if (facts.goal && /what (should|do|can) i|what now|next|start|begin|goal|help me|kya kar|क्या कर|आगे/i.test(question)) {
+    return {
+      answer: hindi ? `AI अभी उपलब्ध नहीं है। अगला लक्ष्य: ${facts.goal}` : `The AI is not available right now, but your next goal is ${facts.goal}`,
+      actions: [],
+      source: 'offline',
+    };
+  }
   // Pick what the question is about, so the fallback answers it rather than listing everything.
   const topics: Array<{ ask: RegExp; match: RegExp; money?: boolean }> = [
     { ask: /money|budget|tax|funds|deficit|paisa|paise|पैस|बजट|टैक्स|loan|कर्ज/i, match: /money|tax|budget|loan/i, money: true },
     { ask: /traffic|jam|congest|ट्रैफिक|जाम/i, match: /traffic|gridlock|jam/i },
     { ask: /power|electric|bijli|बिजली/i, match: /power/i },
     { ask: /water|paani|pani|पानी/i, match: /water/i },
+    { ask: /clinic|hospital|health|sick|doctor|बीमार|अस्पताल|स्वास्थ्य/i, match: /clinic|health|hospital/i },
+    { ask: /school|educat|children|kids|student|padhai|स्कूल|पढ़ाई|शिक्षा/i, match: /school|educat/i },
+    { ask: /police|crime|safe|chor|अपराध|पुलिस/i, match: /police|crime/i },
+    { ask: /fire|aag|आग/i, match: /fire/i },
+    { ask: /pollut|smog|air|dhuan|प्रदूषण|धुआँ/i, match: /pollut|air/i },
+    { ask: /job|work|unemploy|naukri|rozgar|नौकरी|रोज़गार/i, match: /job|work/i },
     { ask: /home|house|ghar|घर|grow|build|bana/i, match: /power|water|homes|grow|road/i },
   ];
   const topic = topics.find((t) => t.ask.test(question));
@@ -185,7 +199,11 @@ export function offlineReply(alerts: readonly string[], issues: readonly KnownIs
   parts.push(hindi ? 'AI अभी उपलब्ध नहीं है, लेकिन शहर के आंकड़ों से यह दिख रहा है:' : 'The AI is not available right now, but here is what the city data shows:');
   if (alerts.length) parts.push(alerts.map((a, i) => `${i + 1}. ${a}.`).join(' '));
   else parts.push(hindi ? 'कोई चेतावनी नहीं है।' : 'There are no warnings.');
-  if (top) parts.push(hindi ? `सबसे बड़ी समस्या: ${top.title}. आप Council बुला सकते हैं।` : `Biggest problem: ${top.title}. You can call the council about it.`);
+  if (!alerts.length && !top && facts.goal) parts.push(hindi ? `अगला लक्ष्य: ${facts.goal}` : `Your next goal is ${facts.goal}`);
+  if (top) {
+    const why = top.summary ? ` ${top.summary}` : '';
+    parts.push(hindi ? `सबसे बड़ी समस्या: ${top.title}.${why} आप Council बुला सकते हैं।` : `${topic ? 'The problem' : 'Biggest problem'}: ${top.title}.${why} The council can weigh the options for you.`);
+  }
   return {
     answer: parts.join(' '),
     actions: top ? [{ type: 'council', issue: top.key, label: hindi ? 'Council बुलाएँ' : 'Call the council' }] : [],

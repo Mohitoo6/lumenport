@@ -80,6 +80,10 @@ export function economyStep(buildings: ReadonlyArray<Building | null>, tax: read
   let jobsI = 0;
   let plannedC = 0;
   let plannedI = 0;
+  // Jobs at offices, campuses, the hospital and the airport: they attract residents and
+  // employ them like shops do, but they are not shops, so they must not use up the
+  // demand for shops.
+  let plannedF = 0;
   let unpowered = 0;
   let unwatered = 0;
 
@@ -89,7 +93,7 @@ export function economyStep(buildings: ReadonlyArray<Building | null>, tax: read
       // Office and campus jobs count with the shops'.
       const jobs = FACILITIES[b.kind]?.jobs ?? 0;
       if (jobs > 0) {
-        plannedC += jobs;
+        plannedF += jobs;
         if (b.progress >= 1) jobsC += jobs;
       }
       continue;
@@ -144,13 +148,15 @@ export function economyStep(buildings: ReadonlyArray<Building | null>, tax: read
   // Demand. Planned capacity (including sites under construction) is used on the supply
   // side so growth does not overshoot while buildings are still going up.
   const plannedLabor = housing * LABOR_SHARE;
-  const plannedJobs = plannedC + plannedI;
+  const plannedJobs = plannedC + plannedI + plannedF;
   // A very happy city attracts people; a miserable one puts them off. In between, it does
   // not matter, so a young town is not held back by happiness it has had no chance to earn.
   const mood = Math.max(0, stats.happiness - 0.6) - Math.max(0, 0.3 - stats.happiness);
   // The constant lets a starter town of a couple of hundred people grow on shops alone.
   const dR = (plannedJobs * 1.15 + 100 - plannedLabor) / Math.max(60, plannedLabor) + taxEffect(tax[1]!) + mood * 0.8;
-  const targetC = population * 0.22 + 4;
+  // Shops serve residents, plus the people who come in to work at offices and campuses
+  // (lunch, errands). Only shop jobs count against it.
+  const targetC = population * 0.22 + plannedF * 0.06 + 4;
   // Shops suffer when customers are stuck in traffic.
   // An airport brings tourists to the shops and export markets to the factories.
   const airport = buildings.some((b) => b && b.kind === FacilityKind.Airport && b.progress >= 1);
