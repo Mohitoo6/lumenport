@@ -97,16 +97,18 @@ export class Engine {
     ao.color.setRGB(0.04, 0.05, 0.09);
     this.composer.addPass(this.ao);
 
+    // Lower threshold lets warm storefronts, glowing signs and bright night windows softly
+    // bloom without washing out sunlit roofs; 6 mip levels keeps GPU cost lower than 7.
     this.bloom = new BloomEffect({
       mipmapBlur: true,
-      luminanceThreshold: 2.4,
-      luminanceSmoothing: 0.6,
-      intensity: 0.55,
-      radius: 0.72,
-      levels: 7,
+      luminanceThreshold: 1.55,
+      luminanceSmoothing: 0.45,
+      intensity: 0.36,
+      radius: 0.62,
+      levels: 6,
     });
     const tone = new ToneMappingEffect({ mode: ToneMappingMode.ACES_FILMIC });
-    const vignette = new VignetteEffect({ offset: 0.32, darkness: 0.42 });
+    const vignette = new VignetteEffect({ offset: 0.36, darkness: 0.36 });
     this.composer.addPass(new EffectPass(camera, this.bloom, tone, vignette));
     this.composer.addPass(new EffectPass(camera, new SMAAEffect({ preset: SMAAPreset.HIGH })));
   }
@@ -168,3 +170,4 @@ export function patchHalfResTarget(pass: N8AOPostPass): void {
     p.depthDownsampleTarget = rt;
   };
 }
+

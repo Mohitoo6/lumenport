@@ -75,3 +75,57 @@ describe('the cricket ground', () => {
     }
   });
 });
+
+describe('the mall, multiplex and bazaar', () => {
+  it('fit their budgets, stay in their lots and are the same every time for one seed', () => {
+    const cases: Array<[number, number, number, number]> = [
+      [FacilityKind.ShoppingMall, 10, 8, 10000],
+      [FacilityKind.ShoppingMall, 8, 10, 10000],
+      [FacilityKind.Multiplex, 4, 4, 4000],
+      [FacilityKind.MarketStreet, 4, 2, 4000],
+      [FacilityKind.MarketStreet, 2, 4, 4000],
+    ];
+    for (const [kind, w, h, budget] of cases) {
+      for (const facing of [Facing.North, Facing.East, Facing.South, Facing.West]) {
+        for (let s = 0; s < 4; s++) {
+          const b: Building = { id: 1, kind, zone: 0, x: 20, y: 20, w, h, facing, level: 1, progress: 1, seed: 11 + s * 6151, baseY: 0, pop: 0, flags: 0 };
+          const g = generateBuilding(b);
+          const tris = g.idx.length / 3;
+          expect(tris, `kind ${kind}`).toBeLessThan(budget);
+          if (s === 0 && facing === Facing.South) console.log(`kind ${kind} ${w}x${h}: ${tris} triangles`);
+          expect(generateBuilding(b).pos).toEqual(g.pos);
+          const cx = (20 + w / 2) * 8;
+          const cz = (20 + h / 2) * 8;
+          for (let i = 0; i < g.pos.length; i += 3) {
+            expect(Math.abs(g.pos[i]! - cx), `kind ${kind} x`).toBeLessThanOrEqual((w * 8) / 2 + 0.01);
+            expect(Math.abs(g.pos[i + 2]! - cz), `kind ${kind} z`).toBeLessThanOrEqual((h * 8) / 2 + 0.01);
+            expect(Number.isFinite(g.pos[i + 1]!)).toBe(true);
+          }
+        }
+      }
+    }
+  });
+});
+
+describe('commercial buildings', () => {
+  it('stay inside their triangle budget, are finite and are the same every time for one seed', () => {
+    const report: string[] = [];
+    for (const density of [1, 2, 3] as const) {
+      for (const level of [1, 2, 3]) {
+        let max = 0;
+        for (const [w, h] of [[1, 1], [1, 2], [2, 1], [2, 2], [2, 3], [3, 3], [4, 4]] as const) {
+          for (let s = 0; s < 25; s++) {
+            const b: Building = { id: 1, kind: 0, zone: zoneCode(ZoneType.Commercial, density), x: 10, y: 10, w, h, facing: Facing.South, level, progress: 1, seed: 500 + s * 7919, baseY: 0, pop: 10, flags: 0 };
+            const g = generateBuilding(b);
+            max = Math.max(max, g.idx.length / 3);
+            if (s < 3) expect(generateBuilding(b).pos).toEqual(g.pos);
+            for (const v of g.pos) expect(Number.isFinite(v)).toBe(true);
+          }
+        }
+        report.push(`commercial density ${density} level ${level}: max ${max}`);
+        expect(max).toBeLessThan(density === 3 ? 4000 : 2000);
+      }
+    }
+    console.log(report.join('\n'));
+  }, 120_000);
+});

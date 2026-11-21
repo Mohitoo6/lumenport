@@ -117,15 +117,15 @@ describe('assistant: retrieval, schema and grounding', () => {
 
   it('flags a figure that is in neither the rules nor the city data, and records what the call cost', async () => {
     const sim = starterTown();
-    const answers = ['A clinic costs $6,000 and $380 an hour.', 'A clinic costs $41,250.'];
+    const answers = ['A clinic costs $6,000 and $380 an hour.', 'A clinic costs $512,345.'];
     const c = new AssistantController(host(sim), async () => ({ text: JSON.stringify({ answer: answers.shift(), actions: [] }), provider: 'test-model', usage: { prompt: 900, completion: 30, reasoning: 0 }, latencyMs: 1200 }));
     const calls: AssistantCall[] = [];
     c.onCall = (call) => calls.push(call);
     expect((await c.answer('How much is a clinic?')).flags).toBeUndefined();
-    expect((await c.answer('How much is a clinic?')).flags).toEqual(['41,250']);
+    expect((await c.answer('How much is a clinic?')).flags).toEqual(['512,345']);
     expect(calls[0]).toMatchObject({ source: 'llm', schema: 'pass', promptTokens: 900, completionTokens: 30, latencyMs: 1200, measured: true, figures: 2, unverified: [] });
     expect(calls[0]!.sections).toContain('utilities');
-    expect(calls[1]!.unverified).toEqual([41250]);
+    expect(calls[1]!.unverified).toEqual([512345]);
   });
 });
 

@@ -27,7 +27,7 @@ const BASELINE_MAX = 70;
  */
 function draw(b: Building): number {
   if (b.kind === FacilityKind.ItPark || b.kind === FacilityKind.University) return 1.6;
-  if (b.kind === FacilityKind.Airport || b.kind === FacilityKind.Hospital || b.kind === FacilityKind.SportsGround) return 1.4;
+  if (b.kind === FacilityKind.Airport || b.kind === FacilityKind.Hospital || b.kind === FacilityKind.SportsGround || b.kind === FacilityKind.ShoppingMall || b.kind === FacilityKind.Multiplex) return 1.4;
   if (b.kind !== 0) return 1.2;
   return zoneType(b.zone) === ZoneType.Industrial ? 1.25 : 1;
 }

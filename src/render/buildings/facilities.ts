@@ -1,40 +1,45 @@
 import { FacilityKind } from '../../sim/facilities';
 import {
-  ASPHALT,
-  CONCRETE,
-  CONCRETE_DARK,
-  GLASS_RAIL,
-  LAWN,
-  LINE_WHITE,
-  Layer,
-  METAL_GREY,
-  NO_WIN,
-  PAVING,
-  SIGN,
-  STEEL_DARK,
-  Style,
-  WHITE_TRIM,
-  TAR_ROOF,
-  TERRACOTTA,
-  WOOD,
   acUnit,
+  ASPHALT,
+  awning,
+  balcony,
   chhajja,
   compoundWall,
+  CONCRETE,
+  CONCRETE_DARK,
   fence,
   flatRoof,
   frontPanel,
+  GLASS_RAIL,
+  GRAVEL_ROOF,
   ground,
   hedge,
+  IRON_DARK,
+  LAWN,
+  Layer,
+  LINE_WHITE,
   mat,
+  METAL_GREY,
+  NO_WIN,
   parking,
+  PAVING,
   pick,
   roofFinish,
   rooftop,
+  SANDSTONE,
   shrub,
+  SIGN,
   stairTower,
+  STEEL_DARK,
+  Style,
+  TAR_ROOF,
+  TERRACOTTA,
   vary,
   waterTank,
+  WHITE_TRIM,
   win,
+  WOOD,
   type Geo,
   type Lot,
   type Mat,
@@ -238,7 +243,7 @@ function waterPump(l: Lot): void {
 }
 
 function signBoard(g: Geo, x0: number, x1: number, z: number, y0: number, y1: number, tint: RGB): void {
-  g.box(x0, z, x1, z + 0.16, y0, y1, mat(Layer.Plaster2, tint, 3), SIGN, CONCRETE_DARK);
+  g.box(x0, z, x1, z + 0.18, y0, y1, mat(Layer.Plaster2, tint, 3), SIGN, CONCRETE_DARK);
 }
 
 function flagpole(g: Geo, x: number, z: number, tint: RGB): void {
@@ -246,62 +251,96 @@ function flagpole(g: Geo, x: number, z: number, tint: RGB): void {
   slab(g, [[x, 8.8, z], [x + 1.7, 8.8, z], [x + 1.7, 7.8, z], [x, 7.8, z]], mat(Layer.Plaster2, tint, 3));
 }
 
+/**
+ * Police station (Thana): cream/stone facade with navy-blue & red police bands, arched
+ * entrance portico, glowing blue-and-red fascia sign, comms mast, compound wall and patrol bay.
+ */
 function police(l: Lot): void {
   const { g, r, W, D } = l;
   ground(l, PAVING);
-  const wall = mat(Layer.ConcreteWall, [1.12, 1.14, 1.2], 3);
-  const blue: RGB = [0.08, 0.2, 0.62];
+  const wall = mat(Layer.Plaster2, [1.24, 1.22, 1.16], 3);
+  const blue: RGB = [0.08, 0.22, 0.68];
+  const red: RGB = [0.82, 0.12, 0.1];
   const x0 = -W / 2 + 1.2;
-  const x1 = W / 2 - 4.6;
+  const x1 = W / 2 - 4.4;
   const z0 = -D / 2 + 1.2;
-  const z1 = D / 2 - 3.2;
+  const z1 = D / 2 - 3.6;
   const fh = 3.4;
-  g.walls(x0, z0, x1, z1, 0, 0.5, CONCRETE_DARK);
-  g.walls(x0, z0, x1, z1, 0.5, 0.5 + 2 * fh, wall, win(Style.Ribbon, fitBay(x1 - x0, 3.2), fh, 0.5));
   // A band in force blue under the parapet, and a lit sign over the door.
-  g.walls(x0 - 0.05, z0 - 0.05, x1 + 0.05, z1 + 0.05, 0.5 + 2 * fh - 0.7, 0.5 + 2 * fh, mat(Layer.Plaster2, blue, 3));
-  flatRoof(g, x0, z0, x1, z1, 0.5 + 2 * fh, wall, roofFinish(r));
-  rooftop(l, x0, z0, x1, z1, 0.5 + 2 * fh, wall);
-  g.cyl(x0 + 2, z0 + 2, 0.12, 0.04, 0.5 + 2 * fh, 0.5 + 2 * fh + 9, 5, METAL_GREY, null);
-  const dx = (x0 + x1) / 2;
-  g.box(dx - 2, z1, dx + 2, z1 + 1.8, 3.2, 3.45, CONCRETE);
-  frontPanel(g, dx, z1, 2.4, 0.5, 3, mat(Layer.Concrete, [0.5, 0.52, 0.56], 2), win(Style.Storefront, 2.4, 2.5, 0.5));
-  signBoard(g, dx - 2.6, dx + 2.6, z1, 3.6, 4.4, blue);
-  g.box(dx - 1.6, z1, dx + 1.6, z1 + 1.4, 0, 0.5, CONCRETE);
   // Patrol car bays at the side.
-  parking(g, x1 + 0.4, z0, W / 2 - 0.5, z1);
-  flagpole(g, x0 + 1, D / 2 - 1.6, blue);
+  const top = 0.6 + 2 * fh;
+
+  g.walls(x0, z0, x1, z1, 0, 0.6, CONCRETE_DARK);
+  g.walls(x0, z0, x1, z1, 0.6, top, wall, win(Style.Punched, fitBay(x1 - x0, 2.8), fh, 0.46));
+  chhajja(g, x0 - 0.1, x1 + 0.1, z1, 0.6 + 0.8 * fh, 0.45, WHITE_TRIM, 'front');
+  chhajja(g, x0 - 0.1, x1 + 0.1, z1, 0.6 + 1.8 * fh, 0.45, WHITE_TRIM, 'front');
+  g.walls(x0 - 0.06, z0 - 0.06, x1 + 0.06, z1 + 0.06, top - 0.65, top - 0.22, mat(Layer.Plaster2, blue, 3));
+  g.walls(x0 - 0.06, z0 - 0.06, x1 + 0.06, z1 + 0.06, top - 0.22, top + 0.02, mat(Layer.Plaster2, red, 3));
+  flatRoof(g, x0, z0, x1, z1, top, wall, roofFinish(r), 0.75);
+  rooftop(l, x0, z0, x1, z1, top, wall);
+  waterTank(g, x0 + 1.5, z0 + 1.5, top, r, 0.8, true);
+  g.cyl(x1 - 1.6, z0 + 1.6, 0.12, 0.04, top, top + 9.5, 6, METAL_GREY, null);
+
+  const dx = (x0 + x1) * 0.5;
+  g.arch(dx, z1 + 1.6, 3.6, 0.6, 2.55, 0.7, 0.35, WHITE_TRIM, 0.32, 0.22);
+  g.box(dx - 1.9, z1, dx + 1.9, z1 + 1.7, 3.45, 3.7, WHITE_TRIM, NO_WIN, CONCRETE);
+  frontPanel(g, dx, z1, 2.4, 0.6, 3.1, mat(Layer.Concrete, [0.46, 0.48, 0.54], 2), win(Style.Storefront, 2.4, 2.5, 0.5));
+  signBoard(g, dx - 2.6, dx + 0.3, z1 + 1.6, 3.75, 4.5, blue);
+  signBoard(g, dx + 0.3, dx + 2.6, z1 + 1.6, 3.75, 4.5, red);
+  g.stair(dx - 1.4, z1 + 1.5, dx + 1.4, z1 + 2.3, 0, 0.6, 3, CONCRETE);
+
+  parking(g, x1 + 0.5, z0, W / 2 - 0.6, z1);
+  compoundWall(g, -W / 2 + 0.3, -D / 2 + 0.3, W / 2 - 0.3, D / 2 - 0.3, 1.3, wall, WHITE_TRIM, {
+    cx: dx,
+    w: 4.4,
+    gateMat: IRON_DARK,
+  });
+  flagpole(g, x0 + 0.9, D / 2 - 1.6, blue);
 }
 
+/**
+ * Fire station: red-brick & white-trim appliance hall with 3 framed red bay doors,
+ * crew quarters with balcony and chhajjas above, and a tall watch/hose tower.
+ */
 function fireStation(l: Lot): void {
   const { g, r, W, D } = l;
-  ground(l, mat(Layer.Concrete, [1.15, 1.15, 1.14], 4));
-  const wall = mat(Layer.Brick, [1.5, 1.2, 1.1], 2);
-  const red: RGB = [0.75, 0.08, 0.06];
+  ground(l, mat(Layer.Concrete, [1.18, 1.18, 1.15], 4));
+  const wall = mat(Layer.Brick, [1.5, 1.18, 1.08], 2);
+  const red: RGB = [0.82, 0.1, 0.08];
   const x0 = -W / 2 + 1;
   const x1 = W / 2 - 1;
   const z0 = -D / 2 + 1;
   const z1 = D / 2 - 5;
-  const h = 6.2;
   // Appliance bay with three tall red doors, crew quarters above.
+  const h = 6.0;
+
   g.walls(x0, z0, x1, z1, 0, h, wall);
   const bays = 3;
   const bw = (x1 - x0 - 3.4) / bays;
   for (let i = 0; i < bays; i++) {
     const cx = x0 + 0.5 + bw * (i + 0.5);
-    frontPanel(g, cx, z1, bw - 0.6, 0.02, 4.4, mat(Layer.Metal, [1.9, 0.3, 0.24], 0.8));
-    frontPanel(g, cx, z1 + 0.03, bw - 1, 2.6, 3.6, mat(Layer.Concrete, [0.4, 0.45, 0.5], 2), win(Style.Curtain, (bw - 1) / 3, 1, 0.5));
+    frontPanel(g, cx, z1, bw - 0.45, 0.02, 4.5, WHITE_TRIM);
+    frontPanel(g, cx, z1 + 0.04, bw - 0.72, 0.02, 4.35, mat(Layer.Metal, [1.85, 0.28, 0.22], 0.8));
+    frontPanel(g, cx, z1 + 0.07, bw - 1.1, 2.55, 3.55, mat(Layer.Concrete, [0.4, 0.46, 0.52], 2), win(Style.Curtain, (bw - 1.1) / 3, 1, 0.5));
   }
-  g.walls(x0, z0, x1, z1, h, h + 3, wall, win(Style.Punched, fitBay(x1 - x0, 2.8), 3, 0.5));
-  flatRoof(g, x0, z0, x1, z1, h + 3, wall, roofFinish(r));
-  rooftop(l, x0, z0, x1, z1, h + 3, wall);
-  signBoard(g, x0 + 1, x1 - 4, z1, 4.9, 5.8, red);
   // Hose-drying tower at the corner.
+  g.box(x0 + 0.2, z1, x1 - 3.3, z1 + 1.15, 4.65, 4.9, WHITE_TRIM);
+
+  g.walls(x0, z0, x1, z1, h, h + 3.2, WHITE_TRIM, win(Style.Punched, fitBay(x1 - x0, 2.8), 3.2, 0.5));
+  balcony(g, x0 + 0.6, x1 - 3.8, z1, h, 1.0, CONCRETE, IRON_DARK, 'parapet-rail', 'front');
+  chhajja(g, x0, x1 - 3.4, z1, h + 2.55, 0.48, WHITE_TRIM, 'front');
+  flatRoof(g, x0, z0, x1, z1, h + 3.2, wall, roofFinish(r), 0.8);
+  rooftop(l, x0, z0, x1, z1, h + 3.2, wall);
+  signBoard(g, x0 + 0.8, x1 - 3.8, z1 + 1.1, 4.95, 5.85, red);
+
   const tx = x1 - 1.5;
-  g.walls(tx - 1.5, z1 - 3, tx + 1.5, z1 + 0.3, 0, 15, wall, win(Style.Punched, 3, 3.6, 0.3));
-  g.hip(tx - 1.5, z1 - 3, tx + 1.5, z1 + 0.3, 15, 1.6, 0.3, mat(Layer.Roof3, [0.6, 0.62, 0.66], 2.4));
   // Apron with keep-clear hatching.
-  for (let i = 0; i < 6; i++) g.flat(x0 + 1 + i * 2.2, z1 + 0.6, x0 + 1.2 + i * 2.2, D / 2 - 0.4, 0.04, mat(Layer.Concrete, [2.2, 1.7, 0.2], 3));
+  g.walls(tx - 1.55, z1 - 3.1, tx + 1.55, z1 + 0.35, 0, 15.6, wall, win(Style.Punched, 3.1, 3.6, 0.34));
+  g.box(tx - 1.75, z1 - 3.3, tx + 1.75, z1 + 0.55, 14.9, 15.6, WHITE_TRIM);
+  g.hip(tx - 1.55, z1 - 3.1, tx + 1.55, z1 + 0.35, 15.6, 1.8, 0.35, TERRACOTTA);
+  g.cyl(tx, z1 - 1.35, 0.08, 0.03, 17.4, 20.2, 6, METAL_GREY, null);
+
+  for (let i = 0; i < 6; i++) g.flat(x0 + 1 + i * 2.2, z1 + 0.6, x0 + 1.22 + i * 2.2, D / 2 - 0.4, 0.04, mat(Layer.Concrete, [2.2, 1.7, 0.2], 3));
 }
 
 function clinic(l: Lot): void {
@@ -335,46 +374,227 @@ function clinic(l: Lot): void {
   shrub(g, x0 + 7.2, z1 + 0.9, 0.6);
 }
 
+
+/**
+ * A multiplex cinema: a dark-slate block with a double-height glazed
+ * lobby, a neon-trimmed marquee, poster lightboxes, stepped auditoriums and a lit rooftop sign.
+ */
+function multiplex(l: Lot): void {
+  const { g, r, W, D } = l;
+  ground(l, PAVING);
+  const hw = W / 2;
+  const hd = D / 2;
+  const dark = mat(Layer.ConcreteWall, [0.34, 0.36, 0.42], 3);
+  const warm = mat(Layer.Plaster2, [1.26, 0.92, 0.62], 3);
+  const glass = mat(Layer.ConcreteWall, [0.34, 0.54, 0.72], 2.6);
+  const crimson: RGB = [0.95, 0.14, 0.22];
+  const gold: RGB = [0.98, 0.72, 0.12];
+  const cyan: RGB = [0.08, 0.72, 0.92];
+  const violet: RGB = [0.68, 0.18, 0.86];
+
+  // Rear stepped auditorium block (windowless acoustic halls).
+  const ax0 = -hw + 1.8;
+  const ax1 = hw - 1.8;
+  const az0 = -hd + 1.8;
+  const az1 = hd - 11.5;
+  const audH = 14.8;
+  g.walls(ax0, az0, ax1, az1, 0, audH, dark);
+  // Decorative vertical golden fins wrapping the auditorium volume.
+  const fins = 7;
+  for (let i = 0; i <= fins; i++) {
+    const fx = ax0 + ((ax1 - ax0) * i) / fins;
+    g.box(fx - 0.18, az1 - 0.2, fx + 0.18, az1 + 0.45, 8.6, audH + 0.9, warm);
+  }
+  flatRoof(g, ax0, az0, ax1, az1, audH, dark, roofFinish(r), 1.0);
+  rooftop(l, ax0, az0, ax1, az1, audH, dark);
+
+  // Front double-height glazed foyer atrium.
+  const fx0 = ax0 + 2.0;
+  const fx1 = ax1 - 2.0;
+  const fz1 = az1 + 5.2;
+  const foyerH = 8.8;
+  g.walls(fx0, az1, fx1, fz1, 0, foyerH, glass, win(Style.Curtain, 2.2, 4.4, 0.75));
+  g.box(fx0 - 0.4, az1, fx1 + 0.4, fz1 + 0.4, foyerH, foyerH + 0.8, dark);
+  // Cafe terrace balcony on top of the foyer.
+  balcony(g, fx0 + 0.6, fx1 - 0.6, fz1 + 0.2, foyerH + 0.8, 0.4, WHITE_TRIM, IRON_DARK, 'glass', 'front');
+
+  // Sweeping cantilevered cinema marquee canopy with glowing gold & crimson trim.
+  g.box(fx0 - 1.2, fz1, fx1 + 1.2, fz1 + 3.2, 4.8, 5.7, dark, NO_WIN, GRAVEL_ROOF);
+  g.box(fx0 - 1.25, fz1 + 3.12, fx1 + 1.25, fz1 + 3.3, 4.85, 5.18, mat(Layer.Plaster2, gold, 3), SIGN);
+  g.box(fx0 - 1.25, fz1 + 3.12, fx1 + 1.25, fz1 + 3.3, 5.32, 5.65, mat(Layer.Plaster2, crimson, 3), SIGN);
+  g.stair(-4.2, fz1, 4.2, fz1 + 1.4, 0, 0.45, 3, CONCRETE);
+
+  // Glowing cinema sign tower rising above the roof.
+  g.box(-5.6, az1 + 0.3, 5.6, az1 + 1.1, audH - 1.0, audH + 4.4, dark);
+  g.box(-5.2, az1 + 1.1, 5.2, az1 + 1.32, audH - 0.2, audH + 3.8, mat(Layer.Plaster2, crimson, 3), SIGN);
+  g.box(-4.8, az1 + 1.1, 4.8, az1 + 1.32, audH + 3.85, audH + 4.25, mat(Layer.Plaster2, gold, 3), SIGN);
+
+  // Glowing movie-poster lightboxes along the front plaza wings.
+  const posters: readonly RGB[] = [crimson, cyan, gold, violet];
+  const xs = [-hw + 3.6, -hw + 6.4, hw - 6.4, hw - 3.6];
+  for (let i = 0; i < 4; i++) {
+    const px = xs[i]!;
+    g.box(px - 0.95, fz1 + 1.0, px + 0.95, fz1 + 1.35, 0.4, 3.6, dark);
+    g.box(px - 0.8, fz1 + 1.35, px + 0.8, fz1 + 1.45, 0.8, 3.3, mat(Layer.Plaster2, posters[i]!, 3), SIGN);
+  }
+
+  // Front plaza planters, trees & side drop-off strip.
+  g.flat(-hw + 0.6, hd - 3.4, hw - 0.6, hd - 0.5, 0.04, ASPHALT);
+  g.tree(-hw + 2.2, hd - 4.8, 0.52, 0.6);
+  g.tree(hw - 2.2, hd - 4.8, 0.52, 2.2);
+  shrub(g, -6.0, fz1 + 2.4, 0.55, [0.92, 0.3, 0.55]);
+  shrub(g, 6.0, fz1 + 2.4, 0.55, [0.95, 0.56, 0.22]);
+}
+
+/**
+ * A bazaar street: an arched entrance gate, rows of stalls with sloped
+ * awnings and lit boards, a shade tree at the chowk, and festive lights overhead.
+ */
+function marketStreet(l: Lot): void {
+  const { g, r, W, D } = l;
+  ground(l, PAVING);
+  const hw = W / 2;
+  const hd = D / 2;
+  const stallPalette: readonly RGB[] = [
+    [0.95, 0.48, 0.08], // saffron
+    [0.88, 0.16, 0.38], // magenta
+    [0.08, 0.58, 0.42], // emerald
+    [0.12, 0.42, 0.86], // royal blue
+    [0.96, 0.76, 0.08], // marigold
+    [0.82, 0.22, 0.14], // terracotta red
+  ];
+  const plaster = mat(Layer.Plaster2, [1.28, 1.18, 0.96], 3);
+  const trim = SANDSTONE;
+  const warmGlow: RGB = [1.0, 0.76, 0.28];
+
+  // Central decorative bazaar walkway carpet in contrasting sandstone paving.
+  g.flat(-hw + 1.2, -2.4, hw - 1.2, 2.8, 0.04, mat(Layer.Pavement, [1.28, 1.14, 0.96], 2.5));
+
+  // Back row of market stalls running across the full width.
+  const backZ0 = -hd + 0.8;
+  const backZ1 = backZ0 + 3.8;
+  const nStalls = Math.max(3, Math.round((W - 2.4) / 4.4));
+  const sw = (W - 2.4) / nStalls;
+  for (let i = 0; i < nStalls; i++) {
+    const sx0 = -hw + 1.2 + i * sw;
+    const sx1 = sx0 + sw - 0.18;
+    const col = stallPalette[i % stallPalette.length]!;
+    g.walls(sx0, backZ0, sx1, backZ1, 0, 3.3, plaster, [NO_WIN, NO_WIN, win(Style.Storefront, sx1 - sx0, 3.3, 0.7), NO_WIN]);
+    g.box(sx0, backZ0, sx1, backZ1, 3.3, 3.65, trim, NO_WIN, TERRACOTTA);
+    // Display counter & vibrant sloped awning.
+    g.box(sx0 + 0.25, backZ1, sx1 - 0.25, backZ1 + 0.75, 0, 0.9, WOOD);
+    awning(g, sx0 + 0.1, sx1 - 0.1, backZ1, 3.1, 1.65, col);
+    signBoard(g, sx0 + 0.35, sx1 - 0.35, backZ1, 3.2, 3.85, col);
+  }
+
+  // Front corner kiosks flanking a wide central bazaar entrance opening.
+  const openHalf = Math.min(4.6, W * 0.18);
+  const frontZ1 = hd - 1.2;
+  const frontZ0 = frontZ1 - 3.2;
+  for (const side of [-1, 1]) {
+    const kx0 = side < 0 ? -hw + 1.4 : openHalf + 1.0;
+    const kx1 = side < 0 ? -openHalf - 1.0 : hw - 1.4;
+    if (kx1 - kx0 < 3.0) continue;
+    const col = pick(r, stallPalette);
+    g.walls(kx0, frontZ0, kx1, frontZ1, 0, 3.1, plaster, [
+      win(Style.Storefront, fitBay(kx1 - kx0, 3.2), 3.1, 0.65),
+      NO_WIN,
+      win(Style.Storefront, fitBay(kx1 - kx0, 3.2), 3.1, 0.65),
+      NO_WIN,
+    ]);
+    g.box(kx0, frontZ0, kx1, frontZ1, 3.1, 3.45, trim, NO_WIN, TERRACOTTA);
+    awning(g, kx0 + 0.2, kx1 - 0.2, frontZ1, 2.95, 1.1, col);
+    signBoard(g, kx0 + 0.5, kx1 - 0.5, frontZ1, 3.05, 3.65, col);
+  }
+
+  // Ornate arched Indian bazaar entrance gate at the street front.
+  g.arch(0, frontZ1 + 0.2, openHalf * 2 + 1.4, 0, 3.2, 1.4, 0.6, trim, 0.55, 0.45, 8);
+  signBoard(g, -openHalf * 0.75, openHalf * 0.75, frontZ1 + 0.22, 4.15, 4.95, [0.92, 0.22, 0.14]);
+
+  // Overhead festive string-light / lantern beams spanning the bazaar lane (glows warmly at night).
+  const beams = Math.max(3, Math.round((W - 4) / 5.5));
+  for (let i = 0; i < beams; i++) {
+    const bx = -hw + 2.5 + ((W - 5) * i) / Math.max(1, beams - 1);
+    g.cyl(bx, backZ1 + 1.7, 0.08, 0.06, 0, 4.5, 6, IRON_DARK);
+    g.cyl(bx, frontZ0 - 0.3, 0.08, 0.06, 0, 4.5, 6, IRON_DARK);
+    g.box(bx - 0.08, backZ1 + 1.7, bx + 0.08, frontZ0 - 0.3, 4.35, 4.52, mat(Layer.Plaster2, warmGlow, 2), SIGN);
+  }
+
+  // Central chowk planter with shade tree and benches.
+  g.cyl(0, 0.2, 1.8, 1.8, 0.04, 0.55, 12, trim, LAWN);
+  g.tree(0, 0.2, 0.62, r.next() * 6);
+  g.box(-3.6, -0.3, -2.2, 0.3, 0.35, 0.5, WOOD);
+  g.box(2.2, -0.3, 3.6, 0.3, 0.35, 0.5, WOOD);
+}
+
+/**
+ * Indian school campus: warm cream/sandstone two-storey classroom wing with colonnaded
+ * verandah and chhajjas, Mangalore-tile assembly hall, sports court, and compound wall
+ * with an arched school gate.
+ */
 function school(l: Lot): void {
   const { g, r, W, D } = l;
   ground(l, LAWN);
-  const wall = mat(Layer.Brick2, [1.5, 1.42, 1.3], 2);
-  const yellow: RGB = [0.9, 0.62, 0.06];
-  const fh = 3.6;
   // Classroom wing along the back, hall at one end.
-  const x0 = -W / 2 + 1.5;
-  const x1 = W / 2 - 1.5;
-  const z0 = -D / 2 + 1.5;
-  const z1 = z0 + 8.5;
+  const wall = mat(Layer.Plaster2, [1.3, 1.2, 0.96], 3);
+  const accent = mat(Layer.Brick, [1.42, 1.12, 0.98], 2);
+  const yellow: RGB = [0.92, 0.62, 0.06];
+  const fh = 3.5;
+
+  const x0 = -W / 2 + 1.4;
+  const x1 = W / 2 - 1.4;
+  const z0 = -D / 2 + 1.4;
+  const z1 = z0 + 8.0;
   const top = 0.5 + 2 * fh;
-  g.walls(x0, z0, x1, z1, 0, 0.5, CONCRETE);
-  g.walls(x0, z0, x1, z1, 0.5, top, wall, win(Style.Ribbon, fitBay(x1 - x0, 3), fh, 0.5));
-  flatRoof(g, x0, z0, x1, z1, top, wall, roofFinish(r));
+  g.walls(x0, z0, x1, z1, 0, 0.5, CONCRETE_DARK);
+  g.walls(x0, z0, x1, z1, 0.5, top, wall, win(Style.Punched, fitBay(x1 - x0, 2.8), fh, 0.5));
+  const vx0 = x0 + 9.2;
+  const vz1 = z1 + 1.6;
+  g.box(vx0, z1, x1, vz1, 0, 0.5, CONCRETE);
+  g.box(vx0, z1, x1, vz1, 0.5 + fh - 0.16, 0.5 + fh, WHITE_TRIM);
+  g.box(vx0, z1, x1, vz1, top - 0.16, top, WHITE_TRIM);
+  const vCols = Math.max(3, Math.round((x1 - vx0) / 3.2));
+  for (let i = 0; i <= vCols; i++) {
+    const cx = vx0 + ((x1 - vx0) * i) / vCols;
+    g.box(cx - 0.12, vz1 - 0.24, cx + 0.12, vz1, 0.5, top, WHITE_TRIM);
+  }
+  g.railing(vx0 + 0.1, vz1 - 0.08, x1 - 0.1, vz1 - 0.08, 0.5 + fh, 0.5 + fh + 1.0, IRON_DARK, 1.5, 0.05, true);
+  chhajja(g, x0, x1, vz1, top - 0.35, 0.5, accent, 'front');
+  flatRoof(g, x0, z0, x1, z1, top, wall, roofFinish(r), 0.85);
   rooftop(l, x0, z0, x1, z1, top, wall);
-  const hx1 = x0 + 9;
-  const hz1 = z1 + 7.5;
-  g.walls(x0, z1, hx1, hz1, 0, 7.5, wall, win(Style.Industrial, fitBay(9, 3), 7.5, 0.5));
-  g.gable(x0, z1, hx1, hz1, 7.5, 1.8, false, 0.4, mat(Layer.Metal, [1.2, 1.24, 1.3], 2.4), wall);
   // Entrance and sign.
-  const dx = hx1 + 3;
-  g.box(dx - 2.2, z1, dx + 2.2, z1 + 2, 3.3, 3.55, mat(Layer.Plaster2, yellow, 3), NO_WIN, CONCRETE);
-  frontPanel(g, dx, z1, 3.2, 0.5, 3.1, mat(Layer.Concrete, [0.5, 0.52, 0.56], 2), win(Style.Storefront, 1.6, 2.6, 0.5));
-  signBoard(g, dx + 3, dx + 8, z1, 4.3, 5.2, yellow);
   // Playground: a painted court, a path to the gate, trees along the fence.
-  const cx0 = hx1 + 1.5;
-  const cz0 = z1 + 3.4;
-  g.flat(cx0, cz0, x1, D / 2 - 2.2, 0.04, ASPHALT);
-  const lines = mat(Layer.Concrete, [2.1, 2.1, 2.05], 3);
-  g.flat(cx0 + 0.6, cz0 + 0.6, x1 - 0.6, cz0 + 0.72, 0.05, lines);
-  g.flat(cx0 + 0.6, D / 2 - 2.92, x1 - 0.6, D / 2 - 2.8, 0.05, lines);
-  g.flat(cx0 + 0.6, cz0 + 0.6, cx0 + 0.72, D / 2 - 2.8, 0.05, lines);
-  g.flat(x1 - 0.72, cz0 + 0.6, x1 - 0.6, D / 2 - 2.8, 0.05, lines);
-  g.flat((cx0 + x1) / 2 - 0.06, cz0 + 0.6, (cx0 + x1) / 2 + 0.06, D / 2 - 2.8, 0.05, lines);
-  g.flat(dx - 1, z1 + 2, dx + 1, cz0, 0.04, PAVING);
-  fence(g, -W / 2 + 0.4, D / 2 - 0.5, W / 2 - 0.4, D / 2 - 0.5, 1.4, CHAIN_LINK);
-  g.tree(x0 + 2, D / 2 - 2.4, 0.55, 1.2);
-  g.tree(x0 + 6.5, D / 2 - 2.6, 0.5, 3.1);
-  flagpole(g, dx - 3.4, z1 + 2.6, yellow);
+  waterTank(g, x1 - 2.0, z0 + 2.0, top, r, 0.9, true);
+
+  const hx1 = x0 + 9.0;
+  const hz1 = z1 + 7.2;
+  g.walls(x0, z1, hx1, hz1, 0, 7.2, accent, win(Style.Punched, fitBay(9, 2.8), 3.6, 0.45));
+  g.gable(x0, z1, hx1, hz1, 7.2, 2.2, false, 0.45, TERRACOTTA, accent);
+
+  const dx = hx1 + 2.8;
+  g.box(dx - 2.2, vz1, dx + 2.2, vz1 + 1.6, 3.4, 3.7, mat(Layer.Plaster2, yellow, 3), NO_WIN, CONCRETE);
+  frontPanel(g, dx, z1, 3.0, 0.5, 3.1, mat(Layer.Concrete, [0.46, 0.5, 0.54], 2), win(Style.Storefront, 1.5, 2.6, 0.5));
+  signBoard(g, dx + 2.5, Math.min(x1 - 0.5, dx + 8.5), vz1, 4.3, 5.25, yellow);
+
+  const cx0 = hx1 + 1.4;
+  const cz0 = vz1 + 2.4;
+  g.flat(cx0, cz0, x1 - 0.4, D / 2 - 2.4, 0.04, ASPHALT);
+  g.flat(cx0 + 0.6, cz0 + 0.6, x1 - 1.0, cz0 + 0.72, 0.05, LINE_WHITE);
+  g.flat(cx0 + 0.6, D / 2 - 3.12, x1 - 1.0, D / 2 - 3.0, 0.05, LINE_WHITE);
+  g.flat(cx0 + 0.6, cz0 + 0.6, cx0 + 0.72, D / 2 - 3.0, 0.05, LINE_WHITE);
+  g.flat(x1 - 1.12, cz0 + 0.6, x1 - 1.0, D / 2 - 3.0, 0.05, LINE_WHITE);
+  g.flat((cx0 + x1 - 0.4) / 2 - 0.06, cz0 + 0.6, (cx0 + x1 - 0.4) / 2 + 0.06, D / 2 - 3.0, 0.05, LINE_WHITE);
+  g.flat(dx - 1.1, vz1 + 1.6, dx + 1.1, D / 2 - 0.3, 0.04, PAVING);
+
+  compoundWall(g, -W / 2 + 0.3, -D / 2 + 0.3, W / 2 - 0.3, D / 2 - 0.3, 1.45, wall, WHITE_TRIM, {
+    cx: dx,
+    w: 4.2,
+    gateMat: IRON_DARK,
+    overhead: true,
+  });
+  g.tree(x0 + 2.0, D / 2 - 2.5, 0.58, 1.2);
+  g.tree(x0 + 6.4, D / 2 - 2.7, 0.52, 3.1);
+  flagpole(g, dx - 3.2, vz1 + 2.0, yellow);
 }
 
 function park(l: Lot): void {
@@ -507,139 +727,379 @@ function townHall(l: Lot): void {
 export const METRO_DECK = 19;
 
 /**
- * A metro station: a glazed ticket hall at street level and an island platform up on the
- * viaduct, under a long canopy, reached by a covered stair. Lines arrive at its centre.
+ * Elevated metro station (modern Indian metro style): sculptural vaulted steel-and-glass
+ * canopy over the viaduct platform, platform screen-door glazing, glowing teal fascia,
+ * glazed concourse with cantilevered entrance canopy, and a covered lift/escalator tower.
  */
 function metroStation(l: Lot): void {
   const { g, W, D } = l;
   ground(l, PAVING);
-  const teal: RGB = [0.05, 0.55, 0.62];
-  const steel = mat(Layer.Metal, [1.25, 1.3, 1.36], 2.2);
-  const deck = mat(Layer.Concrete, [1.32, 1.32, 1.3], 3);
-  const hw = W / 2 - 0.6;
-  const hd = D / 2 - 0.6;
   // Platform slab and the columns that carry it.
+  const teal: RGB = [0.05, 0.58, 0.66];
+  const amber: RGB = [0.95, 0.66, 0.1];
+  const steel = mat(Layer.Metal, [1.3, 1.35, 1.42], 2.2);
+  const glass = mat(Layer.ConcreteWall, [0.42, 0.64, 0.78], 2.6);
+  const deck = mat(Layer.Concrete, [1.34, 1.34, 1.32], 3);
+  const hw = W / 2 - 0.5;
+  const hd = D / 2 - 0.5;
+
   for (const [x, z] of [
-    [-hw + 1, -hd + 1],
-    [hw - 1, -hd + 1],
-    [-hw + 1, hd - 1],
-    [hw - 1, hd - 1],
+    [-hw + 1.2, -hd + 1.2],
+    [hw - 1.2, -hd + 1.2],
+    [-hw + 1.2, hd - 1.2],
+    [hw - 1.2, hd - 1.2],
   ] as const) {
-    g.cyl(x, z, 0.55, 0.55, 0, METRO_DECK - 1.2, 12, CONCRETE);
+    g.cyl(x, z, 0.62, 0.54, 0, METRO_DECK - 2.0, 12, CONCRETE);
+    g.box(x - 0.95, z - 0.95, x + 0.95, z + 0.95, METRO_DECK - 2.0, METRO_DECK - 1.2, WHITE_TRIM);
   }
+
   g.box(-hw, -hd, hw, hd, METRO_DECK - 1.2, METRO_DECK - 0.1, deck);
   // Platform edge strips and benches.
-  g.flat(-hw, -hd, hw, -hd + 0.4, METRO_DECK - 0.08, mat(Layer.Concrete, [2.0, 1.8, 0.4], 3));
-  g.flat(-hw, hd - 0.4, hw, hd, METRO_DECK - 0.08, mat(Layer.Concrete, [2.0, 1.8, 0.4], 3));
   // Canopy on slender posts.
-  for (const x of [-hw + 1.5, 0, hw - 1.5]) {
-    g.cyl(x, -1.6, 0.14, 0.14, METRO_DECK - 0.1, METRO_DECK + 3.6, 8, steel);
-    g.cyl(x, 1.6, 0.14, 0.14, METRO_DECK - 0.1, METRO_DECK + 3.6, 8, steel);
-  }
-  g.box(-hw - 0.4, -hd + 0.2, hw + 0.4, hd - 0.2, METRO_DECK + 3.6, METRO_DECK + 4.0, mat(Layer.Metal, [1.5, 1.52, 1.55], 2.5));
-  g.box(-hw - 0.4, -0.5, hw + 0.4, 0.5, METRO_DECK + 4.0, METRO_DECK + 4.6, mat(Layer.Plaster2, teal, 3), SIGN, CONCRETE_DARK);
-  // Ticket hall at the front, glazed, with the line colour band.
-  const z1 = D / 2 - 0.8;
-  const z0 = z1 - 5;
-  g.walls(-4.5, z0, 4.5, z1, 0, 4.2, mat(Layer.Concrete, [0.6, 0.62, 0.66], 2), win(Style.Storefront, 1.8, 4.2, 0.5));
-  g.box(-4.8, z0 - 0.2, 4.8, z1 + 0.3, 4.2, 4.8, mat(Layer.Plaster2, teal, 3), NO_WIN, CONCRETE_DARK);
-  signBoard(g, -1.2, 1.2, z1 + 0.3, 4.9, 6.6, teal);
-  // Glazed lift and stair tower from the hall up to the platform.
-  const tx0 = 4.4;
-  const tx1 = W / 2 - 0.4;
-  const tz0 = z0 - 4.5;
-  const tz1 = z0 + 0.5;
-  g.walls(tx0, tz0, tx1, tz1, 0, METRO_DECK + 2.8, mat(Layer.Metal, [0.62, 0.85, 1.0], 2.4), win(Style.Curtain, 1.4, 3.2, 0.7));
-  g.box(tx0 - 0.2, tz0 - 0.2, tx1 + 0.2, tz1 + 0.2, METRO_DECK + 2.8, METRO_DECK + 3.3, mat(Layer.Plaster2, teal, 3), NO_WIN, CONCRETE_DARK);
-  g.tree(-W / 2 + 1.6, D / 2 - 1.6, 0.4, 0.3);
-}
+  g.box(-hw - 0.1, -hd - 0.08, hw + 0.1, hd + 0.08, METRO_DECK - 0.6, METRO_DECK - 0.15, mat(Layer.Plaster2, teal, 3), SIGN, null);
+  g.flat(-hw, -hd, hw, -hd + 0.45, METRO_DECK - 0.07, mat(Layer.Concrete, [2.1, 1.85, 0.35], 3));
+  g.flat(-hw, hd - 0.45, hw, hd, METRO_DECK - 0.07, mat(Layer.Concrete, [2.1, 1.85, 0.35], 3));
 
-/** An IT park: three glass office towers on a landscaped podium, with parking and a sign. */
-function itPark(l: Lot): void {
-  const { g, r, W, D } = l;
-  ground(l, PAVING);
-  const glassBlue = mat(Layer.Metal, [0.55, 0.78, 1.05], 2.6);
-  const glassGreen = mat(Layer.Metal, [0.5, 0.95, 0.9], 2.6);
-  const frame = mat(Layer.ConcreteWall, [1.25, 1.27, 1.3], 3);
-  const fh = 3.8;
-  const towers: Array<[number, number, number, number, number, Mat]> = [
-    [-W / 2 + 2, -D / 2 + 2, -W / 2 + 13, -D / 2 + 13, 10 + r.int(3), glassBlue],
-    [W / 2 - 12, -D / 2 + 2, W / 2 - 2, -D / 2 + 11, 7 + r.int(3), glassGreen],
-    [W / 2 - 11, -D / 2 + 13.5, W / 2 - 2, -D / 2 + 21, 5 + r.int(2), glassBlue],
-  ];
-  // Podium joining the towers.
-  g.walls(-W / 2 + 2, -D / 2 + 2, W / 2 - 2, -D / 2 + 9, 0, 5, frame, win(Style.Storefront, 3, 5, 0.5));
-  flatRoof(g, -W / 2 + 2, -D / 2 + 2, W / 2 - 2, -D / 2 + 9, 5, frame, mat(Layer.Grass, [0.55, 0.85, 0.45], 4), 0.9);
-  for (const [x0, z0, x1, z1, floors, m] of towers) {
-    const top = floors * fh;
-    g.walls(x0, z0, x1, z1, 0, top, m, win(Style.Curtain, 1.6, fh, 0.6));
-    flatRoof(g, x0, z0, x1, z1, top, frame);
-    rooftop(l, x0, z0, x1, z1, top, frame);
-    // Crown: a slim fin on top of the tallest.
-    if (floors >= 10) g.box(x1 - 2.2, z0 + 1, x1 - 1, z1 - 1, top, top + 5, frame);
+  g.walls(-hw + 1.2, -hd + 0.5, hw - 1.2, -hd + 0.62, METRO_DECK - 0.1, METRO_DECK + 1.45, glass, win(Style.Curtain, 2.0, 1.5, 0.6));
+  g.walls(-hw + 1.2, hd - 0.62, hw - 1.2, hd - 0.5, METRO_DECK - 0.1, METRO_DECK + 1.45, glass, win(Style.Curtain, 2.0, 1.5, 0.6));
+  for (const bx of [-3.2, 3.2]) g.box(bx - 1.2, -0.4, bx + 1.2, 0.4, METRO_DECK - 0.1, METRO_DECK + 0.45, steel);
+
+  for (const x of [-hw + 1.4, 0, hw - 1.4]) {
+    g.cyl(x, -2.0, 0.16, 0.16, METRO_DECK - 0.1, METRO_DECK + 3.9, 8, steel);
+    g.cyl(x, 2.0, 0.16, 0.16, METRO_DECK - 0.1, METRO_DECK + 3.9, 8, steel);
+    g.box(x - 0.14, -hd - 0.4, x + 0.14, hd + 0.4, METRO_DECK + 3.7, METRO_DECK + 4.1, steel);
   }
-  // Plaza, the sign and parking at the front.
-  g.flat(-W / 2 + 2, -D / 2 + 13.5, W / 2 - 13, D / 2 - 9, 0.04, mat(Layer.Pavement, [1.25, 1.22, 1.15], 3));
-  const sign: RGB = [0.1, 0.45, 0.95];
-  g.box(-W / 2 + 3, D / 2 - 8.6, -W / 2 + 12, D / 2 - 8.2, 0, 2.2, mat(Layer.Plaster2, sign, 3), SIGN, CONCRETE_DARK);
-  parking(g, -W / 2 + 1, D / 2 - 7.5, W / 2 - 1, D / 2 - 1);
-  for (let k = 0; k < 4; k++) g.tree(-W / 2 + 4 + k * 4.5, -D / 2 + 15 + (k % 2) * 3, 0.5 + r.next() * 0.2, k);
+  // Ticket hall at the front, glazed, with the line colour band.
+  const roofMat = mat(Layer.Metal, [1.55, 1.58, 1.62], 2.5);
+  const ry0 = METRO_DECK + 3.8;
+  const ry1 = METRO_DECK + 5.1;
+  const ry2 = METRO_DECK + 5.65;
+  g.poly([[-hw - 0.6, ry0, -hd - 0.5], [hw + 0.6, ry0, -hd - 0.5], [hw + 0.6, ry1, -hd * 0.45], [-hw - 0.6, ry1, -hd * 0.45]], roofMat);
+  g.poly([[-hw - 0.6, ry1, -hd * 0.45], [hw + 0.6, ry1, -hd * 0.45], [hw + 0.6, ry2, 0], [-hw - 0.6, ry2, 0]], glass, win(Style.Curtain, 2.2, 3.0, 0.7));
+  g.poly([[-hw - 0.6, ry2, 0], [hw + 0.6, ry2, 0], [hw + 0.6, ry1, hd * 0.45], [-hw - 0.6, ry1, hd * 0.45]], glass, win(Style.Curtain, 2.2, 3.0, 0.7));
+  g.poly([[-hw - 0.6, ry1, hd * 0.45], [hw + 0.6, ry1, hd * 0.45], [hw + 0.6, ry0, hd + 0.5], [-hw - 0.6, ry0, hd + 0.5]], roofMat);
+  g.box(-hw - 0.3, -0.35, hw + 0.3, 0.35, ry2, ry2 + 0.55, mat(Layer.Plaster2, teal, 3), SIGN, CONCRETE_DARK);
+
+  const z1 = D / 2 - 0.8;
+  // Glazed lift and stair tower from the hall up to the platform.
+  const z0 = z1 - 5.4;
+  g.walls(-4.8, z0, 4.8, z1, 0, 4.4, mat(Layer.ConcreteWall, [0.46, 0.52, 0.58], 2), win(Style.Storefront, 1.6, 4.4, 0.6));
+  g.box(-5.3, z0 - 0.3, 5.3, z1 + 1.4, 4.4, 5.0, mat(Layer.Plaster2, teal, 3), NO_WIN, CONCRETE_DARK);
+  g.box(-5.3, z1 + 1.32, 5.3, z1 + 1.44, 4.42, 4.65, mat(Layer.Plaster2, amber, 3), SIGN);
+  signBoard(g, -2.4, 2.4, z1 + 1.38, 5.05, 6.4, teal);
+  const tx0 = 4.6;
+  const tx1 = W / 2 - 0.4;
+  const tz0 = z0 - 4.6;
+  const tz1 = z0 + 0.6;
+  g.walls(tx0, tz0, tx1, tz1, 0, METRO_DECK + 3.2, glass, win(Style.Curtain, 1.4, 3.2, 0.7));
+  g.box(tx0 - 0.25, tz0 - 0.25, tx1 + 0.25, tz1 + 0.25, METRO_DECK + 3.2, METRO_DECK + 3.8, mat(Layer.Plaster2, teal, 3), NO_WIN, CONCRETE_DARK);
+
+  g.box(-W / 2 + 0.6, D / 2 - 2.4, -5.2, D / 2 - 0.8, 0, 0.42, CONCRETE, NO_WIN, LAWN);
+  g.tree(-W / 2 + 1.6, D / 2 - 1.6, 0.44, 0.3);
 }
 
 /**
- * A university: a stone main hall with a clock tower facing a lawn quad, flanked by two
- * brick teaching wings, with paths and trees.
+ * Flagship Indian IT Park campus: landscaped podium with reflection pool, three stepped
+ * glass towers with sun-louvre fins and a glazed skybridge connecting the main blocks,
+ * glowing corporate monolith sign, security cabin and visitor parking.
+ */
+function itPark(l: Lot): void {
+  const { g, r, W, D } = l;
+  ground(l, PAVING);
+  const glassBlue = mat(Layer.ConcreteWall, [0.34, 0.58, 0.82], 2.6);
+  const glassTeal = mat(Layer.ConcreteWall, [0.28, 0.64, 0.62], 2.6);
+  const frame = mat(Layer.ConcreteWall, [1.28, 1.3, 1.32], 3);
+  const darkFrame = mat(Layer.Metal, [0.46, 0.5, 0.56], 2.5);
+  const signBlue: RGB = [0.08, 0.48, 0.96];
+  const signCyan: RGB = [0.06, 0.72, 0.82];
+  const fh = 3.8;
+
+  const towers: Array<[number, number, number, number, number, Mat]> = [
+    [-W / 2 + 1.8, -D / 2 + 1.8, -W / 2 + 13.4, -D / 2 + 13.4, 11 + r.int(3), glassBlue],
+    [W / 2 - 12.6, -D / 2 + 1.8, W / 2 - 1.8, -D / 2 + 11.4, 8 + r.int(3), glassTeal],
+    [W / 2 - 11.6, -D / 2 + 13.8, W / 2 - 1.8, -D / 2 + 21.6, 5 + r.int(2), glassBlue],
+  ];
+  // Podium joining the towers.
+
+  g.walls(-W / 2 + 1.8, -D / 2 + 1.8, W / 2 - 1.8, -D / 2 + 10.2, 0, 5.2, frame, win(Style.Storefront, 2.8, 5.2, 0.58));
+  flatRoof(g, -W / 2 + 1.8, -D / 2 + 1.8, W / 2 - 1.8, -D / 2 + 10.2, 5.2, frame, LAWN, 0.95);
+
+  for (let idx = 0; idx < towers.length; idx++) {
+    const [x0, z0, x1, z1, floors, m] = towers[idx]!;
+    const top = floors * fh;
+    g.walls(x0, z0, x1, z1, 0, top, m, win(Style.Curtain, 1.65, fh, 0.62));
+    for (const [cx, cz] of [[x0, z0], [x1, z0], [x1, z1], [x0, z1]] as const) {
+      g.box(cx - 0.35, cz - 0.35, cx + 0.35, cz + 0.35, 0, top + 0.9, frame);
+    }
+    const midX = (x0 + x1) * 0.5;
+    g.box(midX - 0.16, z1, midX + 0.16, z1 + 0.45, 5.2, top + 0.9, frame);
+    if (floors >= 8) {
+      const my = Math.floor(floors * 0.5) * fh;
+      g.box(x0 - 0.18, z0 - 0.18, x1 + 0.18, z1 + 0.18, my - 0.18, my + 0.18, darkFrame);
+    }
+    flatRoof(g, x0, z0, x1, z1, top, frame, roofFinish(r), 1.0);
+    rooftop(l, x0, z0, x1, z1, top, frame);
+    // Crown: a slim fin on top of the tallest.
+
+    if (idx === 0) {
+      g.box(x1 - 2.4, z0 + 0.6, x1 - 0.8, z1 - 0.6, top, top + 5.6, frame);
+      g.box(x0 + 0.6, z1 - 0.3, x1 - 0.6, z1 + 0.15, top, top + 2.6, darkFrame);
+      g.box(x0 + 1.4, z1 + 0.15, x1 - 1.4, z1 + 0.32, top + 0.6, top + 2.1, mat(Layer.Plaster2, signCyan, 3), SIGN);
+    } else if (idx === 1) {
+      g.box(x0 + 0.8, z1 - 0.3, x1 - 0.8, z1 + 0.1, top, top + 2.2, frame);
+    }
+  }
+  // Plaza, the sign and parking at the front.
+
+  const sbY = 5 * fh;
+  g.box(-W / 2 + 13.4, -D / 2 + 4.8, W / 2 - 12.6, -D / 2 + 8.6, sbY, sbY + 3.4, glassBlue, win(Style.Curtain, 1.6, 3.4, 0.7), frame);
+
+  g.flat(-W / 2 + 1.8, -D / 2 + 13.8, W / 2 - 13.2, D / 2 - 9.2, 0.04, mat(Layer.Pavement, [1.26, 1.24, 1.18], 3));
+  g.box(-W / 2 + 3.4, -D / 2 + 15.2, -W / 2 + 11.4, -D / 2 + 20.0, 0.04, 0.38, WHITE_TRIM, NO_WIN, mat(Layer.ConcreteWall, [0.16, 0.52, 0.68], 3));
+
+  g.box(-W / 2 + 2.4, D / 2 - 8.7, -W / 2 + 12.2, D / 2 - 8.15, 0, 2.5, darkFrame);
+  g.box(-W / 2 + 2.8, D / 2 - 8.15, -W / 2 + 11.8, D / 2 - 8.0, 0.6, 2.15, mat(Layer.Plaster2, signBlue, 3), SIGN);
+  parking(g, -W / 2 + 1.0, D / 2 - 7.5, W / 2 - 4.2, D / 2 - 1.0);
+  g.walls(W / 2 - 3.6, D / 2 - 4.0, W / 2 - 1.2, D / 2 - 1.6, 0, 2.8, frame, win(Style.Storefront, 2.4, 2.4, 0.55));
+  g.box(W / 2 - 3.8, D / 2 - 4.2, W / 2 - 1.0, D / 2 - 1.4, 2.8, 3.05, darkFrame);
+
+  for (let k = 0; k < 5; k++) g.tree(-W / 2 + 3.5 + k * 3.8, -D / 2 + 14.5 + (k % 2) * 5.2, 0.52 + r.next() * 0.2, k * 1.1);
+}
+
+/**
+ * University / college campus: heritage sandstone main academic hall with colonnaded
+ * portico & clock tower, brick teaching wings with chhajjas, landscaped central quad with
+ * fountain plaza, and an arched campus entrance gate.
  */
 function university(l: Lot): void {
   const { g, r, W, D } = l;
   ground(l, LAWN);
-  const stone = mat(Layer.ConcreteWall, [1.5, 1.42, 1.28], 3);
-  const brick = mat(Layer.Brick, [1.15, 0.92, 0.82], 2);
-  const slate = mat(Layer.Roof2, [0.75, 0.78, 0.85], 3);
+  const stone = mat(Layer.ConcreteWall, [1.48, 1.38, 1.22], 3);
+  const brick = mat(Layer.Brick, [1.26, 0.96, 0.84], 2);
+  const slate = mat(Layer.Roof2, [0.85, 0.68, 0.6], 2.8);
   const copper = mat(Layer.Metal, [0.55, 1.02, 0.86], 2);
-  const fh = 4;
   // Main hall across the back.
-  const hz0 = -D / 2 + 2;
-  const hz1 = hz0 + 10;
-  g.walls(-W / 2 + 5, hz0, W / 2 - 5, hz1, 0, 3 * fh, stone, win(Style.Punched, fitBay(W - 10, 3.2), fh, 0.45));
-  g.gable(-W / 2 + 5, hz0, W / 2 - 5, hz1, 3 * fh, 3.5, true, 0.5, slate, stone);
   // Clock tower in the middle of the hall.
-  g.box(-2.6, hz1 - 3, 2.6, hz1 + 2.2, 0, 22, stone, win(Style.Punched, 2.6, 4, 0.35), null);
-  g.box(-3, hz1 - 3.4, 3, hz1 + 2.6, 22, 23, stone);
-  g.cyl(0, hz1 - 0.4, 2.6, 0.2, 23, 29, 8, copper, null);
-  g.box(-1.1, hz1 + 2.25, 1.1, hz1 + 2.4, 17, 19.2, mat(Layer.Plaster2, [1.9, 1.85, 1.6], 3), SIGN, null);
   // Teaching wings down both sides.
+  const navy: RGB = [0.12, 0.2, 0.5];
+  const fh = 4.0;
+
+  const hz0 = -D / 2 + 2.0;
+  const hz1 = hz0 + 10.2;
+  g.walls(-W / 2 + 4.8, hz0, W / 2 - 4.8, hz1, 0, 0.8, CONCRETE_DARK);
+  g.walls(-W / 2 + 4.8, hz0, W / 2 - 4.8, hz1, 0.8, 0.8 + 3 * fh, stone, win(Style.Punched, fitBay(W - 9.6, 3.1), fh, 0.45));
+  chhajja(g, -W / 2 + 4.8, W / 2 - 4.8, hz1, 0.8 + 0.8 * fh, 0.5, WHITE_TRIM, 'front');
+  chhajja(g, -W / 2 + 4.8, W / 2 - 4.8, hz1, 0.8 + 1.8 * fh, 0.5, WHITE_TRIM, 'front');
+  g.gable(-W / 2 + 4.8, hz0, W / 2 - 4.8, hz1, 0.8 + 3 * fh, 3.6, true, 0.5, slate, stone);
+
+  g.stair(-3.2, hz1 + 2.0, 3.2, hz1 + 3.4, 0, 0.8, 4, CONCRETE);
+  g.box(-2.8, hz1 - 3.0, 2.8, hz1 + 2.2, 0, 23, stone, win(Style.Punched, 2.8, 4, 0.35), null);
+  g.box(-3.2, hz1 - 3.4, 3.2, hz1 + 2.6, 23, 24.2, WHITE_TRIM);
+  g.cyl(0, hz1 - 0.4, 2.7, 0.2, 24.2, 30.5, 8, copper, null);
+  g.box(-1.15, hz1 + 2.25, 1.15, hz1 + 2.42, 17.5, 19.8, mat(Layer.Plaster2, [1.9, 1.85, 1.6], 3), SIGN, null);
+
   for (const side of [-1, 1]) {
-    const x0 = side < 0 ? -W / 2 + 2 : W / 2 - 11;
-    const x1 = x0 + 9;
-    const z0 = hz1 + 2;
-    const z1 = D / 2 - 6;
-    g.walls(x0, z0, x1, z1, 0, 2 * fh, brick, win(Style.Punched, 3, fh, 0.45));
-    g.gable(x0, z0, x1, z1, 2 * fh, 2.6, false, 0.4, slate, brick);
+    const x0 = side < 0 ? -W / 2 + 1.8 : W / 2 - 10.8;
+    const x1 = x0 + 9.0;
+    const z0 = hz1 + 2.2;
+    const z1 = D / 2 - 6.2;
+    g.walls(x0, z0, x1, z1, 0, 0.6, CONCRETE_DARK);
+    g.walls(x0, z0, x1, z1, 0.6, 0.6 + 2 * fh, brick, win(Style.Punched, 3.0, fh, 0.46));
+    chhajja(g, z0 + 0.2, z1 - 0.2, side < 0 ? x1 : x0, 0.6 + 0.8 * fh, 0.46, WHITE_TRIM, side < 0 ? 'right' : 'left');
+    chhajja(g, z0 + 0.2, z1 - 0.2, side < 0 ? x1 : x0, 0.6 + 1.8 * fh, 0.46, WHITE_TRIM, side < 0 ? 'right' : 'left');
+    g.gable(x0, z0, x1, z1, 0.6 + 2 * fh, 2.6, false, 0.45, slate, brick);
   }
   // The quad: crossing paths and trees.
-  const qx0 = -W / 2 + 12;
-  const qx1 = W / 2 - 12;
-  g.flat(-1.2, hz1 + 2, 1.2, D / 2 - 0.5, 0.04, PAVING);
-  g.flat(qx0, (hz1 + D / 2) / 2 - 1, qx1, (hz1 + D / 2) / 2 + 1, 0.04, PAVING);
+
+  const qx0 = -W / 2 + 11.4;
+  const qx1 = W / 2 - 11.4;
+  const qz = (hz1 + D / 2) * 0.5;
+  g.flat(-1.4, hz1 + 2.2, 1.4, D / 2 - 0.4, 0.04, PAVING);
+  g.flat(qx0, qz - 1.1, qx1, qz + 1.1, 0.04, PAVING);
+  g.cyl(0, qz, 3.4, 3.4, 0.04, 0.08, 16, PAVING);
+  g.cyl(0, qz, 2.0, 2.0, 0.08, 0.55, 14, WHITE_TRIM, mat(Layer.ConcreteWall, [0.18, 0.52, 0.66], 3));
+  g.cyl(0, qz, 0.26, 0.16, 0.55, 1.8, 8, WHITE_TRIM);
+
   for (let k = 0; k < 6; k++) {
-    const x = (k % 2 ? qx1 - 3 : qx0 + 3) + (r.next() - 0.5);
-    const z = hz1 + 6 + Math.floor(k / 2) * 7;
-    g.tree(x, z, 0.6 + r.next() * 0.25, k * 1.3);
+    const x = (k % 2 ? qx1 - 2.6 : qx0 + 2.6) + (r.next() - 0.5);
+    const z = hz1 + 5.8 + Math.floor(k / 2) * 7.0;
+    g.tree(x, z, 0.62 + r.next() * 0.25, k * 1.3);
   }
   // Gate with the name.
-  const navy: RGB = [0.12, 0.18, 0.45];
-  g.box(-5, D / 2 - 1.2, -3.6, D / 2 - 0.4, 0, 3.4, stone);
-  g.box(3.6, D / 2 - 1.2, 5, D / 2 - 0.4, 0, 3.4, stone);
-  g.box(-3.6, D / 2 - 1.1, 3.6, D / 2 - 0.5, 2.6, 3.4, mat(Layer.Plaster2, navy, 3), SIGN, stone);
-  flagpole(g, 7, D / 2 - 2, navy);
+
+  compoundWall(g, -W / 2 + 0.4, -D / 2 + 0.4, W / 2 - 0.4, D / 2 - 0.4, 1.6, stone, WHITE_TRIM, {
+    cx: 0,
+    w: 7.4,
+    gateMat: IRON_DARK,
+    overhead: true,
+  });
+  g.box(-3.6, D / 2 - 0.55, 3.6, D / 2 - 0.18, 3.25, 4.15, mat(Layer.Plaster2, navy, 3), SIGN, stone);
+  flagpole(g, 7.2, D / 2 - 2.2, navy);
 }
 
 /**
- * A regional airport, laid out along the long side of its site: a runway with markings and
- * edge lights, a parallel taxiway, an apron with parked aircraft and a cargo shed, and a
- * glass terminal with a control tower facing the road.
+ * Regional shopping mall (10 x 8 cells, ~80 m x 64 m): glazed curved atrium entrance with
+ * barrel-vault skylight, flanking anchor-store blocks with vertical fins and glowing LED
+ * billboards, rooftop food-court terrace, integrated multi-level car park (MLCP) + surface
+ * parking, and a landscaped front fountain plaza with a mall totem sign.
  */
+function shoppingMall(l: Lot): void {
+  const { g, r, W, D } = l;
+  ground(l, PAVING);
+
+  const hw = W / 2;
+  const hd = D / 2;
+  const stone = mat(Layer.ConcreteWall, [1.28, 1.24, 1.16], 3);
+  const warmStone = SANDSTONE;
+  const darkMetal = mat(Layer.Metal, [0.36, 0.4, 0.46], 2.5);
+  const glass = mat(Layer.ConcreteWall, [0.36, 0.58, 0.78], 2.6);
+  const glassWarm = mat(Layer.ConcreteWall, [0.56, 0.48, 0.4], 2.6);
+  const brandA: RGB = [0.92, 0.2, 0.16];
+  const brandB: RGB = [0.1, 0.46, 0.88];
+  const brandC: RGB = [0.96, 0.62, 0.08];
+  const brandD: RGB = [0.64, 0.16, 0.62];
+
+  const mlcpW = Math.min(18, W * 0.24);
+  const mallX0 = -hw + 3.0;
+  const mallX1 = hw - 3.0 - mlcpW - 1.5;
+  const mallW = mallX1 - mallX0;
+  const mallCx = (mallX0 + mallX1) * 0.5;
+
+  const plazaDepth = Math.min(18, D * 0.28);
+  const mallZ1 = hd - plazaDepth;
+  const mallZ0 = -hd + 5.5;
+  const mallD = mallZ1 - mallZ0;
+
+  const mallH = 15.6;
+  const fh = 5.2;
+
+  const atriumW = Math.min(18, mallW * 0.34);
+  const ax0 = mallCx - atriumW * 0.5;
+  const ax1 = mallCx + atriumW * 0.5;
+
+  const wings: Array<[number, number, Mat, RGB, RGB]> = [
+    [mallX0, ax0, stone, brandA, brandC],
+    [ax1, mallX1, warmStone, brandB, brandD],
+  ];
+
+  for (const [wx0, wx1, wMat, sign1, sign2] of wings) {
+    const ww = wx1 - wx0;
+    const wH = mallH + 1.2;
+    const frontStore = win(Style.Storefront, fitBay(ww, 4.4), fh, 0.6);
+    const upperBand = win(Style.Ribbon, fitBay(ww, 3.8), fh, 0.45);
+    g.walls(wx0, mallZ0, wx1, mallZ1, 0, fh, darkMetal, [NO_WIN, frontStore, frontStore, frontStore]);
+    g.walls(wx0, mallZ0, wx1, mallZ1, fh, wH, wMat, [NO_WIN, upperBand, upperBand, upperBand]);
+    g.box(wx0 - 0.25, mallZ1, wx1 + 0.25, mallZ1 + 0.7, fh - 0.2, fh + 0.35, darkMetal);
+    const fins = Math.max(3, Math.round(ww / 3.8));
+    for (let i = 1; i < fins; i++) {
+      const fx = wx0 + (ww * i) / fins;
+      g.box(fx - 0.18, mallZ1, fx + 0.18, mallZ1 + 0.65, fh + 0.35, wH + 0.9, darkMetal);
+    }
+    flatRoof(g, wx0, mallZ0, wx1, mallZ1, wH, wMat, roofFinish(r), 1.1);
+    rooftop(l, wx0, mallZ0, wx1, mallZ1, wH, wMat);
+
+    const bx = (wx0 + wx1) * 0.5;
+    const bw = Math.min(8.5, ww * 0.52);
+    g.box(bx - bw * 0.5, mallZ1 + 0.55, bx + bw * 0.5, mallZ1 + 0.85, fh + 1.6, fh + 5.6, mat(Layer.Plaster2, sign1, 3), SIGN, darkMetal);
+    g.box(bx - bw * 0.42, mallZ1 + 0.55, bx + bw * 0.42, mallZ1 + 0.85, fh + 6.4, fh + 9.2, mat(Layer.Plaster2, sign2, 3), SIGN, darkMetal);
+
+    if (ww > 10) {
+      balcony(g, wx0 + 1.2, wx1 - 1.2, mallZ1, fh + 0.35, 1.8, WHITE_TRIM, IRON_DARK, 'glass', 'front');
+    }
+  }
+
+  const az1 = mallZ1 + 3.2;
+  const atriumH = mallH + 3.2;
+  g.walls(ax0, mallZ0, ax1, az1, 0, atriumH, glass, [
+    NO_WIN,
+    win(Style.Curtain, 2.2, fh, 0.7),
+    win(Style.Curtain, fitBay(atriumW, 2.0), fh, 0.75),
+    win(Style.Curtain, 2.2, fh, 0.7),
+  ]);
+  g.box(ax0 - 0.6, mallZ1 - 0.4, ax0 + 0.4, az1 + 0.4, 0, atriumH + 0.8, darkMetal);
+  g.box(ax1 - 0.4, mallZ1 - 0.4, ax1 + 0.6, az1 + 0.4, 0, atriumH + 0.8, darkMetal);
+  g.box(ax0 - 0.6, az1 - 0.3, ax1 + 0.6, az1 + 0.5, atriumH, atriumH + 1.1, darkMetal);
+
+  const skyY0 = atriumH + 0.6;
+  const skyRise = 3.4;
+  const segs = 6;
+  for (let i = 0; i < segs; i++) {
+    const t0 = (i / segs) * Math.PI;
+    const t1 = ((i + 1) / segs) * Math.PI;
+    const xa = mallCx - Math.cos(t0) * (atriumW * 0.48);
+    const ya = skyY0 + Math.sin(t0) * skyRise;
+    const xb = mallCx - Math.cos(t1) * (atriumW * 0.48);
+    const yb = skyY0 + Math.sin(t1) * skyRise;
+    g.poly(
+      [
+        [xa, ya, mallZ0 + 2],
+        [xb, yb, mallZ0 + 2],
+        [xb, yb, az1],
+        [xa, ya, az1],
+      ],
+      glassWarm,
+      win(Style.Curtain, 2.4, 3.0, 0.65),
+    );
+  }
+  g.box(ax0, mallZ0, ax1, mallZ0 + 2.2, mallH, atriumH + 0.6, stone);
+
+  const canZ1 = az1 + 4.4;
+  g.box(ax0 - 1.4, az1, ax1 + 1.4, canZ1, 5.4, 6.2, darkMetal, NO_WIN, GRAVEL_ROOF);
+  g.box(ax0 - 1.2, canZ1, ax1 + 1.2, canZ1 + 0.25, 5.45, 6.15, mat(Layer.Plaster2, brandC, 3), SIGN);
+  for (const px of [ax0 - 0.9, ax1 + 0.9]) {
+    g.cyl(px, canZ1 - 0.7, 0.36, 0.32, 0, 5.4, 10, WHITE_TRIM);
+  }
+  g.box(mallCx - atriumW * 0.38, az1 + 0.45, mallCx + atriumW * 0.38, az1 + 0.78, atriumH - 2.6, atriumH - 0.3, mat(Layer.Plaster2, brandA, 3), SIGN, darkMetal);
+  g.stair(ax0 + 1.2, az1, ax1 - 1.2, az1 + 1.6, 0, 0.55, 4, CONCRETE);
+
+  const px0 = mallX1 + 1.5;
+  const px1 = hw - 2.0;
+  const pz0 = mallZ0 + 1.0;
+  const pz1 = mallZ1;
+  const decks = 4;
+  const deckH = 3.1;
+  const mlcpTop = decks * deckH;
+
+  for (let d = 1; d <= decks; d++) {
+    const y = d * deckH;
+    g.box(px0, pz0, px1, pz1, y - 0.25, y, CONCRETE);
+    g.walls(px0, pz0, px1, pz1, y, y + 1.05, WHITE_TRIM);
+  }
+  const colRows = Math.max(3, Math.round((pz1 - pz0) / 8));
+  for (let i = 0; i <= colRows; i++) {
+    const cz = pz0 + 0.4 + ((pz1 - pz0 - 0.8) * i) / colRows;
+    g.box(px0 + 0.1, cz - 0.3, px0 + 0.7, cz + 0.3, 0, mlcpTop, CONCRETE_DARK, NO_WIN, null);
+    g.box(px1 - 0.7, cz - 0.3, px1 - 0.1, cz + 0.3, 0, mlcpTop, CONCRETE_DARK, NO_WIN, null);
+  }
+  g.box(px0 - 0.2, pz1 - 4.2, px0 + 3.8, pz1 + 0.3, 0, mlcpTop + 2.8, darkMetal, win(Style.Curtain, 1.8, 3.1, 0.5), GRAVEL_ROOF);
+  g.box(px0 + 0.4, pz1 + 0.3, px0 + 3.2, pz1 + 0.52, mlcpTop - 1.0, mlcpTop + 2.0, mat(Layer.Plaster2, brandB, 3), SIGN);
+  parking(g, px0 + 1.0, pz0 + 1.0, px1 - 1.0, pz1 - 1.0, mlcpTop + 0.04);
+
+  g.flat(-hw + 1.5, hd - 5.2, hw - 1.5, hd - 0.6, 0.04, ASPHALT);
+  g.flat(mallCx - 6.0, canZ1 - 0.5, mallCx + 6.0, hd - 5.0, 0.04, ASPHALT);
+
+  if (ax0 - 2.0 - (-hw + 2.0) > 8) parking(g, -hw + 2.0, mallZ1 + 2.5, ax0 - 2.5, hd - 6.2, 0.04);
+  if (hw - 2.0 - (ax1 + 2.5) > 8) parking(g, ax1 + 2.5, mallZ1 + 2.5, hw - 2.0, hd - 6.2, 0.04);
+
+  const fz = Math.min(hd - 7.0, canZ1 + 3.0);
+  g.cyl(mallCx, fz, 3.2, 3.2, 0.04, 0.55, 16, WHITE_TRIM, mat(Layer.ConcreteWall, [0.16, 0.56, 0.72], 3));
+  g.cyl(mallCx, fz, 0.45, 0.3, 0.55, 1.9, 10, WHITE_TRIM);
+
+  const tx = -hw + 3.2;
+  g.box(tx - 1.1, hd - 2.4, tx + 1.1, hd - 1.6, 0, 10.5, darkMetal);
+  g.box(tx - 1.15, hd - 1.6, tx + 1.15, hd - 1.42, 6.2, 10.2, mat(Layer.Plaster2, brandA, 3), SIGN);
+  g.box(tx - 1.15, hd - 1.6, tx + 1.15, hd - 1.42, 3.6, 5.8, mat(Layer.Plaster2, brandC, 3), SIGN);
+
+  for (let i = 0; i < 6; i++) {
+    const lx = -hw + 6.5 + ((W - 13) * i) / 5;
+    if (Math.abs(lx - mallCx) < 7.0) continue;
+    g.box(lx - 1.2, hd - 6.4, lx + 1.2, hd - 5.2, 0, 0.45, CONCRETE, NO_WIN, LAWN);
+    g.tree(lx, hd - 5.8, 0.56 + r.next() * 0.16, i * 1.1);
+  }
+  for (const sx of [ax0 - 2.0, ax1 + 2.0]) shrub(g, sx, az1 + 1.5, 0.75, [0.9, 0.32, 0.52]);
+  if (mallD > 10) g.flat(-hw + 1.5, -hd + 0.8, hw - 1.5, mallZ0 - 0.6, 0.04, ASPHALT);
+}
+
 function airport(l: Lot): void {
   const { g, W, D } = l;
   ground(l, mat(Layer.Grass, [0.85, 1.0, 0.75], 6));
@@ -735,30 +1195,46 @@ function airport(l: Lot): void {
 }
 
 /**
- * A bus shelter on a paved pad at the kerb: a glazed back wall on steel posts, a
- * cantilevered roof, a bench, a timetable panel and the stop flag.
+ * Modern Indian city bus shelter: sleek sloped steel-and-glass canopy, glowing route/ad
+ * lightbox, slatted seating bench, yellow kerb tactile strip, planter and illuminated flag.
  */
 function busStop(l: Lot): void {
   const { g, W, D } = l;
   ground(l, PAVING);
-  const steel = mat(Layer.Metal, [0.85, 0.9, 0.95], 2.2);
-  const glass = mat(Layer.Metal, [0.55, 0.78, 0.95], 2.4);
-  const red: RGB = [0.75, 0.08, 0.05];
+  const steel = mat(Layer.Metal, [0.46, 0.5, 0.56], 2.2);
+  const roof = mat(Layer.Metal, [1.45, 1.48, 1.52], 2.5);
+  const glass = mat(Layer.ConcreteWall, [0.46, 0.72, 0.9], 2.4);
+  const red: RGB = [0.85, 0.12, 0.08];
+  const amber: RGB = [0.96, 0.68, 0.1];
   const kerb = D / 2;
-  const z0 = kerb - 3.2;
-  const x0 = -W / 2 + 1.2;
-  const x1 = W / 2 - 1.2;
   // Back wall of glass between two posts, and the roof.
-  for (const x of [x0, x1]) g.box(x - 0.08, z0 - 0.08, x + 0.08, z0 + 0.08, 0, 2.6, steel);
-  g.walls(x0, z0 - 0.05, x1, z0 + 0.05, 0.25, 2.3, glass, win(Style.Curtain, 1.4, 2.0, 0.85));
-  g.box(x0 - 0.3, z0 - 0.3, x1 + 0.3, z0 + 1.6, 2.6, 2.75, mat(Layer.Metal, [1.4, 1.42, 1.45], 2.5));
-  g.box(x0 - 0.3, z0 + 1.55, x1 + 0.3, z0 + 1.65, 2.45, 2.75, mat(Layer.Plaster2, red, 3), SIGN, null);
   // Bench and the timetable board.
-  g.box(x0 + 0.6, z0 + 0.25, x1 - 1.3, z0 + 0.7, 0.42, 0.5, mat(Layer.Concrete, [0.9, 0.62, 0.38], 2));
-  g.box(x1 - 0.95, z0 + 0.1, x1 - 0.35, z0 + 0.22, 0.4, 2.1, mat(Layer.Plaster2, [1.6, 1.6, 1.55], 3), SIGN, null);
   // The stop flag at the kerb.
-  g.cyl(x1 + 0.2, kerb - 0.5, 0.05, 0.05, 0, 3.1, 8, steel);
-  g.box(x1 - 0.1, kerb - 0.55, x1 + 0.5, kerb - 0.45, 2.5, 3.0, mat(Layer.Plaster2, red, 3), SIGN, null);
+  const z0 = kerb - 3.3;
+  const x0 = -W / 2 + 1.0;
+  const x1 = W / 2 - 1.0;
+
+  g.flat(-W / 2 + 0.2, kerb - 0.35, W / 2 - 0.2, kerb - 0.1, 0.04, mat(Layer.Concrete, [2.1, 1.75, 0.25], 3));
+
+  for (const x of [x0, (x0 + x1) * 0.5, x1]) g.box(x - 0.08, z0 - 0.08, x + 0.08, z0 + 0.08, 0, 2.75, steel);
+  g.walls(x0, z0 - 0.05, x1, z0 + 0.05, 0.25, 2.45, glass, win(Style.Curtain, 1.4, 2.2, 0.8));
+  g.poly(
+    [
+      [x0 - 0.35, 2.65, z0 - 0.35],
+      [x1 + 0.35, 2.65, z0 - 0.35],
+      [x1 + 0.35, 2.9, z0 + 1.75],
+      [x0 - 0.35, 2.9, z0 + 1.75],
+    ],
+    roof,
+  );
+  g.box(x0 - 0.35, z0 + 1.65, x1 + 0.35, z0 + 1.78, 2.62, 2.95, mat(Layer.Plaster2, red, 3), SIGN, null);
+
+  g.box(x0 + 0.55, z0 + 0.25, x1 - 1.5, z0 + 0.72, 0.44, 0.54, mat(Layer.Metal, [0.75, 0.78, 0.82], 2));
+  g.box(x1 - 1.15, z0 + 0.08, x1 - 0.25, z0 + 0.24, 0.35, 2.25, mat(Layer.Plaster2, [1.65, 1.62, 1.5], 3), SIGN, steel);
+
+  g.cyl(x1 + 0.25, kerb - 0.55, 0.06, 0.05, 0, 3.3, 8, steel);
+  g.box(x1 - 0.12, kerb - 0.62, x1 + 0.62, kerb - 0.48, 2.6, 3.2, mat(Layer.Plaster2, amber, 3), SIGN, null);
+  shrub(g, x0 - 0.4, z0 + 0.4, 0.35);
 }
 
 /** A red cross on a white square plate, standing on a front (+z) face. */
@@ -1109,6 +1585,12 @@ export function facility(l: Lot, kind: number): void {
     case FacilityKind.Clinic:
       clinic(l);
       break;
+    case FacilityKind.Hospital:
+      hospital(l);
+      break;
+    case FacilityKind.SportsGround:
+      sportsGround(l);
+      break;
     case FacilityKind.School:
       school(l);
       break;
@@ -1130,13 +1612,17 @@ export function facility(l: Lot, kind: number): void {
     case FacilityKind.Airport:
       airport(l);
       break;
-    case FacilityKind.Hospital:
-      hospital(l);
+    case FacilityKind.ShoppingMall:
+      shoppingMall(l);
       break;
-    case FacilityKind.SportsGround:
-      sportsGround(l);
+    case FacilityKind.Multiplex:
+      multiplex(l);
+      break;
+    case FacilityKind.MarketStreet:
+      marketStreet(l);
       break;
     default:
       park(l);
   }
 }
+

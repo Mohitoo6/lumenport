@@ -27,6 +27,12 @@ export const enum FacilityKind {
   Hospital = 17,
   /** A cricket ground with stands, a pavilion and floodlights: the city's sports venue. */
   SportsGround = 18,
+  /** Large regional shopping mall with glazed atrium, anchor stores and multi-level parking. */
+  ShoppingMall = 19,
+  /** Standalone multiplex cinema with glowing marquee, poster lightboxes and auditoriums. */
+  Multiplex = 20,
+  /** Indian pedestrian bazaar with arched gates, covered stalls and festive lights. */
+  MarketStreet = 21,
 }
 
 /** Which coverage layer a service facility feeds. */
@@ -48,8 +54,8 @@ export interface FacilitySpec {
   /** Footprint side in cells. */
   size: number;
   /**
-   * For a long facility (the airport): the footprint is `size` by `length` cells, turned
-   * whichever way fits the site and puts more of it along a road.
+   * For a long facility (the airport, the mall, the bazaar): the footprint is `size` by
+   * `length` cells, turned whichever way fits the site and puts more of it along a road.
    */
   length?: number;
   cost: number;
@@ -92,6 +98,9 @@ export const FACILITIES: Record<number, FacilitySpec> = {
   [FacilityKind.BusStop]: { name: 'Bus stop', size: 1, cost: 600, upkeep: 15, power: 0, water: 0, needsShore: false, blurb: 'Two or more on connected roads start a bus line: fewer cars, fare income.', service: Service.Bus, radius: 24, budget: 'transit' },
   [FacilityKind.Airport]: { name: 'Airport', size: 14, length: 34, cost: 65000, upkeep: 900, power: 0, water: 0, needsShore: false, blurb: 'Exports from your industry, visiting tourists and trips for residents. Noisy near the runway.', service: Service.None, radius: 0, jobs: 260, budget: 'transit', landmark: false, maxRelief: 9 },
   [FacilityKind.SportsGround]: { name: 'Cricket ground', size: 12, cost: 18000, upkeep: 420, power: 0, water: 0, needsShore: false, blurb: 'A cricket ground with stands, a pavilion and floodlights: lifts land value and happiness across a whole district, draws crowds and gives 60 jobs.', service: Service.Park, radius: 45, jobs: 60, maxRelief: 8 },
+  [FacilityKind.ShoppingMall]: { name: 'Shopping mall', size: 8, length: 10, cost: 42000, upkeep: 520, power: 0, water: 0, needsShore: false, blurb: 'Regional retail and dining hub: creates hundreds of retail jobs and lifts nearby land value.', service: Service.Park, radius: 34, jobs: 620, budget: 'service', maxRelief: 7 },
+  [FacilityKind.Multiplex]: { name: 'Multiplex cinema', size: 4, cost: 22000, upkeep: 280, power: 0, water: 0, needsShore: false, blurb: 'Multi-screen cinema and dining lounge: lifts happiness, land value and retail jobs.', service: Service.Park, radius: 26, jobs: 140, budget: 'service' },
+  [FacilityKind.MarketStreet]: { name: 'Bazaar street', size: 2, length: 4, cost: 8500, upkeep: 110, power: 0, water: 0, needsShore: false, blurb: 'Lively pedestrian market lane with colourful stalls and evening lights.', service: Service.Park, radius: 22, jobs: 110, budget: 'service' },
   [FacilityKind.Hospital]: { name: 'Hospital', size: 5, length: 6, cost: 24000, upkeep: 950, power: 0, water: 0, needsShore: false, blurb: 'A large multi-speciality hospital: health cover for a whole district, an emergency wing and jobs for doctors and nurses.', service: Service.Health, radius: 80, jobs: 220 },
   [FacilityKind.TownHall]: { name: 'Town Hall', size: 4, cost: 0, upkeep: 0, power: 0, water: 0, needsShore: false, blurb: 'Seat of the city council. A civic square that lifts the land around it.', service: Service.Park, radius: 22, landmark: true },
 };
@@ -103,7 +112,7 @@ export function isLandmark(kind: number): boolean {
 export const POWER_FACILITIES = [FacilityKind.CoalPlant, FacilityKind.WindTurbine, FacilityKind.SolarFarm] as const;
 export const WATER_FACILITIES = [FacilityKind.WaterTower, FacilityKind.WaterPump] as const;
 export const SERVICE_FACILITIES = [FacilityKind.Police, FacilityKind.FireStation, FacilityKind.Clinic, FacilityKind.Hospital, FacilityKind.School, FacilityKind.Park, FacilityKind.SportsGround] as const;
-export const CAMPUS_FACILITIES = [FacilityKind.ItPark, FacilityKind.University] as const;
+export const CAMPUS_FACILITIES = [FacilityKind.ItPark, FacilityKind.University, FacilityKind.ShoppingMall, FacilityKind.Multiplex, FacilityKind.MarketStreet] as const;
 export const TRANSIT_FACILITIES = [FacilityKind.BusStop, FacilityKind.MetroStation, FacilityKind.Airport] as const;
 
 export interface FacilityPlan {

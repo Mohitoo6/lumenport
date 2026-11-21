@@ -702,7 +702,7 @@ function Toolbar(): JSX.Element {
         <ToolButton active={tool === 'place' && isService} label="Services" onClick={() => (tool === 'place' && isService ? actions.selectTool('none') : actions.setFacility(SERVICE_FACILITIES[0]))}>
           <IconShield size={18} />
         </ToolButton>
-        <ToolButton active={tool === 'place' && isCampus} label="Campus" onClick={() => (tool === 'place' && isCampus ? actions.selectTool('none') : actions.setFacility(CAMPUS_FACILITIES[0]))}>
+        <ToolButton active={tool === 'place' && isCampus} label="Business" onClick={() => (tool === 'place' && isCampus ? actions.selectTool('none') : actions.setFacility(CAMPUS_FACILITIES[0]))}>
           <IconCampus size={18} />
         </ToolButton>
         <ToolButton active={isMetro} label="Transit" onClick={() => (isMetro ? actions.selectTool('none') : actions.setFacility(TRANSIT_FACILITIES[0]))}>

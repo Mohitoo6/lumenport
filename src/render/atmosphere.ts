@@ -71,7 +71,7 @@ const SUN_TILT = (58 * Math.PI) / 180;
 const CLEAR_FOG = 0.00016;
 /** The sky with no season applied: an equinox day, clear and dry. Scripted runs use it. */
 const PLAIN_SKY: Sky = { sunrise: 6, sunset: 18, sunHeight: SUN_TILT, overcast: 0, rain: 0, mist: 0, haze: 0, wet: 0, foliage: [1, 1, 1] };
-const DAY_INTENSITY = 0.55;
+const DAY_INTENSITY = 0.58;
 
 function lum(c: Color): number {
   return c.r * 0.2126 + c.g * 0.7152 + c.b * 0.0722;
@@ -115,7 +115,7 @@ export class Atmosphere {
 
   /** Time of day in hours, 0..24. */
   hour = 14.5;
-  sunIntensity = 5.2;
+  sunIntensity = 5.6;
 
   private readonly keys = new Map<HdriRole, SkyKey>();
   private readonly dome: Mesh;
@@ -176,9 +176,9 @@ export class Atmosphere {
           // Never sample below the horizon: the HDRI ground is hidden by haze anyway.
           vec3 c = skyColor(normalize(vec3(d.x, max(d.y, 0.004), d.z)));
           // Keep the sun disc bright enough to bloom without blowing the whole frame out.
-          c = min(c, vec3(22.0));
           // Haze toward the horizon so distant fogged terrain meets the sky without a seam.
-          float haze = smoothstep(0.085, -0.004, d.y);
+          c = min(c, vec3(20.0));
+          float haze = smoothstep(0.09, -0.004, d.y);
           c = mix(c, uFogColor, haze * haze);
           gl_FragColor = vec4(c, 1.0);
         }
@@ -246,7 +246,7 @@ export class Atmosphere {
       const z = Math.max(lum(key.zenith), 1e-4);
       // Bring each sky to a level that suits a fixed exposure: bright by day, a dim glow
       // at dusk, and just enough at night to read silhouettes.
-      key.intensity = role === 'day' ? DAY_INTENSITY : role === 'golden' ? Math.min(2.5, Math.max(0.3, 0.36 / z)) : Math.min(200, 0.05 / z);
+      key.intensity = role === 'day' ? DAY_INTENSITY : role === 'golden' ? Math.min(2.6, Math.max(0.34, 0.42 / z)) : Math.min(200, 0.06 / z);
       key.azimuth = Math.atan2(key.sunDir.z, key.sunDir.x);
       this.keys.set(role, key);
     });
@@ -276,21 +276,22 @@ export class Atmosphere {
     this.sunDir.set(Math.cos(a), Math.sin(a) * Math.sin(sky.sunHeight), Math.sin(a) * Math.cos(sky.sunHeight)).normalize();
     const y = this.sunDir.y;
     const azimuth = Math.atan2(this.sunDir.z, this.sunDir.x);
-    this.uniforms.uNight.value = smooth(0.1, -0.1, y);
+    const nightVal = smooth(0.11, -0.09, y);
+    this.uniforms.uNight.value = nightVal;
 
-    // Which two skies, and how far between them.
+    // Wider, warmer golden-hour window before transitioning into night.
     let ka = day;
     let kb = golden;
     let blend = 0;
     if (y < -0.14) {
       ka = night;
       kb = night;
-    } else if (y < 0.06) {
+    } else if (y < 0.07) {
       ka = golden;
       kb = night;
-      blend = 1 - (y + 0.14) / 0.2;
-    } else if (y < 0.3) {
-      blend = 1 - (y - 0.06) / 0.24;
+      blend = 1 - (y + 0.14) / 0.21;
+    } else if (y < 0.34) {
+      blend = 1 - (y - 0.07) / 0.27;
     }
     const rot = (k: SkyKey): number => (k === night ? 0 : (k.azimuth - azimuth) / (Math.PI * 2));
     for (const mat of [this.domeMat, this.envMat]) {
@@ -305,7 +306,7 @@ export class Atmosphere {
       u.uOvercast!.value = sky.overcast;
     }
 
-    // Direct light: the sun while it is up, then the moon.
+    // Direct light: warm Indian sunlight by day, clean indigo moonlight by night.
     const light = this.sun;
     if (y > -0.06) {
       this.lightDir.copy(this.sunDir);
@@ -314,28 +315,31 @@ export class Atmosphere {
         this.lightDir.y = 0.07;
         this.lightDir.normalize();
       }
-      const warm = smooth(0.02, 0.3, y);
-      light.color.setRGB(1.0, 0.55 + 0.39 * warm, 0.3 + 0.54 * warm);
+      const warm = smooth(0.02, 0.32, y);
+      light.color.setRGB(1.0, 0.56 + 0.38 * warm, 0.28 + 0.56 * warm);
       light.intensity = this.sunIntensity * smooth(-0.04, 0.15, y);
     } else {
       this.lightDir.set(-this.sunDir.x, Math.max(0.5, -this.sunDir.y), -this.sunDir.z).normalize();
-      light.color.setRGB(0.45, 0.6, 1.0);
-      light.intensity = 1.5 * smooth(-0.05, -0.12, y);
+      light.color.setRGB(0.42, 0.56, 0.96);
+      light.intensity = 1.3 * smooth(-0.05, -0.12, y);
     }
     // Cloud and mist take the edge off the light and cool its colour.
     const veil = Math.min(0.85, sky.overcast * 0.8 + sky.mist * 0.35);
     light.intensity *= 1 - veil;
     // Under cloud the light from the sky itself falls too.
-    this.scene.environmentIntensity = 1 - 0.42 * sky.overcast;
+    this.scene.environmentIntensity = 1.04 - 0.42 * sky.overcast;
     light.color.lerp(this.tmpA.setRGB(0.82, 0.88, 1.0), sky.overcast * 0.75);
 
-    // Fog: the blended horizon colour, pulled slightly toward the upper sky.
+    // Fog: blended horizon colour with a subtle warm urban horizon glow at night.
     const fogOf = (k: SkyKey, out: Color): Color => out.copy(k.horizon).lerp(k.zenith, 0.12).multiplyScalar(k.intensity * 1.45);
     this.fog.color.copy(fogOf(ka, this.tmpA)).lerp(fogOf(kb, this.tmpB), blend);
-    this.fog.color.r *= 0.94;
-    this.fog.color.b *= 1.07;
-    // Weather in the air. Cloud greys the distance, mist whitens and thickens it, summer
-    // dust warms it, rain closes it in.
+    this.fog.color.r *= 0.96;
+    this.fog.color.b *= 1.05;
+    // Soft warm-indigo night skyglow so distant towers read as clean silhouettes.
+    this.fog.color.r += 0.012 * nightVal;
+    this.fog.color.g += 0.011 * nightVal;
+    this.fog.color.b += 0.018 * nightVal;
+
     const fl = lum(this.fog.color);
     this.fog.color.lerp(this.tmpA.setScalar(fl * 0.95), sky.overcast * 0.7);
     this.fog.color.lerp(this.tmpA.setRGB(fl * 1.2 + 0.02, fl * 1.24 + 0.02, fl * 1.3 + 0.02), sky.mist * 0.65);
@@ -343,12 +347,14 @@ export class Atmosphere {
     this.fog.color.b *= 1 - 0.14 * sky.haze;
     this.fog.density = CLEAR_FOG * (1 + sky.haze * 2.6 + sky.mist * 9 + sky.rain * 3.2);
 
-    // The lower half of the environment is light bounced off the lit ground, not sky. It
-    // lights walls that face away from the sun. Neutral grey: a greener bounce tints every
-    // shaded wall and window olive.
+    // Ground bounce: warm neutral by day, faint warm city-street bounce at night.
     const skyLum = lum(ka.zenith) * ka.intensity * (1 - blend) + lum(kb.zenith) * kb.intensity * blend;
     const bounce = (light.intensity * Math.max(this.lightDir.y, 0) + Math.PI * skyLum) / Math.PI;
-    (this.envMat.uniforms.uGround!.value as Color).setRGB(0.16 * bounce, 0.158 * bounce, 0.138 * bounce);
+    (this.envMat.uniforms.uGround!.value as Color).setRGB(
+      0.175 * bounce + 0.014 * nightVal,
+      0.165 * bounce + 0.01 * nightVal,
+      0.142 * bounce + 0.006 * nightVal,
+    );
 
     // Re-filtering the environment costs a few milliseconds: only do it when the sky has
     // visibly moved on, and not more than a couple of times a second.
@@ -459,3 +465,4 @@ function analyseSky(texture: DataTexture): SkyKey {
   zenith.multiplyScalar(1 / Math.max(1, zenithN));
   return { texture, sunDir: sun, horizon, zenith, intensity: 1, azimuth: 0 };
 }
+

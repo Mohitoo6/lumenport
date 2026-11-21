@@ -16,10 +16,12 @@ const VERT_PARS = /* glsl */ `
   varying vec4 vB;
   varying vec2 vTexUv;
   varying vec2 vWorldXZ;
+  varying float vUpNor;
 `;
 
 const VERT_MAIN = /* glsl */ `
   vWorldXZ = position.xz;
+  vUpNor = normal.y;
   vTint = aTint;
   vA = aA;
   vB = aB;
@@ -37,6 +39,7 @@ const FRAG_PARS = /* glsl */ `
   uniform sampler2D uOverlayTex;
   uniform float uOverlayAlpha;
   varying vec2 vWorldXZ;
+  varying float vUpNor;
   varying vec3 vTint;
   varying vec4 vA;
   varying vec4 vB;
@@ -81,10 +84,10 @@ const FRAG_MAP = /* glsl */ `
 
   float cStyle = vB.z;
   if (cStyle > 5.5) {
-    // Sign panel: flat colour by day, glowing by night.
-    cAlb = vTint * 0.85;
-    cRough = 0.45;
-    cEmissive = vTint * uNight * 1.8;
+    // Sign panel: rich colour by day, crisp warm-boosted glow by night (catches subtle bloom).
+    cAlb = vTint * 0.88;
+    cRough = 0.42;
+    cEmissive = vTint * uNight * 2.15;
   } else if (cStyle > 0.5) {
     vec2 cSize = vB.xy;
     vec2 cCell = vA.xy / cSize;
@@ -95,7 +98,7 @@ const FRAG_MAP = /* glsl */ `
     // Window opening inside the bay, as fractions of the bay.
     vec2 cLo;
     vec2 cHi;
-    float cMullX = 1.0; // panes across
+    float cMullX = 1.0;
     float cMullY = 1.0;
     if (cStyle < 1.5) {
       float w = vB.w;
@@ -145,9 +148,9 @@ const FRAG_MAP = /* glsl */ `
     // Spandrel panel under curtain-wall glazing: an opaque band in the glass colour.
     if (cStyle > 2.5 && cStyle < 3.5) {
       float cSp = 1.0 - smoothstep(cLo.y * cSize.y - cAa, cLo.y * cSize.y + cAa, cPm.y);
-      cAlb = mix(cAlb, vTint * 0.32, cSp);
-      cRough = mix(cRough, 0.35, cSp);
-      cMetal = mix(cMetal, 0.5, cSp);
+      cAlb = mix(cAlb, vTint * 0.34, cSp);
+      cRough = mix(cRough, 0.32, cSp);
+      cMetal = mix(cMetal, 0.55, cSp);
     }
 
     // Frames: pale on houses and shops, dark anodised metal on offices.
@@ -158,24 +161,45 @@ const FRAG_MAP = /* glsl */ `
     float cRecess = cWin * (1.0 - smoothstep(0.0, 0.16, cHi.y * cSize.y - cPm.y)) * cDetail;
 
     // Glass: a tinted mirror for the sky, with some windows showing blinds instead.
-    vec3 cTintGlass = cStyle > 2.5 && cStyle < 3.5 ? vTint : vec3(0.36, 0.4, 0.44);
     // Some windows have a blind pulled part of the way down.
+    vec3 cTintGlass = cStyle > 2.5 && cStyle < 3.5 ? vTint : vec3(0.36, 0.42, 0.48);
     float cDrop = 0.2 + 0.7 * fract(cRnd * 7.31);
     float cBlind = step(0.62, cRnd) * step(1.0 - cDrop, cPane.y) * (cStyle < 2.5 ? 1.0 : 0.3);
-    vec3 cGlassCol = mix(cTintGlass * (0.8 + 0.3 * cRnd), vec3(0.5, 0.48, 0.43), cBlind);
+    vec3 cGlassCol = mix(cTintGlass * (0.82 + 0.3 * cRnd), vec3(0.52, 0.49, 0.43), cBlind);
     cGlassCol *= 1.0 - 0.45 * cRecess;
     cAlb = mix(cAlb, cGlassCol, cGlass);
-    cRough = mix(cRough, mix(0.07, 0.7, cBlind), cGlass);
-    cMetal = mix(cMetal, mix(0.92, 0.0, cBlind), cGlass);
+    cRough = mix(cRough, mix(0.06, 0.7, cBlind), cGlass);
+    cMetal = mix(cMetal, mix(0.94, 0.0, cBlind), cGlass);
 
-    // Night: a share of the windows are lit, each in a slightly different warm white.
-    float cLitShare = cStyle > 3.5 && cStyle < 4.5 ? 0.85 : mix(0.22, 0.6, cHash(vec2(vA.w * 91.0, 3.0)));
+    // Night: warmer amber/tungsten window light with interior depth gradient and varied colour temperature.
+    bool isShop = cStyle > 3.5 && cStyle < 4.5;
+    bool isOffice = cStyle > 1.5 && cStyle < 3.5;
+    float cLitShare = isShop ? 0.88 : mix(0.28, 0.64, cHash(vec2(vA.w * 91.0, 3.0)));
     float cLit = step(1.0 - cLitShare * uNight, cHash(cWinId * 1.37 + vA.w * 311.0));
-    vec3 cLamp = mix(vec3(1.0, 0.74, 0.42), vec3(0.82, 0.9, 1.0), step(0.82, cHash(cWinId + 7.0 + vA.w * 53.0)));
-    cEmissive = cLamp * cLit * cGlass * uNight * (0.7 + 1.1 * cRnd);
-    // A lit room hides the reflection.
+    float cTemp = cHash(cWinId + 7.0 + vA.w * 53.0);
+    vec3 cWarmA = vec3(1.0, 0.68, 0.30);
+    vec3 cWarmB = vec3(1.0, 0.82, 0.50);
+    vec3 cCool = vec3(0.84, 0.92, 1.0);
+    vec3 cLamp = isShop
+      ? mix(cWarmA, cWarmB, cTemp)
+      : mix(mix(cWarmA, cWarmB, cTemp), cCool, step(isOffice ? 0.62 : 0.86, cTemp));
+    // Subtle top-to-bottom room-light gradient so lit panes feel dimensional instead of flat.
+    float cRoomGrad = mix(0.76, 1.24, clamp(cPane.y, 0.0, 1.0));
+    float cBoost = isShop ? 1.75 : 1.15;
+    cEmissive = cLamp * cLit * cGlass * uNight * cBoost * cRoomGrad * (0.65 + 0.95 * cRnd);
+
+    // Warm street-level spill onto shopfront piers/lintels at night.
+    if (isShop) {
+      cEmissive += vec3(1.0, 0.68, 0.30) * (1.0 - cGlass) * uNight * 0.16;
+    }
+    // A lit room hides the sky reflection.
     cMetal *= 1.0 - cLit * uNight * 0.85;
+  } else if (uNight > 0.01 && abs(vUpNor) < 0.5) {
+    // Subtle warm street-level bounce on lower non-windowed masonry (plinths, compound walls, portico columns).
+    float cLow = 1.0 - smoothstep(0.0, 4.2, vA.y);
+    cEmissive += cAlb * vec3(0.16, 0.10, 0.04) * cLow * uNight;
   }
+
   // Data view: buildings go grey and take the colour of the cell they stand on.
   if (uOverlayAlpha > 0.0) {
     vec4 cOv = texture2D(uOverlayTex, vWorldXZ / 2048.0);
@@ -204,7 +228,7 @@ const FRAG_NORMAL = /* glsl */ `
     // Seen from above, a vertical pane mirrors the street. Leaning the normal skyward makes
     // it reflect the low sky instead, which is what gives glass its daytime sparkle.
     vec3 cUp = (viewMatrix * vec4(0.0, 1.0, 0.0, 0.0)).xyz;
-    vec3 cFlat = normalize(normal + cUp * 0.4 + cTbn[0] * cTilt.x + cTbn[1] * cTilt.y);
+    vec3 cFlat = normalize(normal + cUp * 0.42 + cTbn[0] * cTilt.x + cTbn[1] * cTilt.y);
     normal = normalize(mix(cBumped, cFlat, cGlass));
   }
 `;
@@ -241,6 +265,7 @@ export function createCityMaterial(
       .replace('#include <normal_fragment_maps>', FRAG_NORMAL)
       .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\ntotalEmissiveRadiance += cEmissive;');
   };
-  m.customProgramCacheKey = () => 'city-v7';
+  m.customProgramCacheKey = () => 'city-v8';
   return m;
 }
+
