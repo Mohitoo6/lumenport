@@ -15,6 +15,7 @@ import {
   Style,
   WHITE_TRIM,
   TAR_ROOF,
+  TERRACOTTA,
   WOOD,
   acUnit,
   chhajja,
@@ -922,6 +923,166 @@ function hospital(l: Lot): void {
   }
 }
 
+/** A flat ring on the ground (a painted line or a mowing band), as quads. */
+function ring(g: Geo, cx: number, cz: number, r0: number, r1: number, y: number, m: Mat, n = 56): void {
+  for (let i = 0; i < n; i++) {
+    const a0 = (i / n) * Math.PI * 2;
+    const a1 = ((i + 1) / n) * Math.PI * 2;
+    g.poly(
+      [
+        [cx + Math.cos(a0) * r0, y, cz + Math.sin(a0) * r0],
+        [cx + Math.cos(a0) * r1, y, cz + Math.sin(a0) * r1],
+        [cx + Math.cos(a1) * r1, y, cz + Math.sin(a1) * r1],
+        [cx + Math.cos(a1) * r0, y, cz + Math.sin(a1) * r0],
+      ],
+      m,
+    );
+  }
+}
+
+/** Stepped seating: `tiers` rows rising away from the field edge `edge`, toward `back`. */
+function stand(g: Geo, along0: number, along1: number, edge: number, back: number, alongX: boolean, tiers: number, seats: readonly Mat[]): void {
+  const dir = Math.sign(back - edge);
+  const step = Math.abs(back - edge) / tiers;
+  for (let k = 0; k < tiers; k++) {
+    const front = edge + dir * step * k;
+    const y = 0.75 * (k + 1);
+    const top = seats[k % seats.length]!;
+    const [z0, z1] = dir > 0 ? [front, back] : [back, front];
+    if (alongX) g.box(along0, z0, along1, z1, 0, y, CONCRETE_DARK, NO_WIN, top);
+    else g.box(z0, along0, z1, along1, 0, y, CONCRETE_DARK, NO_WIN, top);
+  }
+}
+
+/**
+ * A cricket ground on a 96 m lot: a mown oval with the pitch and its creases in the
+ * middle, the 30-yard circle and the boundary rope, advertising boards that light up at
+ * night, stands on three sides (the back one roofed, with the scoreboard), a two-storey
+ * pavilion facing the field from the road side, sight screens behind both ends of the
+ * pitch, four floodlight towers, and a gated compound with parking.
+ */
+function sportsGround(l: Lot): void {
+  const { g, r, W, D } = l;
+  const hw = W / 2;
+  const hd = D / 2;
+  // The field sits a little back from the road, leaving the front for the pavilion.
+  const cz = -4;
+  const R = Math.min(hw, hd) - 12;
+  const grassA = mat(Layer.Grass, [0.74, 1.1, 0.52], 5);
+  const grassB = mat(Layer.Grass, [0.6, 0.94, 0.44], 5);
+  const pitch = mat(Layer.Dirt, [1.3, 1.14, 0.86], 2.5);
+  const roof = mat(Layer.Metal, [1.25, 1.27, 1.3], 2);
+  const lamp = mat(Layer.Plaster2, [2.6, 2.55, 2.3], 1);
+  const team = pick(r, [
+    [0.3, 0.5, 1.15],
+    [1.2, 0.55, 0.25],
+    [0.35, 0.85, 0.55],
+    [1.05, 0.85, 0.3],
+  ] as const satisfies readonly RGB[]);
+  const seatA = mat(Layer.Concrete, team, 2);
+  const seatB = mat(Layer.Concrete, [1.25, 1.25, 1.22], 2);
+
+  // Concourse, then the field in mowing rings, darker and lighter in turn.
+  ground(l, mat(Layer.Pavement, [1.08, 1.05, 0.98], 3));
+  g.cyl(0, cz, R + 3, R + 3, 0, 0.04, 56, grassB);
+  for (let k = 0; k < 7; k++) {
+    const rr = R + 1.5 - k * 5;
+    if (rr < 3) break;
+    g.cyl(0, cz, rr, rr, 0.04 + k * 0.004, 0.044 + k * 0.004, 56, k % 2 ? grassB : grassA, k % 2 ? grassB : grassA);
+  }
+  const top = 0.08;
+  ring(g, 0, cz, R, R + 0.35, top, LINE_WHITE); // boundary rope
+  ring(g, 0, cz, 20.4, 20.6, top, LINE_WHITE, 40); // 30-yard circle
+
+  // The pitch runs toward the road; creases and stumps at both ends.
+  g.flat(-1.6, cz - 11, 1.6, cz + 11, top + 0.004, pitch);
+  for (const s of [-1, 1]) {
+    const zc = cz + s * 10.06;
+    g.flat(-1.32, zc - 0.03, 1.32, zc + 0.03, top + 0.008, LINE_WHITE);
+    g.flat(-1.32, zc - s * 1.25 - 0.03, 1.32, zc - s * 1.25 + 0.03, top + 0.008, LINE_WHITE);
+    for (const x of [-0.11, 0, 0.11]) g.cyl(x, zc, 0.02, 0.02, top, top + 0.71, 4, WHITE_TRIM);
+  }
+
+  // Advertising boards just inside the rope, lit at night, leaving gaps at the sight screens.
+  const boards = [
+    [1.25, 0.32, 0.25],
+    [0.25, 0.45, 1.25],
+    [1.3, 1.05, 0.25],
+    [0.3, 1.0, 0.5],
+    [1.2, 0.3, 0.8],
+  ] as const;
+  const n = 40;
+  for (let i = 0; i < n; i++) {
+    const a0 = ((i + 0.08) / n) * Math.PI * 2;
+    const a1 = ((i + 0.92) / n) * Math.PI * 2;
+    if (Math.abs(Math.sin((a0 + a1) / 2)) > 0.97) continue;
+    const rb = R - 0.6;
+    const x0 = Math.cos(a0) * rb;
+    const z0 = cz + Math.sin(a0) * rb;
+    const x1 = Math.cos(a1) * rb;
+    const z1 = cz + Math.sin(a1) * rb;
+    const m = mat(Layer.Plaster2, boards[i % boards.length]!, 1);
+    g.wall(x0, z0, x1, z1, 0, 0.9, m, SIGN);
+    g.wall(x1, z1, x0, z0, 0, 0.9, CONCRETE_DARK);
+  }
+
+  // Sight screens behind each end of the pitch.
+  g.box(-5.5, cz - R - 1.2, 5.5, cz - R - 0.8, 0, 6, WHITE, NO_WIN, WHITE);
+  g.box(-5.5, cz + R + 0.8, 5.5, cz + R + 1.2, 0, 5, WHITE, NO_WIN, WHITE);
+
+  // Stands: back (roofed, with the scoreboard) and both sides.
+  const backEdge = cz - R - 2;
+  const backWall = -hd + 1.4;
+  stand(g, -R + 4, -7, backEdge, backWall, true, 4, [seatA, seatB, seatA, seatB]);
+  stand(g, 7, R - 4, backEdge, backWall, true, 4, [seatA, seatB, seatA, seatB]);
+  for (const s of [-1, 1]) {
+    const roofY = 6.8;
+    for (const x of [-R + 4, -7, 7, R - 4]) g.cyl(x, backWall + 0.3, 0.14, 0.14, 0, roofY, 6, METAL_GREY);
+    g.box(s < 0 ? -R + 3.5 : 6.5, backWall - 0.3, s < 0 ? -6.5 : R - 3.5, backEdge + 0.8, roofY, roofY + 0.25, roof);
+  }
+  for (const s of [-1, 1]) stand(g, cz - R + 8, cz + R - 12, s * (R + 2), s * (hw - 1.4), false, 3, [seatB, seatA, seatB]);
+  // Scoreboard over the gap in the back stand.
+  g.box(-6, backWall, 6, backWall + 1.2, 0, 4, CONCRETE_DARK);
+  g.box(-6.5, backWall + 0.2, 6.5, backWall + 1.0, 4, 10, mat(Layer.Concrete, [0.2, 0.22, 0.26], 1), SIGN, CONCRETE_DARK);
+
+  // The pavilion: two storeys facing the field, a balcony, a tiled hip roof, a lit name.
+  const pz0 = cz + R + 3;
+  const pz1 = Math.min(hd - 3.5, pz0 + 9);
+  const px = 13;
+  const cream = mat(Layer.Plaster2, [1.36, 1.27, 1.08], 3);
+  const ribbon = win(Style.Ribbon, fitBay(px * 2, 3), 3.6, 0.6);
+  g.box(-px, pz0, px, pz1, 0, 7.4, cream, ribbon, TAR_ROOF);
+  g.hip(-px - 0.6, pz0 - 0.6, px + 0.6, pz1 + 0.6, 7.4, 2.4, 0.4, TERRACOTTA);
+  // Members' balcony on the field side.
+  g.box(-px + 1, pz0 - 2.2, px - 1, pz0, 3.5, 3.75, CONCRETE);
+  g.railing(-px + 1, pz0 - 2.1, px - 1, pz0 - 2.1, 3.75, 4.75, GLASS_RAIL, 2, 0.05, false);
+  chhajja(g, -px + 0.5, px - 0.5, pz0, 6.9, 1.2, WHITE_TRIM, 'back');
+  for (const x of [-px + 1.2, -px / 3, px / 3, px - 1.2]) g.cyl(x, pz0 - 2, 0.16, 0.16, 0, 3.5, 8, WHITE_TRIM);
+  // Name board over the road entrance.
+  g.box(-8, pz1, 8, pz1 + 0.3, 5.2, 6.6, mat(Layer.Plaster2, team, 1), SIGN);
+  g.box(-3, pz1, 3, pz1 + 2.2, 0, 3.4, CONCRETE, NO_WIN, CONCRETE);
+
+  // Floodlight towers in the four corners, their lamp banks lit at night.
+  for (const [x, z] of [
+    [-hw + 3.5, -hd + 3.5],
+    [hw - 3.5, -hd + 3.5],
+    [-hw + 3.5, hd - 6],
+    [hw - 3.5, hd - 6],
+  ] as const) {
+    g.cyl(x, z, 0.45, 0.28, 0, 30, 8, METAL_GREY);
+    g.box(x - 2.4, z - 0.35, x + 2.4, z + 0.35, 29.5, 32.6, lamp, SIGN, METAL_GREY);
+  }
+
+  // Compound wall with a gate, parking either side of the pavilion, trees by the wall.
+  compoundWall(g, -hw + 0.4, -hd + 0.4, hw - 0.4, hd - 0.4, 2.0, cream, WHITE_TRIM, { cx: px + 6, w: 7, overhead: true });
+  parking(g, px + 2, pz0 + 1, hw - 7, hd - 1.5);
+  parking(g, -hw + 7, pz0 + 1, -px - 2, hd - 1.5);
+  for (const s of [-1, 1]) {
+    g.tree(s * (hw - 4), cz + R - 4, r.range(0.55, 0.75), r.next() * 6);
+    g.tree(s * (hw - 4.5), cz - 4, r.range(0.55, 0.75), r.next() * 6);
+  }
+}
+
 export function facility(l: Lot, kind: number): void {
   switch (kind) {
     case FacilityKind.CoalPlant:
@@ -971,6 +1132,9 @@ export function facility(l: Lot, kind: number): void {
       break;
     case FacilityKind.Hospital:
       hospital(l);
+      break;
+    case FacilityKind.SportsGround:
+      sportsGround(l);
       break;
     default:
       park(l);

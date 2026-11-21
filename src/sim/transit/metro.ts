@@ -100,7 +100,7 @@ export interface MetroPlan {
 }
 
 /** Facilities with parts taller than the deck. */
-const TALL = new Set<number>([FacilityKind.CoalPlant, FacilityKind.WindTurbine, FacilityKind.WaterTower, FacilityKind.TownHall, FacilityKind.ItPark, FacilityKind.University, FacilityKind.Hospital]);
+const TALL = new Set<number>([FacilityKind.CoalPlant, FacilityKind.WindTurbine, FacilityKind.WaterTower, FacilityKind.TownHall, FacilityKind.ItPark, FacilityKind.University, FacilityKind.Hospital, FacilityKind.SportsGround]);
 
 /** What the viaduct may not pass over: towers and tall facilities. Everything else is lower than the deck. */
 function blocks(b: Building): boolean {

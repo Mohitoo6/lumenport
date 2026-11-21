@@ -47,6 +47,8 @@ function footfall(b: Building, stations: Set<number>, stops: Set<number>): numbe
       return 2.5;
     case FacilityKind.Hospital:
       return 10;
+    case FacilityKind.SportsGround:
+      return 9;
     case FacilityKind.Clinic:
     case FacilityKind.TownHall:
       return 2;

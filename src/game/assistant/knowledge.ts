@@ -68,7 +68,7 @@ export function manualSections(): ManualSection[] {
     },
     {
       id: 'utilities',
-      about: /power|electric|water|plant|coal|wind|solar|tower|pump|clinic|hospital|school|police|fire|park|service|facilit|pollut|crime|happi|bijli|paani|pani|बिजली|पानी|स्कूल|अस्पताल|पुलिस|प्रदूषण|खुश/i,
+      about: /power|electric|water|plant|coal|wind|solar|tower|pump|clinic|hospital|school|police|fire|park|sport|cricket|stadium|ground|khel|service|facilit|pollut|crime|happi|खेल|क्रिकेट|स्टेडियम|bijli|paani|pani|बिजली|पानी|स्कूल|अस्पताल|पुलिस|प्रदूषण|खुश/i,
       text: `Utilities and services (place with the Power, Water and Services menus; every facility needs a road in front, except the town hall)
 ${facilities}
 - Coal is cheap power but pollutes; wind and solar are clean but small. Pollution, crime and missing services lower happiness and land value.`,

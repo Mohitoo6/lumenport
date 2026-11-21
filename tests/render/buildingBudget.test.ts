@@ -55,3 +55,23 @@ describe('the hospital', () => {
     }
   });
 });
+
+describe('the cricket ground', () => {
+  it('fits its budget facing any way, stays in its lot and is the same every time for one seed', () => {
+    for (const facing of [Facing.North, Facing.East, Facing.South, Facing.West]) {
+      for (let s = 0; s < 6; s++) {
+        const b: Building = { id: 1, kind: FacilityKind.SportsGround, zone: 0, x: 20, y: 20, w: 12, h: 12, facing, level: 1, progress: 1, seed: 31 + s * 7919, baseY: 0, pop: 0, flags: 0 };
+        const g = generateBuilding(b);
+        const tris = g.idx.length / 3;
+        expect(tris).toBeLessThan(9000);
+        if (s === 0 && facing === Facing.South) console.log(`cricket ground: ${tris} triangles`);
+        expect(generateBuilding(b).pos).toEqual(g.pos);
+        const c = (20 + 6) * 8;
+        for (let i = 0; i < g.pos.length; i += 3) {
+          expect(Math.abs(g.pos[i]! - c)).toBeLessThanOrEqual(48.01);
+          expect(Math.abs(g.pos[i + 2]! - c)).toBeLessThanOrEqual(48.01);
+        }
+      }
+    }
+  });
+});

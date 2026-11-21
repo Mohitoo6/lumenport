@@ -20,7 +20,7 @@ road for homes, shops and industry. Watch the demand bars, keep the budget in th
 going on: power, water, traffic, pollution, crime, land value, happiness and coverage.
 
 The goal card at the top left leads the way: sixteen goals from the first street to a
-Metropolis of 10,000, each paying a city grant (none in sandbox). An empty treasury is not
+Metropolis of 10,000, each paying a city grant (none in sandbox). Services include a hospital and a cricket ground (stands, pavilion, floodlights). An empty treasury is not
 a free pass: while the funds are below zero, services are underfunded and residents are
 unhappier until the books are fixed.
 
