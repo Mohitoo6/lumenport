@@ -54,7 +54,8 @@ export function cityAlerts(sim: Sim): string[] {
   const utilitiesOk = st.powerSupply > 0 && st.waterSupply > 0 && st.powerDemand <= st.powerSupply && st.waterDemand <= st.waterSupply;
   if (utilitiesOk) for (const t of stalledZones(sim)) out.push(STALL_REASON[t]!);
   const net = projectBudget(s.buildings, s.roads, s.tax, s.loans, st, emptyReport(), s.policies, s.metro).net;
-  if (net < 0 && s.funds < 15000 && st.population > 0) out.push('The city is losing money');
+  if (s.funds < 0) out.unshift('The treasury is empty: services are underfunded and residents are unhappy. Raise taxes or cut costs');
+  else if (net < 0 && s.funds < 15000 && st.population > 0) out.push('The city is losing money');
   return out;
 }
 

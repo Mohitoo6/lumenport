@@ -1,5 +1,6 @@
 import { render, type JSX } from 'preact';
-import { useState } from 'preact/hooks';
+import { useEffect, useState } from 'preact/hooks';
+import { aiStatus } from '../game/council/llm';
 import { LOAN_TIERS, loanPayment } from '../sim/economy/budget';
 import { OVERLAYS } from '../render/overlays/dataOverlay';
 import { CitizenFeed, CouncilChamber, IssuesMenu, MinisterRequestCard } from './council/Council';
@@ -500,6 +501,7 @@ const HELP: Array<[string[], string]> = [
   [['B'], 'Budget'],
   [['V'], 'Data views'],
   [['M'], 'Menu, save and load'],
+  [['I'], 'AI inspector'],
 ];
 
 function Help(): JSX.Element {
@@ -720,6 +722,68 @@ function DevOverlay(): JSX.Element | null {
   return <pre class="panel dev">{ui.devText.value}</pre>;
 }
 
+const WELCOME_KEY = 'metropolis.welcome.v1';
+
+function seenWelcome(): boolean {
+  try {
+    return localStorage.getItem(WELCOME_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+/** First visit only: what the game is, what the AI does, and where to start. */
+function Welcome(): JSX.Element | null {
+  const [open, setOpen] = useState(() => !document.body.classList.contains('shots') && !seenWelcome());
+  const [ai, setAi] = useState<boolean | null>(null);
+  useEffect(() => {
+    if (open) void aiStatus().then((s) => setAi(s.ready));
+  }, [open]);
+  if (!open || ui.loading.value !== null) return null;
+  const close = (): void => {
+    try {
+      localStorage.setItem(WELCOME_KEY, '1');
+    } catch {
+      /* private window: show it again next time */
+    }
+    setOpen(false);
+  };
+  return (
+    <div class="welcome-backdrop" role="dialog" aria-modal="true" aria-labelledby="welcome-title">
+      <div class="panel welcome">
+        <div class="welcome-kicker">A city builder with an AI council</div>
+        <h1 id="welcome-title">Metropolis</h1>
+        <ul class="welcome-points">
+          <li>
+            <strong>Build.</strong> Lay a street, zone homes, shops and industry, and keep power, water and services ahead of the people moving in. The goal card at the top left shows the next step.
+          </li>
+          <li>
+            <strong>Govern.</strong> When something goes wrong, call the <em>Council</em>: ministers argue from your city's real numbers, code checks every figure and rule, and you make the call.
+          </li>
+          <li>
+            <strong>Ask.</strong> Stuck? The assistant answers from your city's live data, in English or Hindi.
+          </li>
+        </ul>
+        <div class="welcome-keys">
+          <kbd>W</kbd>
+          <kbd>A</kbd>
+          <kbd>S</kbd>
+          <kbd>D</kbd> move · <kbd>Q</kbd>
+          <kbd>E</kbd> rotate · scroll to zoom · <kbd>M</kbd> menu and saves
+        </div>
+        <div class="welcome-foot">
+          <span class={`welcome-ai ${ai ? 'on' : 'off'}`}>
+            {ai === null ? 'Checking the AI…' : ai ? 'AI connected: ministers speak through a language model.' : 'Offline AI: ministers use built-in rule-based agents, at no cost.'}
+          </span>
+          <button type="button" class="welcome-go" onClick={close}>
+            Start building
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function Loading(): JSX.Element {
   const msg = ui.loading.value;
   return (
@@ -760,6 +824,7 @@ function Hud(): JSX.Element {
       <CouncilChamber />
       <DevOverlay />
       <Loading />
+      <Welcome />
     </>
   );
 }

@@ -75,3 +75,18 @@ describe('goals', () => {
     expect(currentGoal(sim.state)?.id).toBe('street');
   });
 });
+
+describe('an empty treasury', () => {
+  it('costs happiness while the funds are below zero, and the HUD says why', async () => {
+    const { EMPTY_TREASURY_MOOD } = await import('../../src/sim/sim');
+    const { cityAlerts } = await import('../../src/game/assistant/situation');
+    const sim = Sim.create(13);
+    sim.apply({ type: 'buildRoad', road: RoadType.Street, ax: 400, az: 400, bx: 880, bz: 400 });
+    sim.refreshFields();
+    const fine = sim.state.stats.happiness;
+    sim.state.funds = -500;
+    sim.refreshFields();
+    expect(fine - sim.state.stats.happiness).toBeCloseTo(EMPTY_TREASURY_MOOD, 5);
+    expect(cityAlerts(sim)[0]).toMatch(/treasury is empty/);
+  });
+});

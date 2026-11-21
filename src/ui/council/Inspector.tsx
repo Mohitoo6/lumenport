@@ -4,6 +4,7 @@ import type { StateDelta } from '../../game/council/effects';
 import { NODE_INFO, type GraphNode } from '../../game/council/graph';
 import type { Finding } from '../../game/council/guardrails';
 import { CHIEF_SECRETARY, MINISTER_BY_ID } from '../../game/council/ministries';
+import { EVAL_CARD } from '../../game/council/evalCard';
 import { BUDGET } from '../../game/council/session';
 import type { AgentSpan, CouncilTrace } from '../../game/council/telemetry';
 import { actions, ui } from '../store';
@@ -382,6 +383,36 @@ function Lifetime(): JSX.Element {
   );
 }
 
+/** The latest zero-token evaluation: how the pipeline scores on towns with known faults. */
+function Evaluation(): JSX.Element {
+  return (
+    <div class="ins-eval">
+      {EVAL_CARD.rows.map((r) => {
+        const share = r.of ? r.ok / r.of : 0;
+        // Findings about LLM judges are measurements, not pass marks for this game.
+        const tone = r.finding ? 'info' : share >= 0.95 ? 'good' : share >= 0.75 ? 'warn' : 'bad';
+        return (
+          <div class="ins-eval-row" key={r.label} title={r.how}>
+            <div class="ins-eval-head">
+              <span>{r.label}</span>
+              <span class={`ins-eval-score ${tone}`}>
+                {r.ok}/{r.of}
+              </span>
+            </div>
+            <div class="ins-eval-bar">
+              <span class={tone} style={{ width: `${Math.round(share * 100)}%` }} />
+            </div>
+            <div class="ins-eval-how">{r.how}</div>
+          </div>
+        );
+      })}
+      <p class="ins-muted">
+        Run {EVAL_CARD.date} with {EVAL_CARD.network} network calls: plain code on the live pipeline and on model output already paid for. Full report in docs/EVALUATION.md; rerun with <code>npm run eval:offline</code>.
+      </p>
+    </div>
+  );
+}
+
 /** The assistant's recent questions: the second model feature, on the same instruments. */
 function AssistantCalls(): JSX.Element {
   const calls = ui.assistantCalls.value;
@@ -525,6 +556,9 @@ export function Inspector(): JSX.Element | null {
         </Section>
         <Section title="All meetings" note="kept across reloads">
           <Lifetime />
+        </Section>
+        <Section title="Evaluation" note="zero tokens, every change">
+          <Evaluation />
         </Section>
       </div>
     </aside>

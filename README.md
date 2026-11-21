@@ -7,7 +7,8 @@ npm install
 npm run dev        # http://localhost:5173
 ```
 
-Other commands: `npm test` (simulation tests), `npm run check` (type check),
+Other commands: `npm test` (simulation, AI and render tests), `npm run check` (type check),
+`npm run eval:offline` (evaluates the AI with no model calls; writes `docs/EVALUATION.md`),
 `npm run shots` (Playwright screenshots into `screenshots/`), `npm run assets` (re-download
 CC0 textures and skies).
 
@@ -17,6 +18,11 @@ Lay a street, place a power plant and a water tower beside it, then zone land al
 road for homes, shops and industry. Watch the demand bars, keep the budget in the black
 (B), and add services and parks to raise happiness. The Views menu (V) shows what is
 going on: power, water, traffic, pollution, crime, land value, happiness and coverage.
+
+The goal card at the top left leads the way: sixteen goals from the first street to a
+Metropolis of 10,000, each paying a city grant (none in sandbox). An empty treasury is not
+a free pass: while the funds are below zero, services are underfunded and residents are
+unhappier until the books are fixed.
 
 ## Controls
 
@@ -46,18 +52,18 @@ the stops.
 
 ## Seasons
 
-The year follows the six Indian seasons, two months each. Summer heat raises power and
-water demand, the monsoon brings rain that slows traffic, winter mornings are foggy. Days
-are long in summer and short in winter, and grass and leaves change colour. The weather
-chip in the top bar says what the season is doing to the city.
+The calendar is the ordinary one (a new city starts in March 2030); the weather follows
+India's climate. Summer heat in May and June raises power and water demand, the monsoon in
+July and August brings rain that slows traffic, and January and February mornings are
+foggy. Days are long in summer and short in winter, and grass and leaves change colour.
+The weather chip in the top bar says what the season is doing to the city.
 
 ## Time
 
 The city has one clock. A game hour takes a real minute at normal speed; the budget settles
 on the hour, so every income and upkeep figure is per hour. Twenty-four hours make a day,
-with rush hours at about 9:00 and 18:00, and the sun follows the same clock. The calendar is
-the Indian one: each day stands for a month (Chaitra, Vaishakha, ...), and two months make a
-season.
+with rush hours at about 9:00 and 18:00, and the sun follows the same clock. Each day stands
+for a month, so a year passes in twelve game days.
 
 ## AI city council
 
@@ -106,7 +112,7 @@ flowchart LR
 | Mayor | You approve, overrule or defer. An instruction you type first ("under $5,000, no demolition") is parsed into rules the council cannot break. |
 | Execute | The option runs as one transaction and the city is compared with what the option card promised. |
 
-A meeting is capped at 8 model calls (typically 4 or 5). Press **I** in the chamber, or open
+A meeting is capped at 8 model calls (typically 4 or 5). Press **I** (anywhere), or open
 Council > AI inspector, to watch it: the pipeline state, each agent's prompt and JSON,
 latency, token counts, schema results and guardrail findings. Past decisions are
 remembered per city, together with whether they fixed the problem, and shown to the
@@ -116,6 +122,32 @@ model only the parts of the manual a question touches.
 `docs/GENAI_GUIDE.md` explains the design, the trade-offs and the numbers in full.
 `npm test` covers all of it without calling a model; `REAL_COUNCIL=1 npx vitest run
 tests/game/zz-real.test.ts` holds one real meeting and prints its telemetry.
+
+### Evaluation at zero tokens
+
+`npm run eval:offline` evaluates the AI layer in about ten seconds with the network
+switched off: towns built with one known fault each (is it detected and given to the right
+ministry?), every option executed on a fork and compared field by field with the payload
+the agents were shown, whole meetings with no model, thirteen planted faults (invented
+figures, prompt injection in the mayor's note, unaffordable or forbidden recommendations,
+broken JSON), the instruction parser in English, Hindi and Hinglish, and a calibration of
+the code checks against an LLM judge on 92 real statements from an earlier paid run. The
+report is [docs/EVALUATION.md](docs/EVALUATION.md); the headline scores also appear in the
+AI inspector.
+
+## Hosting
+
+`npm run build` produces a static site in `dist/` (about 75 MB, mostly textures and skies).
+On any static host the game is complete and the council runs with its offline ministers.
+
+For live AI, deploy to Vercel (`vercel.json` and the functions in `api/` are ready) and set
+the provider variables from `.env.example` in the project's environment settings. The
+hosted endpoint is always guarded: per-visitor and per-day call limits
+(`LLM_CALLS_PER_VISITOR`, default 30 per ten minutes; `LLM_CALLS_PER_DAY`, default 500),
+a prompt-size limit and an output-token cap, so a public page cannot drain a free tier.
+The counters live in memory per warm instance, so the true ceiling is a small multiple of
+those numbers; a shared store would make it exact. Visitors over a limit get the offline
+council, not an error.
 
 ## Project docs
 

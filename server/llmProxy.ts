@@ -1,5 +1,6 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { Plugin } from 'vite';
+import { Guard, limitsFrom } from './guard';
 
 /**
  * A small server-side endpoint for the AI council. The browser posts a prompt to
@@ -242,19 +243,40 @@ function readBody(req: IncomingMessage, limit: number): Promise<string> {
   });
 }
 
-export function llmProxy(env: Record<string, string | undefined>): Plugin {
+/**
+ * The endpoint itself, shared by the dev server and a hosted function. `guard` is null on
+ * a laptop; hosted (LLM_PUBLIC=1, or any serverless host) every call passes through it.
+ */
+export function llmHandler(env: Record<string, string | undefined>, opts: { public?: boolean } = {}) {
   const providers = readProviders(env);
-  const handler = async (req: IncomingMessage, res: ServerResponse, next: () => void): Promise<void> => {
-    const url = req.url ?? '';
+  const guard = opts.public || env.LLM_PUBLIC === '1' ? new Guard(limitsFrom(env)) : null;
+  return async (req: IncomingMessage & { body?: unknown }, res: ServerResponse, next?: () => void): Promise<void> => {
+    const url = (req.url ?? '').split('?')[0];
     if (url === '/api/llm/status' && req.method === 'GET') {
-      send(res, 200, { ready: providers.length > 0, providers: providers.map((p) => `${p.name} · ${p.model}`), health: providerHealth(providers) });
+      send(res, 200, { ready: providers.length > 0, providers: providers.map((p) => `${p.name} · ${p.model}`), health: providerHealth(providers), limited: guard !== null });
       return;
     }
-    if (url !== '/api/llm') return next();
+    if (url !== '/api/llm') {
+      if (next) next();
+      else send(res, 404, { error: 'Not found' });
+      return;
+    }
     if (req.method !== 'POST') return send(res, 405, { error: 'POST only' });
     try {
-      const body = JSON.parse(await readBody(req, 256_000)) as CompleteRequest;
+      // Serverless hosts may have parsed the body already.
+      const raw = req.body !== undefined ? (typeof req.body === 'string' ? req.body : JSON.stringify(req.body)) : await readBody(req, 256_000);
+      const body = JSON.parse(raw) as CompleteRequest;
       if (typeof body.system !== 'string' || typeof body.user !== 'string') return send(res, 400, { error: 'system and user are required' });
+      if (guard) {
+        const fwd = req.headers['x-forwarded-for'];
+        const visitor = (Array.isArray(fwd) ? fwd[0] : fwd)?.split(',')[0]?.trim() || req.socket?.remoteAddress || 'unknown';
+        const v = guard.check(visitor, body.system.length + body.user.length);
+        if (!v.ok) {
+          if (v.retryAfterS) res.setHeader('Retry-After', String(v.retryAfterS));
+          return send(res, v.status, { error: v.error, rateLimited: v.status === 429 });
+        }
+        body.maxTokens = Math.min(body.maxTokens ?? guard.limits.maxOutputTokens, guard.limits.maxOutputTokens);
+      }
       const out = await complete(providers, body);
       if ('error' in out) send(res, out.rateLimited ? 429 : 502, out);
       else send(res, 200, out);
@@ -262,6 +284,10 @@ export function llmProxy(env: Record<string, string | undefined>): Plugin {
       send(res, 400, { error: err instanceof Error ? err.message : 'Bad request' });
     }
   };
+}
+
+export function llmProxy(env: Record<string, string | undefined>): Plugin {
+  const handler = llmHandler(env);
   return {
     name: 'metropolis-llm-proxy',
     configureServer(server) {

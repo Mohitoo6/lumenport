@@ -63,6 +63,9 @@ export type SimEvents = {
  * The simulation. Pure TypeScript: no DOM, no three.js (enforced by tsconfig.sim.json).
  * State changes only through `apply` (player commands) and `tick` (time).
  */
+/** Happiness lost (0..1 scale) while the treasury is below zero. */
+export const EMPTY_TREASURY_MOOD = 0.15;
+
 export class Sim {
   readonly events = new Emitter<SimEvents>();
   state: GameState;
@@ -168,7 +171,9 @@ export class Sim {
     for (const id of servedStops(this.busLines)) live.add(id);
     const mood = this.fields.update(s.buildings, s.roads, s.roadCell, s.heights, this.traffic.density, s.tax, unemployment, st.congestion, live);
     // The season colours the mood a little: festivals lift it, heat and cold wear on it.
-    st.happiness = Math.max(0, Math.min(1, mood + this.weather.mood));
+    // An empty treasury means unpaid staff and patchy services: residents notice.
+    const broke = !s.sandbox && s.funds < 0 ? EMPTY_TREASURY_MOOD : 0;
+    st.happiness = Math.max(0, Math.min(1, mood + this.weather.mood - broke));
     // Residents within reach of a connected station ride instead of driving.
     // A resident near both takes the metro; the bus picks up some of the rest.
     const transit = this.fields.coverage[6]!;

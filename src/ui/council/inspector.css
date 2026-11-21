@@ -686,3 +686,74 @@ p.ins-fallback {
 .ins-head-side .ins-link {
   padding-top: 2px;
 }
+
+/* The zero-token evaluation scorecard. */
+.ins-eval {
+  display: grid;
+  gap: 9px;
+}
+
+.ins-eval-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 12px;
+}
+
+.ins-eval-score {
+  font-family: var(--mono);
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+.ins-eval-score.good {
+  color: #7ee2a8;
+}
+
+.ins-eval-score.warn {
+  color: #ffc46b;
+}
+
+.ins-eval-score.bad {
+  color: #ff8a7a;
+}
+
+.ins-eval-bar {
+  height: 4px;
+  margin-top: 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.ins-eval-bar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+}
+
+.ins-eval-bar .good {
+  background: #4fc983;
+}
+
+.ins-eval-bar .warn {
+  background: #f0a83c;
+}
+
+.ins-eval-bar .bad {
+  background: #e5604f;
+}
+
+.ins-eval-how {
+  margin-top: 3px;
+  font-size: 10.5px;
+  color: var(--muted);
+}
+
+.ins-eval-score.info {
+  color: #8ec5ff;
+}
+
+.ins-eval-bar .info {
+  background: #5a9be0;
+}

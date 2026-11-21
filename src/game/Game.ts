@@ -468,6 +468,9 @@ export class Game {
       case 'KeyB':
         ui.showBudget.value = !ui.showBudget.value;
         break;
+      case 'KeyI':
+        actions.toggleInspector();
+        break;
       case 'Backquote':
         ui.showDev.value = !ui.showDev.value;
         break;
