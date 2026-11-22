@@ -6,7 +6,7 @@ import { CHIEF_SECRETARY, MINISTER_BY_ID, MINISTERS, type MinistryId } from '../
 import type { Lang, Stance } from '../../game/council/prompts';
 import { actions, ui, type CouncilMessage, type CouncilOptionView, type CouncilView, type SeatState } from '../store';
 import { Inspector } from './Inspector';
-import { Portrait } from './Portrait';
+import { LivePortrait, Portrait } from './Portrait';
 import './council.css';
 import './chamber.css';
 
@@ -403,6 +403,9 @@ function Brief(props: { v: CouncilView }): JSX.Element {
 // ---------------------------------------------------------------------------------------
 // Debate: the speaker's caption
 
+/** Typing takes this share of a statement's speaking time; the rest is a pause after it. */
+const TYPING = 0.82;
+
 /** The statement being delivered, typed out at the pace it is spoken. */
 function Subtitle(props: { v: CouncilView }): JSX.Element | null {
   const sp = props.v.speaking;
@@ -414,7 +417,7 @@ function Subtitle(props: { v: CouncilView }): JSX.Element | null {
     const total = m.text.length;
     setShown(0);
     const id = window.setInterval(() => {
-      const k = Math.min(1, (performance.now() - start) / 1000 / (sp.seconds * 0.82));
+      const k = Math.min(1, (performance.now() - start) / 1000 / (sp.seconds * TYPING));
       setShown(Math.ceil(total * k));
       if (k >= 1) window.clearInterval(id);
     }, 40);
@@ -426,7 +429,7 @@ function Subtitle(props: { v: CouncilView }): JSX.Element | null {
   return (
     <div class="subtitle panel" style={{ '--c': p.color }} key={sp.key}>
       <span class="subtitle-ring">
-        <Portrait looks={p.looks} color={p.color} size={48} />
+        <LivePortrait looks={p.looks} color={p.color} size={84} title={p.name} text={m.text} seconds={sp.seconds * TYPING} stance={m.stance ?? 'neutral'} />
       </span>
       <div class="subtitle-body">
         <div class="msg-head">
