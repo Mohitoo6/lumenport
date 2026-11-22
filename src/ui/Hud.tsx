@@ -1,6 +1,8 @@
 import { render, type JSX } from 'preact';
 import { useEffect, useState } from 'preact/hooks';
 import { aiStatus } from '../game/council/llm';
+import { AiKeyPanel } from './AiKeyPanel';
+import { AccountPanel, ResumeCard } from './AccountPanel';
 import { LOAN_TIERS, loanPayment } from '../sim/economy/budget';
 import { OVERLAYS } from '../render/overlays/dataOverlay';
 import { CitizenFeed, CouncilChamber, IssuesMenu, MinisterRequestCard } from './council/Council';
@@ -332,8 +334,10 @@ function Menu(): JSX.Element | null {
         </button>
       </div>
 
+      <AccountPanel />
+
       <section>
-        <h3 class="label">Saved cities</h3>
+        <h3 class="label">{ui.account.value.email ? 'Saved in this browser' : 'Saved cities'}</h3>
         {SLOTS.map(([id, name]) => {
           const meta = saved.find((m) => m.slot === id);
           return (
@@ -384,6 +388,8 @@ function Menu(): JSX.Element | null {
         </div>
         <p class="muted menu-note">{QUALITY_NOTE[ui.quality.value]}</p>
       </section>
+
+      <AiKeyPanel />
 
       <section>
         <h3 class="label">Scroll (trackpad or wheel)</h3>
@@ -850,6 +856,7 @@ function Hud(): JSX.Element {
       <DevOverlay />
       <Loading />
       <Welcome />
+      {city && <ResumeCard />}
     </>
   );
 }

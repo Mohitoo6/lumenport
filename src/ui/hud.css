@@ -1325,3 +1325,81 @@ kbd {
     opacity: 0;
   }
 }
+
+/* Menu > AI: the player's own key. */
+.field select {
+  width: 170px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  border: 1px solid var(--hairline);
+  background: rgba(0, 0, 0, 0.3);
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+}
+
+.menu .field + .field {
+  margin-top: 7px;
+}
+
+.menu .field input[type='password'],
+.menu .field input[type='text'] {
+  width: 170px;
+}
+
+.ai-key-lead {
+  margin: 0 0 9px;
+}
+
+.ai-key-row {
+  margin-top: 9px;
+}
+
+.ai-key-now {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+}
+
+.ai-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--muted);
+}
+
+.ai-dot.on {
+  background: #4fc983;
+}
+
+/* Accounts. */
+.account-lead {
+  margin: 0 0 9px;
+}
+
+.menu .field input[type='email'] {
+  width: 190px;
+}
+
+.account-out {
+  margin-left: auto;
+}
+
+.resume-card {
+  position: absolute;
+  top: 92px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(360px, calc(100% - 32px));
+  padding: 16px 18px;
+  border: 1px solid rgba(255, 180, 84, 0.45);
+  z-index: 40;
+}
+
+.resume-title {
+  margin: 4px 0 2px;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+}

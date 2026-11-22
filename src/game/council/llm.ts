@@ -1,4 +1,5 @@
 import type { Constraint } from './constraints';
+import { loadOwnKey, ownKeyField } from '../aiKey';
 import type { FiscalLimits } from './effects';
 import type { MinistryId } from './ministries';
 import type { CouncilOption } from './options';
@@ -84,7 +85,7 @@ export class HttpTransport implements Transport {
     const res = await fetch('/api/llm', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ system: req.system, user: req.user, maxTokens: req.maxTokens, json: true, schema: req.schema, schemaName: req.schemaName }),
+      body: JSON.stringify({ system: req.system, user: req.user, maxTokens: req.maxTokens, json: true, schema: req.schema, schemaName: req.schemaName, ...ownKeyField() }),
       signal,
     });
     const data = (await res.json().catch(() => ({}))) as { text?: string; provider?: string; error?: string; usage?: LlmUsage; latencyMs?: number; finish?: string; rateLimited?: boolean };
@@ -107,6 +108,9 @@ export interface AiStatus {
 
 /** Whether the server has any AI provider configured, and which are resting after a rate limit. */
 export async function aiStatus(): Promise<AiStatus> {
+  // A player's own key makes the AI available whatever the shared keys are doing.
+  const own = loadOwnKey();
+  if (own) return { ready: true, providers: [`Your key · ${own.model}`], health: [] };
   try {
     const res = await fetch('/api/llm/status');
     if (!res.ok) return { ready: false, providers: [], health: [] };

@@ -1,6 +1,7 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { Plugin } from 'vite';
 import { Guard, limitsFrom } from './guard';
+import { ALLOWED_HOSTS } from '../src/game/aiKey';
 
 /**
  * A small server-side endpoint for the AI council. The browser posts a prompt to
@@ -243,6 +244,21 @@ function readBody(req: IncomingMessage, limit: number): Promise<string> {
   });
 }
 
+/** Checks a player's own provider settings; only known provider hosts are allowed. */
+export function ownProvider(o: { baseUrl?: unknown; model?: unknown; apiKey?: unknown }): Provider | { error: string } {
+  if (typeof o.baseUrl !== 'string' || typeof o.model !== 'string' || typeof o.apiKey !== 'string' || !o.apiKey.trim() || !o.model.trim()) return { error: 'Your AI key settings are incomplete' };
+  let host = '';
+  try {
+    const u = new URL(o.baseUrl);
+    if (u.protocol !== 'https:') return { error: 'Your AI provider must use https' };
+    host = u.host;
+  } catch {
+    return { error: 'Your AI provider address is not a URL' };
+  }
+  if (!ALLOWED_HOSTS.includes(host)) return { error: `The game does not forward keys to ${host}` };
+  return { name: 'Your key', baseUrl: o.baseUrl.replace(/\/+$/, ''), model: o.model.trim().slice(0, 120), apiKey: o.apiKey.trim() };
+}
+
 /**
  * The endpoint itself, shared by the dev server and a hosted function. `guard` is null on
  * a laptop; hosted (LLM_PUBLIC=1, or any serverless host) every call passes through it.
@@ -265,19 +281,23 @@ export function llmHandler(env: Record<string, string | undefined>, opts: { publ
     try {
       // Serverless hosts may have parsed the body already.
       const raw = req.body !== undefined ? (typeof req.body === 'string' ? req.body : JSON.stringify(req.body)) : await readBody(req, 256_000);
-      const body = JSON.parse(raw) as CompleteRequest;
+      const body = JSON.parse(raw) as CompleteRequest & { own?: { baseUrl?: unknown; model?: unknown; apiKey?: unknown } };
       if (typeof body.system !== 'string' || typeof body.user !== 'string') return send(res, 400, { error: 'system and user are required' });
+      // A player's own key: forwarded to that provider for this one call, never stored or logged.
+      const own = body.own ? ownProvider(body.own) : null;
+      delete body.own;
+      if (own && 'error' in own) return send(res, 400, { error: own.error });
       if (guard) {
         const fwd = req.headers['x-forwarded-for'];
         const visitor = (Array.isArray(fwd) ? fwd[0] : fwd)?.split(',')[0]?.trim() || req.socket?.remoteAddress || 'unknown';
-        const v = guard.check(visitor, body.system.length + body.user.length);
+        const v = guard.check(visitor, body.system.length + body.user.length, own !== null);
         if (!v.ok) {
           if (v.retryAfterS) res.setHeader('Retry-After', String(v.retryAfterS));
           return send(res, v.status, { error: v.error, rateLimited: v.status === 429 });
         }
         body.maxTokens = Math.min(body.maxTokens ?? guard.limits.maxOutputTokens, guard.limits.maxOutputTokens);
       }
-      const out = await complete(providers, body);
+      const out = await complete(own ? [own] : providers, body);
       if ('error' in out) send(res, out.rateLimited ? 429 : 502, out);
       else send(res, 200, out);
     } catch (err) {

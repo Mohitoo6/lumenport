@@ -225,6 +225,11 @@ export const ui = {
   showIssues: signal(false),
   showMenu: signal(false),
   saves: signal<SaveMeta[]>([]),
+  /** Accounts: whether this build has them, who is signed in, and the cloud slots. */
+  account: signal<{ enabled: boolean; email: string | null; busy: boolean; note: string }>({ enabled: false, email: null, busy: false, note: '' }),
+  cloudSaves: signal<SaveMeta[]>([]),
+  /** A cloud city offered on sign-in ("continue where you left off"). */
+  resume: signal<SaveMeta | null>(null),
   muted: signal(false),
   /** Result of the last menu action, shown in the menu. */
   menuNote: signal(''),
@@ -259,6 +264,11 @@ export interface UiActions {
   load(slot: string): void;
   setMuted(muted: boolean): void;
   refreshSaves(): void;
+  signIn(email: string): void;
+  signInGoogle(): void;
+  signOut(): void;
+  cloudSave(slot: string): void;
+  cloudLoad(slot: string): void;
   closeInspect(): void;
 }
 
@@ -293,5 +303,10 @@ export const actions: UiActions = {
   load: () => {},
   setMuted: () => {},
   refreshSaves: () => {},
+  signIn: () => {},
+  signInGoogle: () => {},
+  signOut: () => {},
+  cloudSave: () => {},
+  cloudLoad: () => {},
   closeInspect: () => {},
 };

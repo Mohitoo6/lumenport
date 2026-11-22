@@ -1,4 +1,5 @@
 import type { Command, CommandResult } from '../../sim/commands';
+import { ownKeyField } from '../aiKey';
 import type { Sim } from '../../sim/sim';
 import { MONTH_NAMES } from '../../core/constants';
 import { dateOf } from '../../sim/state';
@@ -26,7 +27,7 @@ export type Completer = (system: string, user: string, maxTokens: number) => Pro
 /** The game's server route, which holds the keys and falls back across providers. */
 export const httpCompleter: Completer = async (system, user, maxTokens) => {
   try {
-    const res = await fetch('/api/llm', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ system, user, maxTokens, json: true }) });
+    const res = await fetch('/api/llm', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ system, user, maxTokens, json: true, ...ownKeyField() }) });
     const data = (await res.json().catch(() => ({}))) as Partial<Completion>;
     if (!res.ok || typeof data.text !== 'string') return null;
     return { text: data.text, provider: data.provider ?? 'AI', usage: data.usage, latencyMs: data.latencyMs };

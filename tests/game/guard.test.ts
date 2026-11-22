@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { Guard, limitsFrom } from '../../server/guard';
 import { llmHandler } from '../../server/llmProxy';
 
-const limits = { perVisitor: 3, windowMs: 600_000, perDay: 5, maxPromptChars: 100, maxOutputTokens: 50 };
+const limits = { perVisitor: 3, windowMs: 600_000, perDay: 5, perVisitorOwnKey: 10, maxPromptChars: 100, maxOutputTokens: 50 };
 
 describe('the public endpoint guard', () => {
   it('limits each visitor in a rolling window, then lets them back in', () => {
@@ -68,5 +68,45 @@ describe('the hosted endpoint', () => {
     const h = llmHandler({});
     expect((await call(h, '/api/llm/status', 'GET')).json.limited).toBe(false);
     expect((await call(llmHandler({ LLM_PUBLIC: '1' }), '/api/llm/status', 'GET')).json.limited).toBe(true);
+  });
+});
+
+describe('a player’s own key', () => {
+  it('skips the site’s daily cap but keeps a per-visitor limit of its own', () => {
+    const t = Date.UTC(2026, 10, 22, 9);
+    const g = new Guard({ ...limits, perDay: 1, perVisitorOwnKey: 2 }, () => t);
+    expect(g.check('a', 10).ok).toBe(true);
+    expect(g.check('b', 10).ok).toBe(false);
+    expect(g.check('b', 10, true).ok).toBe(true);
+    expect(g.check('b', 10, true).ok).toBe(true);
+    expect(g.check('b', 10, true).ok).toBe(false);
+  });
+
+  it('is forwarded only to known provider hosts, over https', async () => {
+    const { ownProvider } = await import('../../server/llmProxy');
+    expect(ownProvider({ baseUrl: 'https://api.groq.com/openai/v1/', model: 'm', apiKey: 'k' })).toMatchObject({ name: 'Your key', baseUrl: 'https://api.groq.com/openai/v1' });
+    expect(ownProvider({ baseUrl: 'https://evil.example.com/v1', model: 'm', apiKey: 'k' })).toMatchObject({ error: expect.stringMatching(/does not forward/) });
+    expect(ownProvider({ baseUrl: 'http://api.groq.com/openai/v1', model: 'm', apiKey: 'k' })).toMatchObject({ error: expect.stringMatching(/https/) });
+    expect(ownProvider({ baseUrl: 'https://api.groq.com/openai/v1', model: 'm', apiKey: '' })).toMatchObject({ error: expect.any(String) });
+  });
+
+  it('sends the call to the player’s provider, not the site’s', async () => {
+    const seen: string[] = [];
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = (async (url: string, init: RequestInit) => {
+      seen.push(`${url} ${String((init.headers as Record<string, string>).Authorization)}`);
+      return new Response(JSON.stringify({ choices: [{ message: { content: '{"ok":true}' }, finish_reason: 'stop' }], usage: { prompt_tokens: 3, completion_tokens: 2 } }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }) as typeof fetch;
+    try {
+      const h = llmHandler({ LLM_BASE_URL: 'https://site.example/v1', LLM_MODEL: 'site', LLM_API_KEY: 'site-key' }, { public: true });
+      const r = await call(h, '/api/llm', 'POST', { system: 's', user: 'u', own: { baseUrl: 'https://api.groq.com/openai/v1', model: 'mine', apiKey: 'player-key' } });
+      expect(r.status).toBe(200);
+      expect(seen.length).toBeGreaterThan(0);
+      expect(seen.every((s) => s.startsWith('https://api.groq.com/openai/v1') && s.endsWith('Bearer player-key'))).toBe(true);
+      const bad = await call(h, '/api/llm', 'POST', { system: 's', user: 'u', own: { baseUrl: 'https://evil.example.com/v1', model: 'm', apiKey: 'k' } });
+      expect(bad.status).toBe(400);
+    } finally {
+      globalThis.fetch = realFetch;
+    }
   });
 });

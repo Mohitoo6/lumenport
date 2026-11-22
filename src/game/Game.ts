@@ -3,6 +3,7 @@ import { MONTH_NAMES, SEASONS, SPEED_FACTOR, TICK_MS, WORLD } from '../core/cons
 import { GameAudio } from '../audio/audio';
 import { saves } from '../platform/idb';
 import { cloneState, metaOf, validateState } from '../sim/save/serialize';
+import { cloudEnabled, cloudSaves, signInWithEmail, signInWithGoogle, signOut, watchAccount, type Account } from '../platform/cloud';
 import { createState, type GameState } from '../sim/state';
 import { CouncilController } from './council/controller';
 import { browserKV } from './council/storage';
@@ -129,6 +130,12 @@ export class Game {
   /** Frame rate the loop is pacing itself to right now. */
   targetFps = 60;
   private autosaveTimer = 0;
+  private cloudTimer = 0;
+  /** The signed-in player, if accounts are on. */
+  private account: Account | null = null;
+  /** Tick of the last cloud autosave, so an idle city is not uploaded again. */
+  private cloudTick = -1;
+  private resumeOffered = false;
   private slowFrames = 0;
   private fastSeconds = 0;
   private resCooldown = 0;
@@ -343,6 +350,7 @@ export class Game {
     actions.save = (slot) => void this.saveTo(slot).then((ok) => (ui.menuNote.value = ok ? 'City saved.' : 'Could not save: storage is unavailable.'));
     actions.load = (slot) => void this.loadFrom(slot);
     actions.refreshSaves = () => void this.refreshSaves();
+    this.setUpAccounts();
     actions.setMuted = (m) => {
       this.audio.setMuted(m);
       ui.muted.value = m;
@@ -694,6 +702,11 @@ export class Game {
     this.audio.update(dt, { dist: this.rig.pose.dist, population: state.stats.population, night: this.atmosphere.night, paused: state.speed === 0, rain: sky?.rain ?? 0 });
     this.adaptResolution(dt);
     if (!this.options.shots && this.ready) {
+      this.cloudTimer += dt;
+      if (this.cloudTimer > 300) {
+        this.cloudTimer = 0;
+        void this.cloudAutosave();
+      }
       this.autosaveTimer += dt;
       if (this.autosaveTimer > 120) {
         this.autosaveTimer = 0;
@@ -812,6 +825,83 @@ export class Game {
     } catch (err) {
       console.warn('[load]', err);
       ui.menuNote.value = 'Could not load: storage is unavailable.';
+    }
+  }
+
+  /** Accounts and cloud saves (Supabase), when this build is configured for them. */
+  private setUpAccounts(): void {
+    if (!cloudEnabled() || this.options.shots) return;
+    ui.account.value = { ...ui.account.value, enabled: true };
+    const note = (text: string): void => {
+      ui.account.value = { ...ui.account.value, busy: false, note: text };
+    };
+    actions.signIn = (email) => {
+      ui.account.value = { ...ui.account.value, busy: true, note: '' };
+      void signInWithEmail(email).then((err) => note(err ?? `Check ${email}: the sign-in link is in your inbox.`));
+    };
+    actions.signInGoogle = () => void signInWithGoogle().then((err) => err && note(err));
+    actions.signOut = () => void signOut();
+    actions.cloudSave = (slot) => {
+      if (!this.account) return;
+      ui.account.value = { ...ui.account.value, busy: true };
+      void cloudSaves
+        .put(slot, cloneState(this.sim.state), this.account.id)
+        .then(() => (note('Saved to your account.'), this.refreshCloud()))
+        .catch((e: Error) => note(`Could not save to your account: ${e.message}`));
+    };
+    actions.cloudLoad = (slot) => {
+      ui.account.value = { ...ui.account.value, busy: true };
+      ui.resume.value = null;
+      void cloudSaves
+        .get(slot)
+        .then((raw) => {
+          const state = raw ? validateState(raw) : 'Nothing is saved in that slot';
+          if (typeof state === 'string') return note(state);
+          this.loadState(state);
+          this.cloudTick = state.tick;
+          note('City loaded from your account.');
+        })
+        .catch((e: Error) => note(`Could not load from your account: ${e.message}`));
+    };
+    void watchAccount((a, event) => {
+      this.account = a;
+      ui.account.value = { ...ui.account.value, email: a?.email ?? null, busy: false };
+      if (!a) {
+        ui.cloudSaves.value = [];
+        ui.resume.value = null;
+        return;
+      }
+      void this.refreshCloud().then(() => {
+        // Once per visit, offer the latest cloud city: "continue where you left off".
+        if (this.resumeOffered || (event !== 'SIGNED_IN' && event !== 'INITIAL_SESSION')) return;
+        this.resumeOffered = true;
+        ui.resume.value = ui.cloudSaves.value[0] ?? null;
+      });
+    });
+    // Leaving the page: one last cloud autosave, best effort.
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') void this.cloudAutosave();
+    });
+  }
+
+  private async refreshCloud(): Promise<void> {
+    try {
+      ui.cloudSaves.value = await cloudSaves.list();
+    } catch (err) {
+      console.warn('[cloud]', err);
+    }
+  }
+
+  /** Keeps the signed-in player's cloud autosave current, when the city has moved on. */
+  private async cloudAutosave(): Promise<void> {
+    const s = this.sim.state;
+    if (!this.account || s.tick === this.cloudTick || s.stats.population === 0 && s.roads.edges.length === 0) return;
+    this.cloudTick = s.tick;
+    try {
+      await cloudSaves.put('cloud-auto', cloneState(s), this.account.id);
+      await this.refreshCloud();
+    } catch (err) {
+      console.warn('[cloud autosave]', err);
     }
   }
 

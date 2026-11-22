@@ -40,6 +40,33 @@ unhappier until the books are fixed.
 | Dev overlay | ` (backtick) |
 
 Cities are saved in the browser (Menu, M): three slots plus an autosave every two minutes.
+With accounts switched on (below), a signed-in player also has two cloud slots and a cloud
+autosave, and is offered "continue your city" when they come back on any browser.
+
+## Accounts and cloud saves (optional)
+
+Sign-in is passwordless (an emailed link, or Google) on [Supabase](https://supabase.com),
+whose free tier covers 50,000 monthly players and 500 MB of saves (a grown city is about
+350 KB). To switch it on:
+
+1. Create a Supabase project. In SQL Editor, run `supabase/schema.sql` (the table and the
+   row-level security that lets each player see only their own cities).
+2. In Authentication > URL Configuration, add the game's address (and
+   `http://localhost:5173`) to the redirect URLs. For Google, enable the Google provider.
+3. Set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` (Project Settings > API; the anon
+   key is public by design) in `.env` and in the host's environment, then rebuild. Add
+   `VITE_SUPABASE_GOOGLE=1` to show the Google button.
+
+Without those variables the Account section is hidden and saves stay in the browser.
+Free Supabase projects pause after a week without any requests; a game with players keeps
+it awake.
+
+## Your own AI key (optional)
+
+Menu > AI lets a player use their own key (Groq, Gemini, OpenRouter, OpenAI, DeepSeek,
+Mistral, Together). It is kept in that browser, sent with each AI request, used for that
+call and never stored or logged by the server, which forwards keys only to those
+providers' hosts over https. A player on their own key skips the site's daily cap.
 
 ## Transit and the airport
 
