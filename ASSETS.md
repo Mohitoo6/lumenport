@@ -10,7 +10,7 @@ All Poly Haven assets are released under [CC0 1.0](https://creativecommons.org/p
 
 | File | Asset | Used for | Source | Licence |
 |---|---|---|---|---|
-| `public/assets/hdri/day.hdr` | kloofendal_48d_partly_cloudy_puresky (4k HDR) | Sky and image-based lighting: day | https://polyhaven.com/a/kloofendal_48d_partly_cloudy_puresky | CC0 |
+| `public/assets/hdri/day.hdr` | kloofendal_48d_partly_cloudy_puresky (2k HDR) | Sky and image-based lighting: day | https://polyhaven.com/a/kloofendal_48d_partly_cloudy_puresky | CC0 |
 | `public/assets/hdri/golden.hdr` | belfast_sunset_puresky (2k HDR) | Sky and image-based lighting: golden | https://polyhaven.com/a/belfast_sunset_puresky | CC0 |
 | `public/assets/hdri/night.hdr` | rogland_clear_night (2k HDR) | Sky and image-based lighting: night | https://polyhaven.com/a/rogland_clear_night | CC0 |
 | `public/assets/textures/grass_{diff,nor,arm}.jpg` | forrest_ground_01 (1k JPG: diffuse, GL normal, AO/rough/metal) | Terrain: meadow grass (close range) | https://polyhaven.com/a/forrest_ground_01 | CC0 |

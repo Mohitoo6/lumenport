@@ -13,7 +13,7 @@ const UA = 'metropolis-city-builder-dev/0.1 (asset fetch script)';
 
 /** role -> Poly Haven asset id */
 const HDRIS = [
-  { role: 'day', id: 'kloofendal_48d_partly_cloudy_puresky', res: '4k' },
+  { role: 'day', id: 'kloofendal_48d_partly_cloudy_puresky', res: '2k' },
   { role: 'golden', id: 'belfast_sunset_puresky', res: '2k' },
   { role: 'night', id: 'rogland_clear_night', res: '2k' },
 ];
