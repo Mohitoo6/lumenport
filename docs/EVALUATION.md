@@ -1,6 +1,6 @@
 # Evaluation of the AI layer, at zero tokens
 
-Run 2026-11-21 05-02-46 (UTC) by `npm run eval:offline` (`tests/eval/offline.eval.ts`). Raw results: `eval/runs/offline-2026-11-21T05-02-46.json`.
+Run 2026-11-22 07-14-16 (UTC) by `npm run eval:offline` (`tests/eval/offline.eval.ts`). Raw results: `eval/runs/offline-2026-11-22T07-14-16.json`.
 
 **No model was called.** Network access is switched off for the run and every attempt is counted: **0 network calls**. Everything below is plain code, run either on the live pipeline (detectors, fork, triage, offline agents, guardrails, parsers) or on model output that was already paid for in an earlier run. That is what makes it safe to run on every change, on a free tier.
 
