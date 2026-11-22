@@ -13,3 +13,5 @@ handoff/
 
 # Scratch folders (not part of the game)
 src/gemini work/
+.vercel
+.env*

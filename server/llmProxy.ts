@@ -1,7 +1,7 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { Plugin } from 'vite';
-import { Guard, limitsFrom } from './guard';
-import { ALLOWED_HOSTS } from '../src/game/aiKey';
+import { Guard, limitsFrom } from './guard.js';
+import { ALLOWED_HOSTS } from '../src/game/aiKey.js';
 
 /**
  * A small server-side endpoint for the AI council. The browser posts a prompt to
