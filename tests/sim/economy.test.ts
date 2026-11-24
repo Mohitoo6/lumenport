@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { MAP, STEPS_PER_HOUR, TICKS_PER_STEP, VERTS } from '../../src/core/constants';
-import { LOAN_TIERS, emptyReport, loanPayment, projectBudget } from '../../src/sim/economy/budget';
+import { DEBT_SERVICE_LIMIT, LOAN_TIERS, RISK_PREMIUM, emptyReport, loanOffer, loanPayment, projectBudget, type CreditView } from '../../src/sim/economy/budget';
 import { capacityOf } from '../../src/sim/economy/capacity';
 import { growthRateFor } from '../../src/sim/economy/economy';
 import { FACILITIES, FacilityKind } from '../../src/sim/facilities';
@@ -8,7 +8,7 @@ import { ROAD_SPECS, RoadType } from '../../src/sim/roads/types';
 import { Sim } from '../../src/sim/sim';
 import { START_FUNDS } from '../../src/sim/state';
 import { POWERED, WATERED, labelRoads } from '../../src/sim/utilities/network';
-import { ZoneType, zoneCode, zoneType, type Building } from '../../src/sim/zoning/zones';
+import { ZONE_CELL_COST, ZoneType, zoneCode, zoneType, type Building } from '../../src/sim/zoning/zones';
 
 const R1 = zoneCode(ZoneType.Residential, 1);
 const R2 = zoneCode(ZoneType.Residential, 2);
@@ -57,6 +57,9 @@ describe('money', () => {
 
   it('lends each loan tier once and collects fixed payments until it is repaid', () => {
     const sim = city();
+    // An empty city gets nothing; one of 2,000 residents (with their taxes) gets the small loan.
+    expect(sim.apply({ type: 'takeLoan', tier: 0 })).toMatchObject({ ok: false });
+    sim.state.stats.population = 2000;
     const before = sim.state.funds;
     expect(sim.apply({ type: 'takeLoan', tier: 0 }).ok).toBe(true);
     expect(sim.state.funds).toBe(before + LOAN_TIERS[0]!.amount);
@@ -69,6 +72,48 @@ describe('money', () => {
     expect(sim.state.loans[0]!.hoursLeft).toBe(LOAN_TIERS[0]!.hours - 1);
     run(sim, STEPS_PER_HOUR * (LOAN_TIERS[0]!.hours - 1));
     expect(sim.state.loans.length).toBe(0);
+  });
+
+  it('lends only what the city can carry', () => {
+    const city = (population: number, income: number, net = income / 2, loans: CreditView['loans'] = []): CreditView => ({ population, income, net, loans });
+    // Too small for the loan.
+    expect(loanOffer(1, city(1200, 50000)).reason).toMatch(/2,500 residents or more \(you have 1,200\)/);
+    // Big enough, but the repayment would eat more than the allowed share of income.
+    const small = loanOffer(0, city(600, 1000));
+    expect(small.ok).toBe(false);
+    expect(small.reason).toMatch(/hourly income/);
+    expect(loanOffer(0, city(600, small.payment / DEBT_SERVICE_LIMIT + 1)).ok).toBe(true);
+    // A city losing money gets only the smallest loan.
+    expect(loanOffer(1, city(5000, 40000, -100)).reason).toMatch(/only the smallest loan/);
+    expect(loanOffer(0, city(5000, 40000, -100)).ok).toBe(true);
+    // Debt makes the next loan dearer, and counts against the income share.
+    const held = [{ tier: 0, payment: 800, hoursLeft: 20 }];
+    const second = loanOffer(1, city(5000, 40000, 5000, held));
+    expect(second.ok).toBe(true);
+    expect(second.rate).toBeCloseTo(LOAN_TIERS[1]!.rate + RISK_PREMIUM, 6);
+    expect(second.payment).toBeGreaterThan(loanPayment(LOAN_TIERS[1]!));
+    const limit = (800 + second.payment) / DEBT_SERVICE_LIMIT;
+    expect(loanOffer(1, city(5000, limit - 10, 5000, held)).ok).toBe(false);
+    expect(loanOffer(0, city(5000, 40000, 5000, held)).reason).toMatch(/Already borrowed/);
+  });
+
+  it('charges for zoning by type and density, and clears for free', () => {
+    const sim = city();
+    const before = sim.state.funds;
+    const r = sim.apply({ type: 'zoneRect', x0: 58, y0: 51, x1: 66, y1: 54, zone: R2 });
+    expect(r.ok).toBe(true);
+    expect(r.cost).toBe(r.count! * ZONE_CELL_COST[ZoneType.Residential]![2]);
+    expect(sim.state.funds).toBe(before - r.cost!);
+    const after = sim.state.funds;
+    expect(sim.apply({ type: 'zoneRect', x0: 58, y0: 51, x1: 66, y1: 54, zone: 0 }).ok).toBe(true);
+    expect(sim.state.funds).toBe(after);
+    // Not enough money: nothing is zoned and nothing is charged.
+    sim.state.funds = 50;
+    const poor = sim.apply({ type: 'zoneRect', x0: 58, y0: 51, x1: 66, y1: 54, zone: I1 });
+    expect(poor.ok).toBe(false);
+    expect(poor.reason).toMatch(/zoning these \d+ cells costs/);
+    expect(sim.state.funds).toBe(50);
+    expect([...sim.state.zone].some((z) => z === I1)).toBe(false);
   });
 
   it('settles the budget hourly: funds move by exactly the reported net', () => {

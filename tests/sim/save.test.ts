@@ -14,6 +14,8 @@ function played(): Sim {
   sim.apply({ type: 'buildRoad', road: RoadType.Street, ax: 640, az: 400, bx: 640, bz: 640 });
   sim.apply({ type: 'zoneRect', x0: 52, y0: 45, x1: 100, y1: 48, zone: zoneCode(ZoneType.Residential, 2) });
   sim.apply({ type: 'zoneRect', x0: 52, y0: 51, x1: 78, y1: 54, zone: zoneCode(ZoneType.Commercial, 1) });
+  // A bank lends by city size: pretend the town is big enough for the small loan.
+  sim.state.stats.population = 2000;
   sim.apply({ type: 'takeLoan', tier: 0 });
   for (let i = 0; i < 1500; i++) sim.tick();
   return sim;

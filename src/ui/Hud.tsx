@@ -3,7 +3,7 @@ import { useEffect, useState } from 'preact/hooks';
 import { aiStatus } from '../game/council/llm';
 import { AiKeyPanel } from './AiKeyPanel';
 import { AccountPanel, ResumeCard } from './AccountPanel';
-import { LOAN_TIERS, loanPayment } from '../sim/economy/budget';
+import { DEBT_SERVICE_LIMIT, LOAN_TIERS } from '../sim/economy/budget';
 import { OVERLAYS } from '../render/overlays/dataOverlay';
 import { CitizenFeed, CouncilChamber, IssuesMenu, MinisterRequestCard } from './council/Council';
 import { Inspector } from './council/Inspector';
@@ -254,15 +254,20 @@ function BudgetPanel(): JSX.Element | null {
 
       <section>
         <h3 class="label">Loans</h3>
+        <p class="muted menu-note loan-rules">
+          The bank lends by city size and lets repayments take at most {Math.round(DEBT_SERVICE_LIMIT * 100)}% of hourly income. Each loan held raises the next one's interest.
+        </p>
         {LOAN_TIERS.map((t, i) => {
           const taken = loans.find((l) => l.tier === i);
+          const offer = ui.loanOffers.value[i];
+          const terms = offer ? `${usd(offer.payment)} an hour for ${t.hours} hours (${(offer.rate * 100).toFixed(0)}%)` : `${t.hours} hours`;
           return (
-            <div class="loan" key={i}>
+            <div class={`loan${!taken && offer && !offer.ok ? ' is-refused' : ''}`} key={i}>
               <div>
                 <div>{usd(t.amount)}</div>
-                <div class="muted">{taken ? `${taken.hoursLeft} payments of ${usd(taken.payment)} left` : `${usd(loanPayment(t))} an hour for ${t.hours} hours`}</div>
+                <div class="muted">{taken ? `${taken.hoursLeft} payments of ${usd(taken.payment)} left` : offer && !offer.ok ? offer.reason : terms}</div>
               </div>
-              <button type="button" class="btn" disabled={!!taken} onClick={() => actions.takeLoan(i)}>
+              <button type="button" class="btn" disabled={!!taken || !offer?.ok} onClick={() => actions.takeLoan(i)}>
                 {taken ? 'Active' : 'Borrow'}
               </button>
             </div>

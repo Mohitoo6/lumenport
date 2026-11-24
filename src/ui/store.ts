@@ -1,5 +1,5 @@
 import { signal } from '@preact/signals';
-import { emptyReport, type BudgetReport, type Loan } from '../sim/economy/budget';
+import { emptyReport, type BudgetReport, type Loan, type LoanOffer } from '../sim/economy/budget';
 import type { OverlayId } from '../render/overlays/dataOverlay';
 import type { RoadType } from '../sim/roads/types';
 import type { SaveMeta } from '../sim/save/serialize';
@@ -176,6 +176,8 @@ export const ui = {
   budget: signal<BudgetReport>(emptyReport()),
   tax: signal<[number, number, number]>([9, 9, 9]),
   loans: signal<Loan[]>([]),
+  /** What the bank would offer for each loan size right now, and why not when it would not. */
+  loanOffers: signal<LoanOffer[]>([]),
   power: signal<[number, number]>([0, 0]),
   water: signal<[number, number]>([0, 0]),
   alerts: signal<string[]>([]),

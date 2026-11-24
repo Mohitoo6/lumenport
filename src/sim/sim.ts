@@ -3,7 +3,7 @@ import { Rng } from '../core/rng';
 import { Emitter } from '../core/events';
 import { OK, fail, type Command, type CommandResult } from './commands';
 import { demolishEdge, executePlan, executeUpgrade, planRoad, planUpgrade, type UpgradePlan, type RoadChange, type RoadPlan, type RoadRequest } from './roads/plan';
-import { LOAN_TIERS, loanPayment, projectBudget } from './economy/budget';
+import { LOAN_TIERS, creditView, loanOffer, projectBudget } from './economy/budget';
 import { economyStep, growthRateFor } from './economy/economy';
 import { advanceGoals, type Goal } from './goals';
 import { FacilityKind, findTownHallSite, isLandmark, planFacility, type FacilityPlan } from './facilities';
@@ -18,7 +18,7 @@ import { zoneAlongCells } from './zoning/along';
 import { roadAngle } from './zoning/orient';
 import { BUS, busLines, servedStops, type BusLine } from './transit/bus';
 import { METRO, activeStations, emptyMetro, planMetro, pruneMetro, type MetroPlan } from './transit/metro';
-import { ZoneType, zoneType } from './zoning/zones';
+import { ZoneType, zoneCellCost, zoneType } from './zoning/zones';
 import { FACING_DX, FACING_DY } from './zoning/zones';
 import { createState, type GameState } from './state';
 import { advanceConstruction, buildFrontier, growthStep, lotRect, removeBuilding, spawnBuilding, type GrowthResult } from './zoning/growth';
@@ -227,6 +227,21 @@ export class Sim {
   };
 
   /** Takes money for a build. Returns false (and takes nothing) if the city cannot pay. */
+  /** Sets the zone of each cell; re-zoning under a building clears it (the land gets a new use). */
+  private paintZone(cells: readonly number[], zone: number): Building[] {
+    const s = this.state;
+    const removed: Building[] = [];
+    for (const k of cells) {
+      const id = s.buildingCell[k]!;
+      if (id >= 0) {
+        const b = removeBuilding(s, id);
+        if (b) removed.push(b);
+      }
+      s.zone[k] = zone;
+    }
+    return removed;
+  }
+
   private charge(cost: number): boolean {
     const s = this.state;
     if (s.sandbox) return true;
@@ -400,8 +415,7 @@ export class Sim {
         const y1 = Math.min(MAP - 2, Math.max(cmd.y0, cmd.y1));
         if (x1 < x0 || y1 < y0) return fail('Outside the city limits');
         if (cmd.zone < 0 || cmd.zone > 15 || (cmd.zone !== 0 && ((cmd.zone & 3) === 0 || cmd.zone >> 2 === 0))) return fail('Invalid zone');
-        const removed: Building[] = [];
-        let painted = 0;
+        const cells: number[] = [];
         let tooFar = 0;
         for (let j = y0; j <= y1; j++) {
           for (let i = x0; i <= x1; i++) {
@@ -412,26 +426,23 @@ export class Sim {
               tooFar++;
               continue;
             }
-            // Re-zoning under a building clears it: the land is being put to a new use.
             // The town hall is never zoned over.
             const id = s.buildingCell[k]!;
             if (id >= 0 && isLandmark(s.buildings[id]?.kind ?? 0)) continue;
-            if (id >= 0) {
-              const b = removeBuilding(s, id);
-              if (b) removed.push(b);
-            }
-            s.zone[k] = cmd.zone;
-            painted++;
+            cells.push(k);
           }
         }
-        if (painted === 0) {
+        if (cells.length === 0) {
           if (cmd.zone === 0) return fail('Nothing to clear here');
           return fail(tooFar > 0 ? `Zone land within ${MAX_DEPTH} cells of a road` : 'Nothing here can be zoned');
         }
+        const cost = cells.length * zoneCellCost(cmd.zone);
+        if (!this.charge(cost)) return fail(`Not enough money: zoning these ${cells.length} cells costs $${cost.toLocaleString('en-US')}`);
+        const removed = this.paintZone(cells, cmd.zone);
         this.frontier = null;
         this.events.emit('zonesChanged', { x0, y0, x1, y1 });
         if (removed.length > 0) this.events.emit('buildingsChanged', { changed: [], removed });
-        return OK;
+        return { ok: true, cost: s.sandbox ? 0 : cost, count: cells.length };
       }
       case 'buildMetro': {
         const plan = planMetro(s, cmd.a, cmd.b, cmd.via ?? []);
@@ -457,18 +468,14 @@ export class Sim {
         if (cmd.zone < 0 || cmd.zone > 15 || (cmd.zone !== 0 && ((cmd.zone & 3) === 0 || cmd.zone >> 2 === 0))) return fail('Invalid zone');
         const cells = zoneAlongCells(s, cmd.edges, cmd.zone);
         if (cells.length === 0) return fail(cmd.zone === 0 ? 'Nothing to clear along this road' : 'No free land along this road');
-        const removed: Building[] = [];
+        const cost = cells.length * zoneCellCost(cmd.zone);
+        if (!this.charge(cost)) return fail(`Not enough money: zoning these ${cells.length} cells costs $${cost.toLocaleString('en-US')}`);
+        const removed = this.paintZone(cells, cmd.zone);
         let x0 = MAP;
         let y0 = MAP;
         let x1 = 0;
         let y1 = 0;
         for (const k of cells) {
-          const id = s.buildingCell[k]!;
-          if (id >= 0) {
-            const b = removeBuilding(s, id);
-            if (b) removed.push(b);
-          }
-          s.zone[k] = cmd.zone;
           const i = k % MAP;
           const j = (k / MAP) | 0;
           if (i < x0) x0 = i;
@@ -479,7 +486,7 @@ export class Sim {
         this.frontier = null;
         this.events.emit('zonesChanged', { x0, y0, x1, y1 });
         if (removed.length > 0) this.events.emit('buildingsChanged', { changed: [], removed });
-        return { ok: true, cost: 0, count: cells.length };
+        return { ok: true, cost: s.sandbox ? 0 : cost, count: cells.length };
       }
       case 'bulldozeBuilding': {
         if (isLandmark(s.buildings[cmd.id]?.kind ?? 0)) return fail('The town hall cannot be demolished');
@@ -537,10 +544,10 @@ export class Sim {
         return OK;
       }
       case 'takeLoan': {
-        const tier = LOAN_TIERS[cmd.tier];
-        if (!tier) return fail('No such loan');
-        if (s.loans.some((l) => l.tier === cmd.tier)) return fail('That loan is already taken');
-        s.loans.push({ tier: cmd.tier, payment: loanPayment(tier), hoursLeft: tier.hours });
+        const offer = loanOffer(cmd.tier, creditView(s));
+        if (!offer.ok) return fail(`The bank says no: ${offer.reason}`);
+        const tier = LOAN_TIERS[cmd.tier]!;
+        s.loans.push({ tier: cmd.tier, payment: offer.payment, hoursLeft: tier.hours });
         s.funds += tier.amount;
         return OK;
       }

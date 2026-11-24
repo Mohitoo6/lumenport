@@ -1,5 +1,10 @@
 import { CELL } from '../../core/constants';
-import { LOAN_TIERS } from '../../sim/economy/budget';
+import { DEBT_SERVICE_LIMIT, LOAN_TIERS, RISK_PREMIUM } from '../../sim/economy/budget';
+import { ZONE_CELL_COST } from '../../sim/zoning/zones';
+
+const ZONE_COST_TEXT = (['Homes', 'Shops', 'Industry'] as const)
+  .map((name, n) => `${name} $${ZONE_CELL_COST[n + 1]!.slice(1).join('/')}`)
+  .join(', ') + ' a cell at low/medium/high density';
 import { FACILITIES, FacilityKind } from '../../sim/facilities';
 import { ROAD_SPECS, RoadType } from '../../sim/roads/types';
 import { MAX_DEPTH } from '../../sim/zoning/lots';
@@ -57,7 +62,7 @@ export function manualSections(): ManualSection[] {
       id: 'zoning',
       about: /zon|home|house|shop|industr|factor|build|grow|demand|density|empty|ghar|dukaan|bana|badh|घर|दुकान|उद्योग|बन|बढ़|शहर/i,
       text: `Zoning (Homes = residential, Shops = commercial, Industry = industrial; density low/medium/high)
-- Painting zones is free. Buildings appear on their own, only where ALL of these hold:
+- Zoning costs money per cell (the city lays the hook-ups): ${ZONE_COST_TEXT}. Clearing a zone is free. Buildings appear on their own, only where ALL of these hold:
   1. the zoned cell is within ${MAX_DEPTH} cells (${MAX_DEPTH * CELL} m) of a road, facing it;
   2. that street has spare power and spare water;
   3. there is demand for that zone type (demand bars in the top bar). Homes need jobs (Shops, Industry); Shops need customers (Homes); Industry needs workers (Homes);
@@ -78,7 +83,7 @@ ${facilities}
       about: /money|fund|budget|tax|loan|debt|cost|price|deficit|income|expens|afford|refund|paisa|paise|kharch|karz|पैस|बजट|टैक्स|कर्ज|खर्च/i,
       text: `Money
 - Hourly income is taxes per zone type (Budget panel, B); spending is road upkeep and facility upkeep. Higher taxes lower demand.
-- Loans: ${LOAN_TIERS.map((t) => `${usd(t.amount)} over ${t.hours} hours at ${Math.round(t.rate * 100)}%`).join('; ')}.
+- Loans: ${LOAN_TIERS.map((t) => `${usd(t.amount)} over ${t.hours} hours at ${Math.round(t.rate * 100)}% for cities of ${t.minPopulation.toLocaleString('en-US')}+ residents`).join('; ')}. The bank refuses a loan if all repayments would take more than ${Math.round(DEBT_SERVICE_LIMIT * 100)}% of hourly income, offers only the smallest one while the city loses money, and adds ${Math.round(RISK_PREMIUM * 100)} points of interest for each loan already held.
 - Bulldozing gives no refund.`,
     },
     {

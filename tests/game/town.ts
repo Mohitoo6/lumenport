@@ -40,13 +40,16 @@ const ZONES: Array<[number, number, number, number, number]> = [
 export function grownTown(steps: number, sandbox = false): Sim {
   const sim = Sim.create(1337);
   sim.state.sandbox = sandbox;
-  sim.apply({ type: 'takeLoan', tier: 0 });
-  sim.apply({ type: 'takeLoan', tier: 1 });
+  // Start-up money in place of loans: a bank lends nothing to a city with no residents.
+  sim.state.funds += 70000;
   for (const [ax, az, bx, bz, road] of ROADS) sim.apply({ type: 'buildRoad', road: road ?? RoadType.Street, ax, az, bx, bz });
   sim.apply({ type: 'placeFacility', kind: 1, x: 174, y: 100 });
   sim.apply({ type: 'placeFacility', kind: 4, x: 173, y: 96 });
   sim.apply({ type: 'placeFacility', kind: 4, x: 169, y: 96 });
+  // Zoning costs money now; the town is refunded so its treasury matches the recorded runs.
+  const beforeZoning = sim.state.funds;
   for (const [x0, y0, x1, y1, zone] of ZONES) sim.apply({ type: 'zoneRect', x0, y0, x1, y1, zone });
+  sim.state.funds = beforeZoning;
   if (sandbox) sim.growthRate = 1;
   for (let i = 0; i < steps * TICKS_PER_STEP; i++) sim.tick();
   return sim;

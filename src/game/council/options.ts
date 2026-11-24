@@ -1,5 +1,5 @@
 import { CELL, MAP } from '../../core/constants';
-import { emptyReport, projectBudget, LOAN_TIERS, loanPayment, POLICY_COST } from '../../sim/economy/budget';
+import { emptyReport, projectBudget, LOAN_TIERS, loansAvailable, POLICY_COST } from '../../sim/economy/budget';
 import { NEUTRAL_TAX } from '../../sim/economy/economy';
 import { FACILITIES, FacilityKind } from '../../sim/facilities';
 import type { Command } from '../../sim/commands';
@@ -550,15 +550,18 @@ function budgetOptions(sim: Sim): Draft[] {
     actions: [2, 3].map((z) => ({ type: 'setTax', zone: z, rate: biz[z]! }) as Command),
     impact: { ...NO_IMPACT, tax: true },
   });
-  const tier = LOAN_TIERS.findIndex((_, i) => !s.loans.some((l) => l.tier === i));
-  if (tier >= 0) {
+  // Only a loan the bank would actually grant today.
+  const loan = loansAvailable(s)[0];
+  if (loan) {
+    const { tier, payment } = loan;
     const t = LOAN_TIERS[tier]!;
+    const rate = Math.round(((payment * t.hours) / t.amount - 1) * (12 / t.hours) * 100);
     out.push({
       title: `Take a ${money(t.amount)} loan`,
-      gist: `${money(t.amount)} now, repaid at ${money(loanPayment(t))} an hour for ${t.hours} hours: buys time, deepens the hourly deficit.`,
+      gist: `${money(t.amount)} now, repaid at ${money(payment)} an hour for ${t.hours} hours: buys time, deepens the hourly deficit.`,
       cost: -t.amount,
-      hourly: loanPayment(t),
-      facts: [`Adds ${money(t.amount)} now; repaid at ${money(loanPayment(t))} an hour for ${t.hours} hours (${Math.round(t.rate * 100)}% interest).`, 'Buys time, but makes the hourly deficit worse until it is repaid.'],
+      hourly: payment,
+      facts: [`Adds ${money(t.amount)} now; repaid at ${money(payment)} an hour for ${t.hours} hours (about ${rate}% interest).`, 'Buys time, but makes the hourly deficit worse until it is repaid.'],
       actions: [{ type: 'takeLoan', tier }],
       impact: { ...NO_IMPACT },
     });

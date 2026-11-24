@@ -21,6 +21,20 @@ export function zoneDensity(code: number): Density {
   return (code & 3) as Density;
 }
 
+/**
+ * What zoning one cell costs, by type and density: the city lays the water, drains and
+ * power lines the new buildings hook up to. Clearing a zone is free.
+ */
+export const ZONE_CELL_COST: Record<number, readonly [number, number, number, number]> = {
+  [ZoneType.Residential]: [0, 4, 7, 11],
+  [ZoneType.Commercial]: [0, 5, 9, 14],
+  [ZoneType.Industrial]: [0, 6, 10, 15],
+};
+
+export function zoneCellCost(code: number): number {
+  return code === 0 ? 0 : (ZONE_CELL_COST[zoneType(code)]?.[zoneDensity(code)] ?? 0);
+}
+
 export const ZONE_NAMES: Record<ZoneType, string> = {
   [ZoneType.None]: 'Unzoned',
   [ZoneType.Residential]: 'Residential',

@@ -61,6 +61,8 @@ describe('option effect payloads', () => {
   it('reports tax, debt and supply changes from the game rules', () => {
     const fork = forkSim(sim);
     fork.state.loans = [];
+    // A city big enough for the bank's middle loan.
+    fork.state.stats.population = 20000;
     const loan = project(fork, [{ type: 'takeLoan', tier: 1 }]);
     expect(loan.ok && loan.delta.budgetDelta).toBe(LOAN_TIERS[1]!.amount);
     expect(loan.ok && loan.delta.debtDelta).toBeGreaterThan(LOAN_TIERS[1]!.amount);
@@ -80,6 +82,8 @@ describe('hard money rules', () => {
     const fork = forkSim(sim);
     fork.state.loans = [{ tier: 0, payment: 900, hoursLeft: 10 }];
     fork.state.funds = 5000;
+    // Big and solvent enough that the bank would grant both remaining loans.
+    fork.state.stats.population = 50000;
     const limits = fiscalLimits(fork);
     expect(limits.loanHeadroom).toBe(LOAN_TIERS[1]!.amount + LOAN_TIERS[2]!.amount);
     expect(limits.spendCeiling).toBe(5000 + limits.loanHeadroom);

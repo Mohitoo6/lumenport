@@ -1,5 +1,5 @@
 import type { Command } from '../../sim/commands';
-import { LOAN_TIERS, emptyReport, projectBudget } from '../../sim/economy/budget';
+import { LOAN_TIERS, creditView, emptyReport, loanOffer, loansAvailable, projectBudget } from '../../sim/economy/budget';
 import { FACILITIES } from '../../sim/facilities';
 import { cloneState } from '../../sim/save/serialize';
 import { Sim } from '../../sim/sim';
@@ -232,7 +232,7 @@ export interface FiscalLimits {
   sandbox: boolean;
   treasury: number;
   hourlyNet: number;
-  /** Money the city could still borrow: the loan tiers not yet taken. */
+  /** Money the city could still borrow: the loans the bank would grant, one after another. */
   loanHeadroom: number;
   /** The most that could be spent today: treasury plus every loan still available. */
   spendCeiling: number;
@@ -244,9 +244,7 @@ export function fiscalLimits(sim: Sim): FiscalLimits {
   const s = sim.state;
   const net = projectBudget(s.buildings, s.roads, s.tax, s.loans, s.stats, emptyReport(), s.policies, s.metro).net;
   let headroom = 0;
-  LOAN_TIERS.forEach((t, i) => {
-    if (!s.loans.some((l) => l.tier === i)) headroom += t.amount;
-  });
+  for (const l of loansAvailable(s)) headroom += l.amount;
   return {
     sandbox: s.sandbox,
     treasury: Math.floor(s.funds),
@@ -287,9 +285,10 @@ export function feasibility(limits: FiscalLimits, projection: Projection): Feasi
  * before the option itself. Null when no combination is enough.
  */
 export function financing(sim: Sim, shortfall: number): { tiers: number[]; amount: number } | null {
-  const free = LOAN_TIERS.map((t, tier) => ({ tier, amount: t.amount })).filter((t) => !sim.state.loans.some((l) => l.tier === t.tier));
-  const single = free.find((t) => t.amount >= shortfall);
-  if (single) return { tiers: [single.tier], amount: single.amount };
+  const free = loansAvailable(sim.state);
+  // One loan the bank would grant on its own, if one is big enough.
+  const single = LOAN_TIERS.findIndex((t, tier) => t.amount >= shortfall && loanOffer(tier, creditView(sim.state)).ok);
+  if (single >= 0) return { tiers: [single], amount: LOAN_TIERS[single]!.amount };
   const tiers: number[] = [];
   let amount = 0;
   for (const t of free) {

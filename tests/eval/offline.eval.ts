@@ -131,7 +131,8 @@ beforeAll(() => {
   });
   add('every tax at 0%, treasury low', 'budget', 'finance', 'Why is my money going down every hour?', /tax|budget|money|deficit|\$/i, (s) => {
     for (const zone of [1, 2, 3]) s.apply({ type: 'setTax', zone, rate: 0 });
-    s.state.funds = 20000;
+    // Low: a few hours of runway at the hourly loss (the test town holds no loans).
+    s.state.funds = 6000;
     runTicks(s, 1300);
   });
   add('no clinic anywhere', 'health', 'health', 'Are my people healthy?', /clinic|health/i, () => {});

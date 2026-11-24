@@ -3,11 +3,14 @@ import { ZONE_RGB } from '../../render/overlays/zoneOverlay';
 import { FACILITIES } from '../../sim/facilities';
 import { STALL_REASON, stalledByDemand } from '../advice';
 import { MAX_DEPTH, frontageOf, reachesRoad } from '../../sim/zoning/lots';
-import { DENSITY_NAMES, FACING_DX, FACING_DY, ZONE_NAMES, ZoneType, zoneCode, type Density } from '../../sim/zoning/zones';
+import { DENSITY_NAMES, FACING_DX, FACING_DY, ZONE_NAMES, ZoneType, zoneCellCost, zoneCode, type Density } from '../../sim/zoning/zones';
 import type { GroundPoint, Tool, ToolContext } from './tool';
 import { edgeAt } from '../../sim/roads/plan';
 import { zoneAlongCells } from '../../sim/zoning/along';
 import { streetName } from '../council/context';
+
+/** "  ·  $1,240" for the zoning hint, or nothing when it is free. */
+const price = (cost: number, prefix = ''): string => (cost > 0 ? `  ·  ${prefix}$${cost.toLocaleString('en-US')}` : '');
 
 export type ZoneMode = 'road' | 'area';
 
@@ -117,7 +120,7 @@ export class ZoneTool implements Tool {
     const names = [...new Set([...this.edges].map((e) => streetName(ctx.sim, e)))];
     const where = names.length === 1 ? names[0]! : `${names.length} road segments`;
     if (cells === 0) ctx.hint(this.type === ZoneType.None ? `Nothing to clear along ${where}` : `No free land along ${where}`, 'bad');
-    else ctx.hint(`${this.label()} along ${where}  ·  ${cells} cells${this.dragging ? '  ·  keep dragging to add roads' : '  ·  click or drag'}`, 'ok');
+    else ctx.hint(`${this.label()} along ${where}  ·  ${cells} cells${price(cells * zoneCellCost(this.code()))}${this.dragging ? '  ·  keep dragging to add roads' : '  ·  click or drag'}`, 'ok');
   }
 
   private moveAlong(ctx: ToolContext, p: GroundPoint | null): void {
@@ -151,7 +154,7 @@ export class ZoneTool implements Tool {
     if (edges.length === 0) return;
     const r = ctx.sim.apply({ type: 'zoneAlong', edges, zone: this.code() });
     if (!r.ok && r.reason) ctx.toast(r.reason, 'bad');
-    else if (r.ok) ctx.toast(this.type === ZoneType.None ? `Cleared ${r.count} cells` : `Zoned ${r.count} cells`, 'ok');
+    else if (r.ok) ctx.toast(this.type === ZoneType.None ? `Cleared ${r.count} cells` : `Zoned ${r.count} cells${r.cost ? ` for $${r.cost.toLocaleString('en-US')}` : ''}`, 'ok');
   }
 
   private show(ctx: ToolContext, a: Cell, b: Cell): void {
@@ -213,7 +216,7 @@ export class ZoneTool implements Tool {
     this.show(ctx, this.start, b);
     const w = Math.abs(b.i - this.start.i) + 1;
     const h = Math.abs(b.j - this.start.j) + 1;
-    ctx.hint(`${this.label()}  ·  ${w} × ${h} cells`, 'ok');
+    ctx.hint(`${this.label()}  ·  ${w} × ${h} cells${price(w * h * zoneCellCost(this.code()), 'up to ')}`, 'ok');
   }
 
   dragEnd(ctx: ToolContext, p: GroundPoint | null): void {
@@ -235,6 +238,7 @@ export class ZoneTool implements Tool {
       zone: this.type === ZoneType.None ? 0 : zoneCode(this.type, this.density),
     });
     if (!result.ok && result.reason) ctx.toast(result.reason, 'bad');
+    else if (result.ok && result.cost) ctx.toast(`Zoned ${result.count} cells for $${result.cost.toLocaleString('en-US')}`, 'ok');
     this.describe(ctx);
     this.show(ctx, b, b);
   }

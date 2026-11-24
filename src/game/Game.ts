@@ -42,7 +42,7 @@ import { TERRAIN_LAYERS, createTerrainMaterial } from '../render/terrain/terrain
 import { TerrainRenderer } from '../render/terrain/terrainRenderer';
 import { WaterRenderer } from '../render/water/waterRenderer';
 import type { Command, CommandResult } from '../sim/commands';
-import { emptyReport, projectBudget } from '../sim/economy/budget';
+import { LOAN_TIERS, creditView, emptyReport, loanOffer, projectBudget } from '../sim/economy/budget';
 import { capacityOf } from '../sim/economy/capacity';
 import { FACILITIES, FacilityKind, Service } from '../sim/facilities';
 import { POWERED, WATERED } from '../sim/utilities/network';
@@ -735,6 +735,8 @@ export class Game {
       ui.budget.value = projectBudget(state.buildings, state.roads, state.tax, state.loans, st, emptyReport(), state.policies, state.metro);
       ui.tax.value = [state.tax[1], state.tax[2], state.tax[3]];
       ui.loans.value = state.loans.slice();
+      const credit = creditView(state);
+      ui.loanOffers.value = LOAN_TIERS.map((_, i) => loanOffer(i, credit));
       ui.power.value = [st.powerSupply, st.powerDemand];
       ui.water.value = [st.waterSupply, st.waterDemand];
       ui.sandbox.value = state.sandbox;

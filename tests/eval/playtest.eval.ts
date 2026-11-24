@@ -6,7 +6,7 @@ import { stalledZones } from '../../src/game/advice';
 import { zonedLand } from '../../src/game/assistant/situation';
 import { FacilityKind } from '../../src/sim/facilities';
 import { GOALS } from '../../src/sim/goals';
-import { projectBudget, emptyReport } from '../../src/sim/economy/budget';
+import { LOAN_TIERS, creditView, emptyReport, loanOffer, projectBudget } from '../../src/sim/economy/budget';
 import { RoadType } from '../../src/sim/roads/types';
 import { Sim } from '../../src/sim/sim';
 
@@ -69,7 +69,11 @@ it('plays a city for 40 game hours', () => {
     if (h === 12 && s.funds > 6000) place(FacilityKind.Police, 150, 72);
     if (h === 14 && s.funds > 6000) place(FacilityKind.FireStation, 185, 72);
     if (goal === 'transit' && s.funds > 3000) for (const i of [140, 160, 180]) place(FacilityKind.BusStop, i, 73);
-    if (s.funds < 3000 && s.loans.length < 2) sim.apply({ type: 'takeLoan', tier: s.loans.length });
+    // Borrows the first loan the bank would grant, when short of money.
+    if (s.funds < 3000) {
+      const tier = LOAN_TIERS.findIndex((_, i) => loanOffer(i, creditView(s)).ok);
+      if (tier >= 0) sim.apply({ type: 'takeLoan', tier });
+    }
     const free = stalledZones(sim);
     if (districts < 9 && zonedLand(sim)[1]!.ready < 40 && s.funds > 15000) district();
     const issues = detectIssues(sim).slice(0, 3).map((i) => `${i.kind}`).join(',');

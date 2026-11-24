@@ -102,7 +102,10 @@ export function triage(sim: Sim, issue: CityIssue, options: readonly CouncilOpti
     signals.set(id, list);
   };
 
-  const costly = any((o) => o.cost > 0 || o.hourly > 0);
+  // Finance sits in when the money matters: a running cost, or an upfront sum above $2,000
+  // and 2% of the treasury (small zoning fees do not need the Finance minister's time).
+  const material = Math.max(2000, sim.state.funds * 0.02);
+  const costly = any((o) => o.cost >= material || o.hourly > 0);
   if (costly.length) add('finance', 2 + Math.min(3, (Math.max(...costly.map((o) => o.cost)) / Math.max(1, sim.state.funds)) * 10), `options ${ids(costly)} cost money`);
   const unaffordable = any((o) => o.feasibility.status === 'unaffordable' || o.feasibility.status === 'needs_loan');
   if (unaffordable.length) add('finance', 5, `options ${ids(unaffordable)} cost more than the treasury holds`);

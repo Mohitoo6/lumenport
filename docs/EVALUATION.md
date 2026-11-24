@@ -1,6 +1,6 @@
 # Evaluation of the AI layer, at zero tokens
 
-Run 2026-11-22 07-14-16 (UTC) by `npm run eval:offline` (`tests/eval/offline.eval.ts`). Raw results: `eval/runs/offline-2026-11-22T07-14-16.json`.
+Run 2026-11-24 03-54-31 (UTC) by `npm run eval:offline` (`tests/eval/offline.eval.ts`). Raw results: `eval/runs/offline-2026-11-24T03-54-31.json`.
 
 **No model was called.** Network access is switched off for the run and every attempt is counted: **0 network calls**. Everything below is plain code, run either on the live pipeline (detectors, fork, triage, offline agents, guardrails, parsers) or on model output that was already paid for in an earlier run. That is what makes it safe to run on every change, on a free tier.
 
@@ -11,7 +11,7 @@ Run 2026-11-22 07-14-16 (UTC) by `npm run eval:offline` (`tests/eval/offline.eva
 | Built-in problems detected | 100% (6/6) |
 | …and handed to the right ministry | 100% (6/6) |
 | Options the game refuses (blocked) | 0 |
-| Payloads that match a real execution exactly | 100% (16/16) |
+| Payloads that match a real execution exactly | 100% (15/15) |
 | Offline meetings that reach a checked recommendation | 100% (6/6) |
 | Planted faults caught by code | 100% (13/13) |
 | Mayor's instruction parsed exactly (English) | 100% (20/20) |
@@ -44,7 +44,7 @@ Every option that acts and is affordable now is executed on a fresh fork of the 
 | rush-hour jam | 5 | 4 | 0 | 4 | 4 | 0 | roads, finance, environment | yes |
 | power plant replaced by one turbine | 4 | 3 | 0 | 3 | 3 | 0 | energy, health, environment, finance | yes |
 | one of two water towers removed | 2 | 1 | 0 | 1 | 1 | 0 | energy, finance | yes |
-| every tax at 0%, treasury low | 5 | 4 | 0 | 4 | 4 | 0 | finance, planning, welfare | yes |
+| every tax at 0%, treasury low | 4 | 3 | 0 | 3 | 3 | 0 | finance, planning, welfare | yes |
 | no clinic anywhere | 3 | 2 | 0 | 2 | 2 | 0 | health, welfare, finance | yes |
 | no school anywhere | 3 | 2 | 0 | 2 | 2 | 0 | education, welfare, finance | yes |
 
@@ -54,12 +54,12 @@ The same pipeline the player sees, with the deterministic agents in every seat. 
 
 | Town | Seated | Would call | Would send (tokens) | Round 2 | Recommendation | Guardrails | Affordable | Has the most backers (ties allowed) |
 |---|---|---|---|---|---|---|---|---|
-| rush-hour jam | 3 | 7 | 5,319 | yes | C: Start a bus line along Canal Street | pass | yes | yes |
-| power plant replaced by one turbine | 4 | 8 | 5,371 | yes | A: Build 6 wind turbines | pass | yes | yes |
-| one of two water towers removed | 2 | 5 | 2,693 | yes | A: Build 3 water towers | pass | yes | yes |
-| every tax at 0%, treasury low | 3 | 6 | 4,481 | yes | A: Restore taxes to the standard 9% | pass | yes | yes |
-| no clinic anywhere | 3 | 6 | 3,428 | yes | A: Build a clinic | pass | yes | yes |
-| no school anywhere | 3 | 6 | 3,405 | yes | A: Build a school | pass | yes | yes |
+| rush-hour jam | 3 | 7 | 5,321 | yes | C: Start a bus line along Canal Street | pass | yes | yes |
+| power plant replaced by one turbine | 4 | 8 | 5,359 | yes | A: Build 6 wind turbines | pass | yes | yes |
+| one of two water towers removed | 2 | 5 | 2,652 | yes | A: Build 3 water towers | pass | yes | yes |
+| every tax at 0%, treasury low | 3 | 6 | 4,152 | yes | A: Restore taxes to the standard 9% | pass | yes | yes |
+| no clinic anywhere | 3 | 6 | 3,431 | yes | A: Build a clinic | pass | yes | yes |
+| no school anywhere | 3 | 6 | 3,408 | yes | A: Build a school | pass | yes | yes |
 
 ## 4. Guardrails under attack
 
@@ -178,7 +178,7 @@ Option A: Widen Hill Road to a four-lane avenue. Same issue, same seats, same ot
 | rush-hour jam | Why is traffic so bad? | yes | Call the council | The AI is not available right now, but here is what the city data shows: There are no warnings. The problem: Gridlock on Canal Street. Canal Street is jammed in the rush hour: about 13.1 cars per 100 m on a 2-lane street. The council can weigh the options for you. |
 | power plant replaced by one turbine | Why do buildings have no electricity? | yes | Call the council | The AI is not available right now, but here is what the city data shows: 1. No power: build a power plant beside a road. The problem: Blackout: no power supply. Power demand is 18.5 MW against 0.0 supplied; 53 buildings are cut off. The council can weigh the options for you. |
 | one of two water towers removed | Why is there no water? | yes | Call the council | The AI is not available right now, but here is what the city data shows: 1. Water shortage. The problem: Water shortage. Water demand is 4,057 water units against 1,600 supplied; 29 buildings are cut off. The council can weigh the options for you. |
-| every tax at 0%, treasury low | Why is my money going down every hour? | yes | Open the budget | The AI is not available right now. The city's budget: $16,322 in hand, -$3,678 an hour (income $0, spending $3,678; taxes 0% / 0% / 0%). Open the Budget (B) to check taxes and spending. |
+| every tax at 0%, treasury low | Why is my money going down every hour? | yes | Open the budget | The AI is not available right now. The city's budget: $4,977 in hand, -$1,023 an hour (income $0, spending $1,023; taxes 0% / 0% / 0%). Open the Budget (B) to check taxes and spending. |
 | no clinic anywhere | Are my people healthy? | yes | Call the council | The AI is not available right now, but here is what the city data shows: There are no warnings. The problem: No clinic nearby. 1775 residents (100%) live beyond the reach of any clinic. The council can weigh the options for you. |
 | no school anywhere | Do children have schools? | yes | Call the council | The AI is not available right now, but here is what the city data shows: There are no warnings. The problem: No school nearby. 1775 residents (100%) live beyond the reach of any school. The council can weigh the options for you. |
 

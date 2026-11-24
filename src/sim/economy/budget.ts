@@ -4,6 +4,7 @@ import { FacilityKind, FACILITIES, Service } from '../facilities';
 import { ROAD_SPECS, type RoadNetwork } from '../roads/types';
 import { ZoneType, zoneType, type Building } from '../zoning/zones';
 import type { CityStats } from './economy';
+import type { GameState } from '../state';
 
 export interface Policies {
   /** Staggered office hours: flattens the morning and evening rush. */
@@ -23,18 +24,97 @@ export interface Loan {
 export interface LoanTier {
   amount: number;
   hours: number;
-  /** Simple annual interest rate. */
+  /** Simple annual interest rate, before any risk premium. */
   rate: number;
+  /** The bank lends this much only to a city of at least this many residents. */
+  minPopulation: number;
 }
 
 export const LOAN_TIERS: readonly LoanTier[] = [
-  { amount: 20000, hours: 24, rate: 0.06 },
-  { amount: 50000, hours: 36, rate: 0.08 },
-  { amount: 120000, hours: 48, rate: 0.1 },
+  { amount: 15000, hours: 36, rate: 0.09, minPopulation: 500 },
+  { amount: 40000, hours: 48, rate: 0.11, minPopulation: 2500 },
+  { amount: 100000, hours: 60, rate: 0.13, minPopulation: 8000 },
 ];
 
-export function loanPayment(t: LoanTier): number {
-  return Math.round((t.amount * (1 + (t.rate * t.hours) / 12)) / t.hours);
+/** At most this share of the city's hourly income may go on loan repayments. */
+export const DEBT_SERVICE_LIMIT = 0.35;
+/** Each loan the city already holds adds this to the interest rate of the next. */
+export const RISK_PREMIUM = 0.02;
+
+export function loanPayment(t: LoanTier, rate = t.rate): number {
+  return Math.round((t.amount * (1 + (rate * t.hours) / 12)) / t.hours);
+}
+
+/** What the bank looks at: the city's size and its hourly books as they stand. */
+export interface CreditView {
+  population: number;
+  /** Hourly income before spending. */
+  income: number;
+  /** Hourly balance after spending, existing loan payments included. */
+  net: number;
+  loans: readonly Loan[];
+}
+
+export interface LoanOffer {
+  ok: boolean;
+  /** Why the bank says no (empty when it says yes). */
+  reason: string;
+  rate: number;
+  payment: number;
+}
+
+/**
+ * Whether the bank would lend tier `tier` to this city, and on what terms. The rules, in
+ * the order the bank checks them: one loan of each size at a time; a minimum city size for
+ * each size of loan; a city losing money each hour gets only the smallest loan; and all
+ * repayments together, this one included, may take at most 35% of hourly income. Every
+ * loan already held adds two points to the interest rate.
+ */
+export function loanOffer(tier: number, city: CreditView): LoanOffer {
+  const t = LOAN_TIERS[tier];
+  if (!t) return { ok: false, reason: 'No such loan', rate: 0, payment: 0 };
+  const rate = t.rate + RISK_PREMIUM * city.loans.length;
+  const payment = loanPayment(t, rate);
+  const no = (reason: string): LoanOffer => ({ ok: false, reason, rate, payment });
+  if (city.loans.some((l) => l.tier === tier)) return no('Already borrowed: repay it first');
+  if (city.population < t.minPopulation) {
+    return no(`For cities of ${t.minPopulation.toLocaleString('en-US')} residents or more (you have ${Math.floor(city.population).toLocaleString('en-US')})`);
+  }
+  if (city.net < 0 && tier > 0) return no('The city loses money every hour: only the smallest loan is offered');
+  let repaying = payment;
+  for (const l of city.loans) repaying += l.payment;
+  const limit = city.income * DEBT_SERVICE_LIMIT;
+  if (repaying > limit) {
+    const share = city.income > 0 ? Math.round((repaying / city.income) * 100) : null;
+    return no(
+      share === null
+        ? 'The city has no income to repay from yet'
+        : `Repayments would take ${share}% of hourly income; the bank allows ${Math.round(DEBT_SERVICE_LIMIT * 100)}%`,
+    );
+  }
+  return { ok: true, reason: '', rate, payment };
+}
+
+/** The bank's view of a city as it stands now (or with `loans` in place of its own). */
+export function creditView(s: Pick<GameState, 'buildings' | 'roads' | 'tax' | 'loans' | 'stats' | 'policies' | 'metro'>, loans: readonly Loan[] = s.loans): CreditView {
+  const b = projectBudget(s.buildings, s.roads, s.tax, loans, s.stats, emptyReport(), s.policies, s.metro);
+  return { population: s.stats.population, income: b.income, net: b.net, loans };
+}
+
+/**
+ * The loans the bank would grant if the city took them one after another, smallest first
+ * (each one taken makes the next harder to get). What the council plans with.
+ */
+export function loansAvailable(s: Pick<GameState, 'buildings' | 'roads' | 'tax' | 'loans' | 'stats' | 'policies' | 'metro'>): { tier: number; amount: number; payment: number }[] {
+  const loans: Loan[] = [...s.loans];
+  const out: { tier: number; amount: number; payment: number }[] = [];
+  LOAN_TIERS.forEach((t, tier) => {
+    const offer = loanOffer(tier, creditView(s, loans));
+    if (!offer.ok) return;
+    out.push({ tier, amount: t.amount, payment: offer.payment });
+    loans.push({ tier, payment: offer.payment, hoursLeft: t.hours });
+  });
+  return out;
 }
 
 /** One hour's money in and out. */
