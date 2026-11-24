@@ -449,6 +449,7 @@ afterAll(() => {
   expect(network).toBe(0);
   mkdirSync('eval/runs', { recursive: true });
   writeFileSync(`eval/runs/offline-${stamp}.json`, JSON.stringify(R, null, 2));
+  writeFileSync('eval/runs/offline-latest.json', JSON.stringify(R, null, 2));
   writeFileSync('docs/EVALUATION.md', report(R));
   writeFileSync('src/game/council/evalCard.ts', card(R));
 });
@@ -507,7 +508,7 @@ function report(r: Record<string, unknown>): string {
   const out: string[] = [];
   out.push(`# Evaluation of the AI layer, at zero tokens
 
-Run ${String(r.stamp).replace('T', ' ')} (UTC) by \`npm run eval:offline\` (\`tests/eval/offline.eval.ts\`). Raw results: \`eval/runs/offline-${r.stamp}.json\`.
+Run ${String(r.stamp).replace('T', ' ')} (UTC) by \`npm run eval:offline\` (\`tests/eval/offline.eval.ts\`). Raw results: \`eval/runs/offline-latest.json\`.
 
 **No model was called.** Network access is switched off for the run and every attempt is counted: **${r.network} network calls**. Everything below is plain code, run either on the live pipeline (detectors, fork, triage, offline agents, guardrails, parsers) or on model output that was already paid for in an earlier run. That is what makes it safe to run on every change, on a free tier.
 

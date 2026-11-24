@@ -4,6 +4,7 @@ import { GameAudio } from '../audio/audio';
 import { saves } from '../platform/idb';
 import { cloneState, metaOf, validateState } from '../sim/save/serialize';
 import { cloudEnabled, cloudSaves, signInWithEmail, signInWithGoogle, signOut, watchAccount, type Account } from '../platform/cloud';
+import { nudgeDismissals } from '../ui/AccountPanel';
 import { createState, type GameState } from '../sim/state';
 import { CouncilController } from './council/controller';
 import { browserKV } from './council/storage';
@@ -139,6 +140,8 @@ export class Game {
   /** Tick of the last cloud autosave, so an idle city is not uploaded again. */
   private cloudTick = -1;
   private resumeOffered = false;
+  /** The sign-in suggestion is shown at most once a visit. */
+  private nudgeShown = false;
   private slowFrames = 0;
   private fastSeconds = 0;
   private resCooldown = 0;
@@ -350,7 +353,11 @@ export class Game {
         ui.menuNote.value = 'New city started. The previous one is in Autosave.';
       });
     };
-    actions.save = (slot) => void this.saveTo(slot).then((ok) => (ui.menuNote.value = ok ? 'City saved.' : 'Could not save: storage is unavailable.'));
+    actions.save = (slot) =>
+      void this.saveTo(slot).then((ok) => {
+        ui.menuNote.value = ok ? 'City saved.' : 'Could not save: storage is unavailable.';
+        if (ok) this.nudgeSignIn();
+      });
     actions.load = (slot) => void this.loadFrom(slot);
     actions.refreshSaves = () => void this.refreshSaves();
     this.setUpAccounts();
@@ -793,6 +800,7 @@ export class Game {
       const st = state.stats;
       ui.funds.value = Math.floor(state.funds);
       ui.population.value = st.population;
+      if (st.population >= SIGNIN_NUDGE_POPULATION) this.nudgeSignIn();
       ui.demand.value = [st.demand[1], st.demand[2], st.demand[3]];
       ui.budget.value = projectBudget(state.buildings, state.roads, state.tax, state.loans, st, emptyReport(), state.policies, state.metro);
       ui.tax.value = [state.tax[1], state.tax[2], state.tax[3]];
@@ -890,6 +898,18 @@ export class Game {
       console.warn('[load]', err);
       ui.menuNote.value = 'Could not load: storage is unavailable.';
     }
+  }
+
+  /**
+   * Suggests signing in, at a moment it is worth it: the city has grown, or the player has
+   * just saved in this browser. Never while signed in, never in screenshot runs, and a
+   * player who says "not now" twice is not asked again.
+   */
+  private nudgeSignIn(): void {
+    if (!ui.account.value.enabled || ui.account.value.email || this.options.shots || ui.signinNudge.value) return;
+    if (this.nudgeShown || nudgeDismissals() >= 2) return;
+    this.nudgeShown = true;
+    ui.signinNudge.value = true;
   }
 
   /** Accounts and cloud saves (Supabase), when this build is configured for them. */
@@ -1120,6 +1140,9 @@ export class Game {
     };
   }
 }
+
+/** A city this big is worth keeping: suggest signing in. */
+const SIGNIN_NUDGE_POPULATION = 300;
 
 /** The opening: the loading screen stays up at least this long, then the camera flies in. */
 const INTRO_MIN_MS = 2600;

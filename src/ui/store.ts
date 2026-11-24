@@ -238,6 +238,8 @@ export const ui = {
   cloudSaves: signal<SaveMeta[]>([]),
   /** A cloud city offered on sign-in ("continue where you left off"). */
   resume: signal<SaveMeta | null>(null),
+  /** "Keep your city safe: sign in": shown once the city is worth keeping, or after a local save. */
+  signinNudge: signal(false),
   muted: signal(false),
   /** Result of the last menu action, shown in the menu. */
   menuNote: signal(''),

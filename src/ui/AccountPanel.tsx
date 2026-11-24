@@ -3,6 +3,17 @@ import { useState } from 'preact/hooks';
 import { CLOUD_SLOTS, GOOGLE_SIGN_IN } from '../platform/cloud';
 import { actions, ui } from './store';
 
+const NUDGE_KEY = 'metropolis.signinNudge.v1';
+
+/** How many times this player has said "not now" to signing in. */
+export function nudgeDismissals(): number {
+  try {
+    return Number(localStorage.getItem(NUDGE_KEY) ?? 0) || 0;
+  } catch {
+    return 0;
+  }
+}
+
 const when = (ms: number): string => new Date(ms).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 
 /** Menu > Account: sign in with an emailed link (or Google), and save cities to the account. */
@@ -87,6 +98,49 @@ export function ResumeCard(): JSX.Element | null {
           Continue
         </button>
         <button type="button" class="btn" onClick={() => (ui.resume.value = null)}>
+          Not now
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * "Keep your city safe": a card that offers signing in, shown once the city has grown or
+ * right after a save in this browser (see Game.nudgeSignIn).
+ */
+export function SignInNudge(): JSX.Element | null {
+  const a = ui.account.value;
+  if (!ui.signinNudge.value || !a.enabled || a.email || ui.loading.value !== null || ui.intro.value || ui.resume.value) return null;
+  const close = (): void => {
+    ui.signinNudge.value = false;
+    try {
+      localStorage.setItem(NUDGE_KEY, String(nudgeDismissals() + 1));
+    } catch {
+      /* private window: ask again next visit */
+    }
+  };
+  const openAccount = (): void => {
+    ui.signinNudge.value = false;
+    ui.showMenu.value = true;
+  };
+  const city = ui.cityName.value;
+  return (
+    <div class="panel signin-nudge" role="dialog" aria-label="Keep your city safe">
+      <div class="goal-banner-kicker">Keep your city safe</div>
+      <div class="signin-title">Save {city} to your account</div>
+      <div class="muted">Your city lives in this browser only. Sign in to keep it, and carry on from your phone or any other computer. No password needed.</div>
+      <div class="btn-row ai-key-row">
+        {GOOGLE_SIGN_IN ? (
+          <button type="button" class="welcome-go" onClick={() => ((ui.signinNudge.value = false), actions.signInGoogle())}>
+            Sign in with Google
+          </button>
+        ) : (
+          <button type="button" class="welcome-go" onClick={openAccount}>
+            Sign in with email
+          </button>
+        )}
+        <button type="button" class="btn" onClick={close}>
           Not now
         </button>
       </div>

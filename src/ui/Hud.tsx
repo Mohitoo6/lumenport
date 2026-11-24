@@ -2,7 +2,7 @@ import { render, type JSX } from 'preact';
 import { useEffect, useState } from 'preact/hooks';
 import { aiStatus } from '../game/council/llm';
 import { AiKeyPanel } from './AiKeyPanel';
-import { AccountPanel, ResumeCard } from './AccountPanel';
+import { AccountPanel, ResumeCard, SignInNudge } from './AccountPanel';
 import { GAME_NAME, Loading } from './Intro';
 import { DEBT_SERVICE_LIMIT, LOAN_TIERS, creditRating } from '../sim/economy/budget';
 import { OVERLAYS } from '../render/overlays/dataOverlay';
@@ -1001,6 +1001,7 @@ function Hud(): JSX.Element {
       <Loading />
       <Welcome />
       {city && <ResumeCard />}
+      {city && <SignInNudge />}
     </>
   );
 }

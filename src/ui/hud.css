@@ -1828,3 +1828,23 @@ kbd {
     display: none;
   }
 }
+
+/* "Keep your city safe": the sign-in suggestion, bottom right above the toolbar. */
+.signin-nudge {
+  position: absolute;
+  right: 14px;
+  bottom: 104px;
+  width: min(330px, calc(100vw - 28px));
+  padding: 14px 16px;
+  border-left: 3px solid var(--accent);
+  font-size: 13px;
+  line-height: 1.45;
+  animation: welcome-fade 0.4s ease;
+  z-index: 20;
+}
+
+.signin-title {
+  margin: 4px 0 4px;
+  font-size: 15px;
+  font-weight: 650;
+}
