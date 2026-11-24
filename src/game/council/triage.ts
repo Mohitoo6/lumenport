@@ -1,6 +1,6 @@
 import { CELL } from '../../core/constants';
 import { emptyReport, projectBudget } from '../../sim/economy/budget';
-import { FacilityKind, Service } from '../../sim/facilities';
+import { FIRE_KINDS, FacilityKind, HEALTH_KINDS, POLICE_KINDS, Service } from '../../sim/facilities';
 import type { Sim } from '../../sim/sim';
 import { homesAbove, uncovered } from './briefs';
 import type { CityIssue } from './issues';
@@ -139,7 +139,7 @@ export function triage(sim: Sim, issue: CityIssue, options: readonly CouncilOpti
   if (tax.length) add('planning', 2.5, 'tax changes slow growth');
 
   if (issue.kind === 'traffic' && issue.edge !== undefined) {
-    const emergency = Math.min(...[FacilityKind.FireStation, FacilityKind.Police, FacilityKind.Clinic].map((k) => nearest(sim, k, issue)));
+    const emergency = Math.min(...[...FIRE_KINDS, ...POLICE_KINDS, ...HEALTH_KINDS].map((k) => nearest(sim, k, issue)));
     if (emergency < 450) add('safety', 3.5, 'emergency vehicles use this road');
     add('environment', 1.5, 'queuing traffic adds fumes');
   }

@@ -709,11 +709,16 @@ function Toolbar(): JSX.Element {
       )}
       {tool === 'place' && !isMetro && (
         <div class="panel options" role="group" aria-label="Facility">
-          {group.map((k) => (
-            <ToolButton key={k} active={fk === k} label={`${FACILITIES[k]!.name} · ${usd(FACILITIES[k]!.cost)}`} onClick={() => actions.setFacility(k)}>
-              <span class="opt-dot" aria-hidden="true" />
-            </ToolButton>
-          ))}
+          {group.map((k) => {
+            const spec = FACILITIES[k]!;
+            const locked = !ui.sandbox.value && spec.minPopulation !== undefined && ui.population.value < spec.minPopulation;
+            const label = `${spec.name} · ${usd(spec.cost)}${locked ? ` · from ${spec.minPopulation!.toLocaleString('en-US')} residents` : ''}`;
+            return (
+              <ToolButton key={k} active={fk === k} label={label} onClick={() => actions.setFacility(k)}>
+                <span class={`opt-dot${locked ? ' is-locked' : ''}`} aria-hidden="true" />
+              </ToolButton>
+            );
+          })}
         </div>
       )}
       <nav class="panel toolbar" aria-label="Build tools">

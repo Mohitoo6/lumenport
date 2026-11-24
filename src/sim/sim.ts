@@ -6,7 +6,7 @@ import { demolishEdge, executePlan, executeUpgrade, planRoad, planUpgrade, type 
 import { LOAN_TIERS, creditView, loanOffer, projectBudget } from './economy/budget';
 import { economyStep, growthRateFor } from './economy/economy';
 import { advanceGoals, type Goal } from './goals';
-import { FacilityKind, findTownHallSite, isLandmark, planFacility, type FacilityPlan } from './facilities';
+import { FacilityKind, findTownHallSite, isLandmark, lockedReason, planFacility, type FacilityPlan } from './facilities';
 import { ROAD_SPECS } from './roads/types';
 import { Fields } from './fields/fields';
 import { weatherAt, type Weather } from './seasons';
@@ -279,7 +279,9 @@ export class Sim {
 
   /** Dry run of placing a facility centred on a cell. */
   planFacility(kind: number, i: number, j: number): FacilityPlan {
-    return planFacility(this.state, kind, i, j);
+    const plan = planFacility(this.state, kind, i, j);
+    const locked = lockedReason(kind, this.state.stats.population, this.state.sandbox);
+    return locked ? { ...plan, ok: false, reason: locked } : plan;
   }
 
   private grow(changed: number[]): void {
@@ -520,6 +522,8 @@ export class Sim {
       }
       case 'placeFacility': {
         if ((isLandmark(cmd.kind) || cmd.kind === FacilityKind.Airport) && s.buildings.some((b) => b && b.kind === cmd.kind)) return fail('The city already has one');
+        const locked = lockedReason(cmd.kind, s.stats.population, s.sandbox);
+        if (locked) return fail(locked);
         const plan = planFacility(s, cmd.kind, cmd.x, cmd.y);
         if (!plan.ok) return fail(plan.reason);
         if (!this.charge(plan.cost)) return fail('Not enough money');

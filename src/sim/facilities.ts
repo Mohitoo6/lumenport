@@ -33,6 +33,12 @@ export const enum FacilityKind {
   Multiplex = 20,
   /** Indian pedestrian bazaar with arched gates, covered stalls and festive lights. */
   MarketStreet = 21,
+  /** The big police station: a district headquarters with a patrol fleet and a helipad. */
+  PoliceHQ = 22,
+  /** The big fire station: five appliance bays, a training tower and a fleet of engines. */
+  FireHQ = 23,
+  /** A domed indoor arena for sport and concerts. */
+  IndoorStadium = 24,
 }
 
 /** Which coverage layer a service facility feeds. */
@@ -79,6 +85,8 @@ export interface FacilitySpec {
   budget?: 'utility' | 'service' | 'transit';
   /** Steepest rise allowed across the site, metres (default 6). */
   maxRelief?: number;
+  /** The bigger buildings of a service unlock when the city reaches this many residents. */
+  minPopulation?: number;
 }
 
 export const FACILITIES: Record<number, FacilitySpec> = {
@@ -87,8 +95,10 @@ export const FACILITIES: Record<number, FacilitySpec> = {
   [FacilityKind.SolarFarm]: { name: 'Solar farm', size: 3, cost: 7500, upkeep: 130, power: 9, water: 0, needsShore: false, blurb: 'Clean power, needs space.', service: Service.None, radius: 0 },
   [FacilityKind.WaterTower]: { name: 'Water tower', size: 2, cost: 2800, upkeep: 110, power: 0, water: 1600, needsShore: false, blurb: 'Supplies a small district.', service: Service.None, radius: 0 },
   [FacilityKind.WaterPump]: { name: 'Pumping station', size: 2, cost: 6500, upkeep: 260, power: 0, water: 7000, needsShore: true, blurb: 'High output. Build by the water.', service: Service.None, radius: 0 },
-  [FacilityKind.Police]: { name: 'Police station', size: 2, cost: 5000, upkeep: 320, power: 0, water: 0, needsShore: false, blurb: 'Keeps crime down nearby.', service: Service.Police, radius: 42 },
-  [FacilityKind.FireStation]: { name: 'Fire station', size: 2, cost: 5500, upkeep: 340, power: 0, water: 0, needsShore: false, blurb: 'Makes the district safer.', service: Service.Fire, radius: 42 },
+  [FacilityKind.Police]: { name: 'Police station', size: 2, cost: 5000, upkeep: 320, power: 0, water: 0, needsShore: false, blurb: 'A neighbourhood thana: keeps crime down in the streets around it.', service: Service.Police, radius: 42 },
+  [FacilityKind.PoliceHQ]: { name: 'Police headquarters', size: 4, cost: 16000, upkeep: 820, power: 0, water: 0, needsShore: false, blurb: 'The district headquarters: police cover more than twice as far as a thana, a patrol fleet, a helipad and 90 jobs.', service: Service.Police, radius: 95, jobs: 90, minPopulation: 3000 },
+  [FacilityKind.FireStation]: { name: 'Fire station', size: 2, cost: 5500, upkeep: 340, power: 0, water: 0, needsShore: false, blurb: 'A neighbourhood fire station: two engines for the streets around it.', service: Service.Fire, radius: 42 },
+  [FacilityKind.FireHQ]: { name: 'Central fire station', size: 4, cost: 17500, upkeep: 860, power: 0, water: 0, needsShore: false, blurb: 'Five appliance bays and a training tower: fire cover more than twice as far as a local station, and 70 jobs.', service: Service.Fire, radius: 95, jobs: 70, minPopulation: 3000 },
   [FacilityKind.Clinic]: { name: 'Clinic', size: 2, cost: 6000, upkeep: 380, power: 0, water: 0, needsShore: false, blurb: 'Healthier, happier residents.', service: Service.Health, radius: 38 },
   [FacilityKind.School]: { name: 'School', size: 3, cost: 7000, upkeep: 420, power: 0, water: 0, needsShore: false, blurb: 'Educated residents; lets homes improve.', service: Service.Education, radius: 38 },
   [FacilityKind.Park]: { name: 'Park', size: 2, cost: 1200, upkeep: 40, power: 0, water: 0, needsShore: false, blurb: 'Raises land value around it.', service: Service.Park, radius: 14 },
@@ -101,7 +111,8 @@ export const FACILITIES: Record<number, FacilitySpec> = {
   [FacilityKind.ShoppingMall]: { name: 'Shopping mall', size: 8, length: 10, cost: 42000, upkeep: 520, power: 0, water: 0, needsShore: false, blurb: 'Regional retail and dining hub: creates hundreds of retail jobs and lifts nearby land value.', service: Service.Park, radius: 34, jobs: 620, budget: 'service', maxRelief: 7 },
   [FacilityKind.Multiplex]: { name: 'Multiplex cinema', size: 4, cost: 22000, upkeep: 280, power: 0, water: 0, needsShore: false, blurb: 'Multi-screen cinema and dining lounge: lifts happiness, land value and retail jobs.', service: Service.Park, radius: 26, jobs: 140, budget: 'service' },
   [FacilityKind.MarketStreet]: { name: 'Bazaar street', size: 2, length: 4, cost: 8500, upkeep: 110, power: 0, water: 0, needsShore: false, blurb: 'Lively pedestrian market lane with colourful stalls and evening lights.', service: Service.Park, radius: 22, jobs: 110, budget: 'service' },
-  [FacilityKind.Hospital]: { name: 'Hospital', size: 5, length: 6, cost: 24000, upkeep: 950, power: 0, water: 0, needsShore: false, blurb: 'A large multi-speciality hospital: health cover for a whole district, an emergency wing and jobs for doctors and nurses.', service: Service.Health, radius: 80, jobs: 220 },
+  [FacilityKind.Hospital]: { name: 'Hospital', size: 5, length: 6, cost: 24000, upkeep: 950, power: 0, water: 0, needsShore: false, blurb: 'A large multi-speciality hospital: health cover for a whole district, an emergency wing and jobs for doctors and nurses.', service: Service.Health, radius: 80, jobs: 220, minPopulation: 2000 },
+  [FacilityKind.IndoorStadium]: { name: 'Indoor stadium', size: 10, cost: 30000, upkeep: 560, power: 0, water: 0, needsShore: false, blurb: 'A domed arena for kabaddi, badminton and concerts: lifts happiness and land value across the district, draws crowds at night and gives 90 jobs.', service: Service.Park, radius: 42, jobs: 90, maxRelief: 7, minPopulation: 5000 },
   [FacilityKind.TownHall]: { name: 'Town Hall', size: 4, cost: 0, upkeep: 0, power: 0, water: 0, needsShore: false, blurb: 'Seat of the city council. A civic square that lifts the land around it.', service: Service.Park, radius: 22, landmark: true },
 };
 
@@ -111,7 +122,30 @@ export function isLandmark(kind: number): boolean {
 
 export const POWER_FACILITIES = [FacilityKind.CoalPlant, FacilityKind.WindTurbine, FacilityKind.SolarFarm] as const;
 export const WATER_FACILITIES = [FacilityKind.WaterTower, FacilityKind.WaterPump] as const;
-export const SERVICE_FACILITIES = [FacilityKind.Police, FacilityKind.FireStation, FacilityKind.Clinic, FacilityKind.Hospital, FacilityKind.School, FacilityKind.Park, FacilityKind.SportsGround] as const;
+export const SERVICE_FACILITIES = [
+  FacilityKind.Police,
+  FacilityKind.PoliceHQ,
+  FacilityKind.FireStation,
+  FacilityKind.FireHQ,
+  FacilityKind.Clinic,
+  FacilityKind.Hospital,
+  FacilityKind.School,
+  FacilityKind.Park,
+  FacilityKind.SportsGround,
+  FacilityKind.IndoorStadium,
+] as const;
+
+/** Every building of a kind of service, small and big: what counts as "a police station". */
+export const POLICE_KINDS: readonly number[] = [FacilityKind.Police, FacilityKind.PoliceHQ];
+export const FIRE_KINDS: readonly number[] = [FacilityKind.FireStation, FacilityKind.FireHQ];
+export const HEALTH_KINDS: readonly number[] = [FacilityKind.Clinic, FacilityKind.Hospital];
+
+/** Why a facility cannot be built yet in a city of this size, or null when it can. */
+export function lockedReason(kind: number, population: number, sandbox: boolean): string | null {
+  const need = FACILITIES[kind]?.minPopulation;
+  if (!need || sandbox || population >= need) return null;
+  return `Unlocks at ${need.toLocaleString('en-US')} residents (you have ${Math.floor(population).toLocaleString('en-US')})`;
+}
 export const CAMPUS_FACILITIES = [FacilityKind.ItPark, FacilityKind.University, FacilityKind.ShoppingMall, FacilityKind.Multiplex, FacilityKind.MarketStreet] as const;
 export const TRANSIT_FACILITIES = [FacilityKind.BusStop, FacilityKind.MetroStation, FacilityKind.Airport] as const;
 

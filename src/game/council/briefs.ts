@@ -81,7 +81,7 @@ export function briefing(sim: Sim, id: MinistryId): string[] {
       ];
     case 'safety':
       return [
-        `Police stations: ${count(sim, FacilityKind.Police)}; residents without police cover: ${pct(uncovered(sim, Service.Police))}.`,
+        `Police stations: ${count(sim, FacilityKind.Police)} (headquarters: ${count(sim, FacilityKind.PoliceHQ)}); residents without police cover: ${pct(uncovered(sim, Service.Police))}.`,
         `Fire stations: ${count(sim, FacilityKind.FireStation)}; residents without fire cover: ${pct(uncovered(sim, Service.Fire))}.`,
         `Residents in high-crime areas: ${homesAbove(sim, sim.fields.crime, 0.14)}. Speed lost to traffic (slows emergency response): ${pct(st.congestion)}.`,
       ];

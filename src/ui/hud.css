@@ -852,6 +852,12 @@ button:focus-visible {
   opacity: 0.6;
 }
 
+/* A building the city is not big enough for yet: a hollow dot, and the label says when. */
+.opt-dot.is-locked {
+  background: transparent;
+  box-shadow: inset 0 0 0 1.5px currentColor;
+}
+
 /* Build toolbar */
 
 .dock {

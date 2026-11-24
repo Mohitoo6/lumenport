@@ -1,5 +1,5 @@
 import { CELL, MAP } from '../../core/constants';
-import { FacilityKind, Service } from '../../sim/facilities';
+import { FacilityKind, POLICE_KINDS, Service } from '../../sim/facilities';
 import { ROAD_SPECS } from '../../sim/roads/types';
 import type { Sim } from '../../sim/sim';
 import { POWERED, WATERED } from '../../sim/utilities/network';
@@ -269,7 +269,7 @@ function crimeIssue(sim: Sim): CityIssue | null {
     summary: `Crime is high ${describePlace(sim, hit.x, hit.z)}, where ${hit.residents} residents have little or no police cover.`,
     facts: [
       `${hit.n} homes (${hit.residents} residents) have high crime and weak police cover.`,
-      `Police stations in the city: ${sim.state.buildings.filter((b) => b && b.kind === FacilityKind.Police).length}.`,
+      `Police stations in the city: ${sim.state.buildings.filter((b) => b && POLICE_KINDS.includes(b.kind)).length}.`,
       `Crime lowers land value and happiness.`,
     ],
     x: hit.x,

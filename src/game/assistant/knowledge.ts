@@ -43,6 +43,7 @@ export function manualSections(): ManualSection[] {
       if (f.water) parts.push(`${f.water.toLocaleString('en-US')} water units`);
       if (f.radius) parts.push(`reach ${f.radius * CELL} m`);
       if (f.needsShore) parts.push('must be next to open water');
+      if (f.minPopulation) parts.push(`unlocks at ${f.minPopulation.toLocaleString('en-US')} residents`);
       return `- ${parts.join(', ')}. ${f.blurb}`;
     })
     .join('\n');

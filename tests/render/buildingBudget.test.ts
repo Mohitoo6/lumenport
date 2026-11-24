@@ -76,7 +76,7 @@ describe('the cricket ground', () => {
   });
 });
 
-describe('the mall, multiplex and bazaar', () => {
+describe('the mall, multiplex, bazaar, headquarters and indoor stadium', () => {
   it('fit their budgets, stay in their lots and are the same every time for one seed', () => {
     const cases: Array<[number, number, number, number]> = [
       [FacilityKind.ShoppingMall, 10, 8, 10000],
@@ -84,6 +84,9 @@ describe('the mall, multiplex and bazaar', () => {
       [FacilityKind.Multiplex, 4, 4, 4000],
       [FacilityKind.MarketStreet, 4, 2, 4000],
       [FacilityKind.MarketStreet, 2, 4, 4000],
+      [FacilityKind.PoliceHQ, 4, 4, 6000],
+      [FacilityKind.FireHQ, 4, 4, 6000],
+      [FacilityKind.IndoorStadium, 10, 10, 9000],
     ];
     for (const [kind, w, h, budget] of cases) {
       for (const facing of [Facing.North, Facing.East, Facing.South, Facing.West]) {

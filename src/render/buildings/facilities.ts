@@ -45,7 +45,7 @@ import {
   type Mat,
   type RGB,
 } from './common';
-import { fitBay } from './geo';
+import { fitBay, type Win } from './geo';
 
 const GRAVEL = mat(Layer.Concrete, [1.1, 1.08, 1.02], 2.5);
 const CHAIN_LINK = mat(Layer.Concrete, [0.7, 0.72, 0.74], 1);
@@ -1559,6 +1559,333 @@ function sportsGround(l: Lot): void {
   }
 }
 
+/** A white patrol car parked along z: blue stripe, and a red-and-blue light bar that glows. */
+function patrolCar(g: Geo, x: number, z: number): void {
+  const body = mat(Layer.Plaster2, [1.6, 1.6, 1.58], 3);
+  const glass = mat(Layer.Metal, [0.32, 0.4, 0.5], 2);
+  g.box(x - 0.9, z - 2.2, x + 0.9, z + 2.2, 0.3, 1.05, body, NO_WIN, body);
+  g.box(x - 0.82, z - 1.1, x + 0.82, z + 0.9, 1.05, 1.55, glass, NO_WIN, body);
+  g.box(x - 0.92, z - 2.2, x + 0.92, z + 2.2, 0.62, 0.78, mat(Layer.Plaster2, [0.12, 0.26, 0.85], 3));
+  g.box(x - 0.6, z - 0.2, x, z + 0.15, 1.55, 1.72, mat(Layer.Plaster2, [1.9, 0.15, 0.12], 3), SIGN, null);
+  g.box(x, z - 0.2, x + 0.6, z + 0.15, 1.55, 1.72, mat(Layer.Plaster2, [0.2, 0.4, 1.9], 3), SIGN, null);
+  for (const [wx, wz] of [[-0.85, -1.4], [0.85, -1.4], [-0.85, 1.4], [0.85, 1.4]] as const) g.cyl(x + wx, z + wz, 0.33, 0.33, 0, 0.66, 6, STEEL_DARK);
+}
+
+/** A fire engine parked along z, cab toward +z: red body, white stripe, ladder, light bar. */
+function fireEngine(g: Geo, x: number, z: number): void {
+  const red = mat(Layer.Metal, [1.85, 0.22, 0.16], 0.9);
+  const white = mat(Layer.Plaster2, [1.6, 1.6, 1.56], 3);
+  g.box(x - 1.2, z - 4.2, x + 1.2, z + 2.2, 0.45, 3.0, red, NO_WIN, red);
+  g.box(x - 1.2, z + 2.2, x + 1.2, z + 4.0, 0.45, 2.6, red, NO_WIN, red);
+  g.box(x - 1.1, z + 3.95, x + 1.1, z + 4.02, 1.6, 2.4, mat(Layer.Metal, [0.3, 0.38, 0.48], 2));
+  g.box(x - 1.22, z - 4.2, x + 1.22, z + 4.0, 1.25, 1.45, white);
+  // Ladder on the roof and the light bar over the cab.
+  g.box(x - 0.55, z - 4.6, x - 0.42, z + 1.8, 3.0, 3.35, METAL_GREY);
+  g.box(x + 0.42, z - 4.6, x + 0.55, z + 1.8, 3.0, 3.35, METAL_GREY);
+  for (let k = 0; k < 6; k++) g.box(x - 0.42, z - 4.3 + k * 1.1, x + 0.42, z - 4.2 + k * 1.1, 3.15, 3.25, METAL_GREY);
+  g.box(x - 0.9, z + 2.6, x + 0.9, z + 3.0, 2.6, 2.85, mat(Layer.Plaster2, [0.3, 0.5, 1.9], 3), SIGN, null);
+  for (const [wx, wz] of [[-1.15, -3], [1.15, -3], [-1.15, -1.4], [1.15, -1.4], [-1.15, 2.8], [1.15, 2.8]] as const) g.cyl(x + wx, z + wz, 0.46, 0.46, 0, 0.92, 6, STEEL_DARK);
+}
+
+/** A helipad on a roof at height y: a dark disc, a white ring and a white H. */
+function helipad(g: Geo, cx: number, cz: number, y: number, radius: number): void {
+  const pad = mat(Layer.Asphalt, [0.42, 0.44, 0.48], 3);
+  g.cyl(cx, cz, radius, radius, y, y + 0.12, 20, pad, pad);
+  ring(g, cx, cz, radius * 0.78, radius * 0.9, y + 0.14, LINE_WHITE, 24);
+  const s = radius * 0.42;
+  g.flat(cx - s * 0.62, cz - s, cx - s * 0.36, cz + s, y + 0.15, LINE_WHITE);
+  g.flat(cx + s * 0.36, cz - s, cx + s * 0.62, cz + s, y + 0.15, LINE_WHITE);
+  g.flat(cx - s * 0.36, cz - s * 0.14, cx + s * 0.36, cz + s * 0.14, y + 0.15, LINE_WHITE);
+}
+
+/**
+ * Police headquarters on a 32 m lot: a four-storey stone block with the force's blue and
+ * red bands, a columned entrance portico under a lit sign, a glazed stair core, a helipad
+ * and a comms mast on the roof, a motor pool of patrol cars beside a garage, a parade
+ * ground with the flag, and a walled compound with a guarded gate.
+ */
+function policeHQ(l: Lot): void {
+  const { g, r, W, D } = l;
+  ground(l, PAVING);
+  const stone = mat(Layer.Plaster2, [1.26, 1.22, 1.12], 3);
+  const blue: RGB = [0.08, 0.22, 0.68];
+  const red: RGB = [0.82, 0.12, 0.1];
+  const hw = W / 2;
+  const hd = D / 2;
+  const x0 = -hw + 1.5;
+  const x1 = hw * 0.32;
+  const z0 = -hd + 1.5;
+  const z1 = hd * 0.18;
+  const fh = 3.5;
+  const plinth = 0.7;
+  const top = plinth + 4 * fh;
+
+  // The main block, with sunshades over each floor and the force's bands under the parapet.
+  g.walls(x0, z0, x1, z1, 0, plinth, CONCRETE_DARK);
+  g.walls(x0, z0, x1, z1, plinth, top, stone, win(Style.Punched, fitBay(x1 - x0, 2.6), fh, 0.5));
+  for (let f = 1; f <= 3; f++) chhajja(g, x0 - 0.1, x1 + 0.1, z1, plinth + f * fh - 0.25, 0.55, WHITE_TRIM, 'front');
+  g.walls(x0 - 0.06, z0 - 0.06, x1 + 0.06, z1 + 0.06, top - 0.8, top - 0.3, mat(Layer.Plaster2, blue, 3));
+  g.walls(x0 - 0.06, z0 - 0.06, x1 + 0.06, z1 + 0.06, top - 0.3, top, mat(Layer.Plaster2, red, 3));
+  flatRoof(g, x0, z0, x1, z1, top, stone, roofFinish(r), 0.8);
+
+  // A glazed stair core at the back corner, rising above the roof.
+  const glass = mat(Layer.Metal, [0.55, 0.72, 0.95], 2.4);
+  g.box(x1 - 4.5, z0 - 0.01, x1 - 0.8, z0 + 4, 0, top + 3.2, glass, win(Style.Curtain, 1.8, fh, 0.5), stone);
+
+  // Roof: helipad, comms mast with a dish, a water tank.
+  const pad = Math.min(5.2, (x1 - x0) * 0.24);
+  helipad(g, x0 + pad + 1.2, (z0 + z1) / 2, top + 0.05, pad);
+  const mx = x1 - 2.6;
+  const mz = z1 - 2.6;
+  g.cyl(mx, mz, 0.22, 0.08, top, top + 12, 6, METAL_GREY, null);
+  for (let k = 1; k <= 3; k++) g.box(mx - 0.6, mz - 0.05, mx + 0.6, mz + 0.05, top + k * 3, top + k * 3 + 0.1, METAL_GREY);
+  g.cyl(mx - 1.4, mz, 0.9, 0.2, top + 3.2, top + 3.6, 10, WHITE_TRIM);
+  waterTank(g, (x0 + x1) / 2 + 3, z0 + 2, top, r, 0.9, true);
+
+  // The entrance: a portico of four columns under a slab carrying the lit sign.
+  const dx = (x0 + x1) / 2;
+  const pz = z1 + 3.4;
+  g.box(dx - 5, z1, dx + 5, pz, 5.1, 5.6, WHITE_TRIM, NO_WIN, CONCRETE);
+  for (const c of [-4.2, -1.4, 1.4, 4.2]) g.cyl(dx + c, pz - 0.5, 0.32, 0.32, 0.6, 5.1, 10, WHITE_TRIM);
+  g.box(dx - 5.4, z1 - 0.1, dx + 5.4, pz + 0.4, 0, 0.6, CONCRETE, NO_WIN, PAVING);
+  g.stair(dx - 3, pz + 0.4, dx + 3, pz + 1.6, 0, 0.6, 3, CONCRETE);
+  frontPanel(g, dx, z1, 4, 0.6, 3.6, mat(Layer.Concrete, [0.42, 0.46, 0.54], 2), win(Style.Storefront, 2, 3, 0.5));
+  signBoard(g, dx - 4.6, dx, pz, 5.7, 6.9, blue);
+  signBoard(g, dx, dx + 4.6, pz, 5.7, 6.9, red);
+
+  // The motor pool: a garage block and a row of patrol cars on the side yard.
+  const yx0 = x1 + 2;
+  const yx1 = hw - 1.2;
+  g.box(yx0, z0, yx1, z0 + 7, 0, 4.4, stone, win(Style.Industrial, 3, 4.4, 0.5), TAR_ROOF);
+  for (let k = 0; k < 3; k++) {
+    const cx = yx0 + 1.6 + k * ((yx1 - yx0 - 3.2) / 2);
+    frontPanel(g, cx, z0 + 7, 2.6, 0, 3.2, mat(Layer.Metal, [0.6, 0.64, 0.7], 1.2));
+  }
+  parking(g, yx0, z0 + 8.5, yx1, z1 + 2);
+  const cars = Math.max(2, Math.floor((yx1 - yx0) / 3.2));
+  for (let k = 0; k < cars; k++) patrolCar(g, yx0 + 1.6 + k * 3.1, (z0 + 8.5 + z1 + 2) / 2);
+
+  // Parade ground with the flag, between the block and the road.
+  g.flat(x0, pz + 2, x1, hd - 1.2, 0.03, mat(Layer.Concrete, [1.22, 1.18, 1.1], 3));
+  flagpole(g, x0 + 2, hd - 2.4, blue);
+  for (const x of [x0 + 5, x1 - 2]) g.tree(x, hd - 2.4, r.range(0.45, 0.6), r.next() * 6);
+
+  // A walled compound with a gate and a guard post beside it.
+  const gate = (x1 + hw) / 2;
+  compoundWall(g, -hw + 0.3, -hd + 0.3, hw - 0.3, hd - 0.3, 1.6, stone, WHITE_TRIM, { cx: gate, w: 6, gateMat: IRON_DARK });
+  g.box(gate - 4.6, hd - 3.2, gate - 3.2, hd - 1.6, 0, 2.6, WHITE_TRIM, win(Style.Punched, 1.2, 2.6, 0.5), mat(Layer.Plaster2, blue, 3));
+}
+
+/**
+ * Central fire station on a 32 m lot: a five-bay appliance hall with red doors and a lit
+ * name board, three storeys of crew and control rooms behind, a seven-storey drill tower
+ * striped red and white, engines on a hatched apron, a siren mast, and a fenced yard.
+ */
+function fireHQ(l: Lot): void {
+  const { g, r, W, D } = l;
+  ground(l, mat(Layer.Concrete, [1.18, 1.18, 1.15], 4));
+  const brick = mat(Layer.Brick, [1.5, 1.18, 1.08], 2);
+  const red: RGB = [0.82, 0.1, 0.08];
+  const hw = W / 2;
+  const hd = D / 2;
+  const x0 = -hw + 1.2;
+  const x1 = hw - 8.5;
+  const hz1 = hd * 0.1;
+  const hz0 = hz1 - 9;
+  const hallH = 6.6;
+
+  // The appliance hall: five tall red doors under a long name board.
+  g.walls(x0, hz0, x1, hz1, 0, hallH, brick);
+  const bays = 5;
+  const bw = (x1 - x0 - 0.8) / bays;
+  for (let i = 0; i < bays; i++) {
+    const cx = x0 + 0.4 + bw * (i + 0.5);
+    frontPanel(g, cx, hz1, bw - 0.4, 0.02, 4.9, WHITE_TRIM);
+    frontPanel(g, cx, hz1 + 0.04, bw - 0.7, 0.02, 4.75, mat(Layer.Metal, [1.85, 0.28, 0.22], 0.8));
+    frontPanel(g, cx, hz1 + 0.07, bw - 1.1, 2.8, 3.9, mat(Layer.Concrete, [0.4, 0.46, 0.52], 2), win(Style.Curtain, (bw - 1.1) / 3, 1.1, 0.5));
+  }
+  g.box(x0 + 0.3, hz1, x1 - 0.3, hz1 + 1.2, 5.1, 5.35, WHITE_TRIM);
+  signBoard(g, x0 + 1.5, x1 - 1.5, hz1 + 1.2, 5.4, 6.4, red);
+  flatRoof(g, x0, hz0, x1, hz1, hallH, brick, roofFinish(r), 0.6);
+
+  // Crew quarters and control room: three storeys behind the hall, with a balcony.
+  const cz0 = -hd + 1.2;
+  const cTop = 0.6 + 3 * 3.4;
+  g.walls(x0, cz0, x1, hz0, 0, cTop, brick, win(Style.Punched, fitBay(x1 - x0, 2.8), 3.4, 0.5));
+  balcony(g, x0 + 1, x1 - 1, hz0, cTop - 3.2, 1.0, CONCRETE, IRON_DARK, 'parapet-rail', 'front');
+  chhajja(g, x0, x1, hz0, cTop - 0.7, 0.5, WHITE_TRIM, 'front');
+  flatRoof(g, x0, cz0, x1, hz0, cTop, brick, roofFinish(r), 0.7);
+  rooftop(l, x0, cz0, x1, hz0, cTop, brick);
+
+  // The drill tower: seven storeys in red and white bands, open landings for ladder drills.
+  const tx0 = x1 + 1.5;
+  const tx1 = hw - 1.5;
+  const tz0 = -hd + 1.5;
+  const tz1 = tz0 + 5.5;
+  const storey = 3.1;
+  const white = mat(Layer.Plaster2, [1.5, 1.5, 1.46], 3);
+  for (let k = 0; k < 7; k++) {
+    const m = k % 2 === 0 ? mat(Layer.Plaster2, red, 3) : white;
+    g.walls(tx0, tz0, tx1, tz1, k * storey, (k + 1) * storey, m, win(Style.Punched, (tx1 - tx0) / 2, storey, 0.42));
+    g.box(tx0 + 0.3, tz1, tx1 - 0.3, tz1 + 0.9, (k + 1) * storey - 0.15, (k + 1) * storey, CONCRETE);
+    g.railing(tx0 + 0.3, tz1 + 0.85, tx1 - 0.3, tz1 + 0.85, (k + 1) * storey, (k + 1) * storey + 1, IRON_DARK, 1.2, 0.05, false);
+  }
+  g.hip(tx0 - 0.3, tz0 - 0.3, tx1 + 0.3, tz1 + 0.3, 7 * storey, 1.6, 0.3, TERRACOTTA);
+  // Siren mast on the hall roof.
+  g.cyl(x0 + 2, hz0 + 2, 0.1, 0.05, hallH, hallH + 6, 6, METAL_GREY, null);
+  g.cyl(x0 + 2, hz0 + 2, 0.45, 0.45, hallH + 5.2, hallH + 5.9, 8, mat(Layer.Plaster2, red, 3));
+
+  // Apron with keep-clear hatching and two engines out front; hoses drying by the tower.
+  const az1 = hd - 0.6;
+  for (let i = 0; i < 9; i++) g.flat(x0 + 1 + i * 2.3, hz1 + 1.4, x0 + 1.25 + i * 2.3, az1 - 3, 0.04, mat(Layer.Concrete, [2.2, 1.7, 0.2], 3));
+  fireEngine(g, x0 + 0.4 + bw * 1.5, hz1 + 6.2);
+  fireEngine(g, x0 + 0.4 + bw * 3.5, hz1 + 6.2);
+  for (let k = 0; k < 3; k++) g.box(tx0 + 0.5 + k * 1.6, tz1 + 3, tx0 + 0.6 + k * 1.6, tz1 + 3.1, 0, 5, METAL_GREY);
+
+  // A fence around the sides and back; the front is open for the engines.
+  g.railing(-hw + 0.4, -hd + 0.4, hw - 0.4, -hd + 0.4, 0, 1.8, CHAIN_LINK, 2.5, 0.05, true);
+  g.railing(-hw + 0.4, -hd + 0.4, -hw + 0.4, hd - 0.4, 0, 1.8, CHAIN_LINK, 2.5, 0.05, true);
+  g.railing(hw - 0.4, -hd + 0.4, hw - 0.4, hd - 0.4, 0, 1.8, CHAIN_LINK, 2.5, 0.05, true);
+  parking(g, tx0, tz1 + 4, hw - 1, hd - 1);
+}
+
+/**
+ * An indoor stadium on an 80 m lot: a round arena whose drum has entrances at ground
+ * level, a band of glass, and a ring of LED screens that glows at night; a white dome of
+ * stepped rings with a glazed lantern on top; four entrance canopies, a big screen over the
+ * main gate, ticket kiosks, and a plaza with trees, lamps and parking in the corners.
+ */
+function indoorStadium(l: Lot): void {
+  const { g, r, W, D } = l;
+  ground(l, PAVING);
+  const hw = W / 2;
+  const hd = D / 2;
+  const cx = 0;
+  const cz = -3;
+  const R = Math.min(hw, hd) - 13;
+  const n = 36;
+  // The home team's colour, on the LED ring, the kiosks and the pylon (saturated so it glows).
+  const team = pick(r, [
+    [0.3, 0.65, 2.0],
+    [2.0, 0.55, 0.25],
+    [0.35, 1.7, 0.9],
+    [1.8, 0.35, 1.4],
+  ] as const satisfies readonly RGB[]);
+  const led = mat(Layer.Plaster2, team, 1);
+  const podium = mat(Layer.Concrete, [0.95, 0.96, 1.0], 3);
+  const glass = mat(Layer.Metal, [0.5, 0.66, 0.9], 2.4);
+  const cladding = mat(Layer.Metal, [1.42, 1.44, 1.48], 2);
+  const dome = mat(Layer.Plaster2, [1.55, 1.56, 1.6], 3);
+  const rib = mat(Layer.Metal, [1.2, 1.22, 1.26], 2);
+
+  // The plaza ring round the arena, slightly lighter than the forecourt.
+  ring(g, cx, cz, R, R + 6, 0.03, mat(Layer.Pavement, [1.3, 1.3, 1.34], 3), n);
+
+  // The drum: podium with doors, glass band, LED ring, metal fascia.
+  const bands: Array<[number, number, Mat, Win]> = [
+    [0, 4.2, podium, win(Style.Storefront, 4, 4.2, 0.55)],
+    [4.2, 11.2, glass, win(Style.Curtain, 2.2, 3.5, 0.5)],
+    [11.2, 13, led, SIGN],
+    [13, 14.4, cladding, NO_WIN],
+  ];
+  for (let i = 0; i < n; i++) {
+    const a0 = (i / n) * Math.PI * 2;
+    const a1 = ((i + 1) / n) * Math.PI * 2;
+    const p0x = cx + Math.cos(a0) * R;
+    const p0z = cz + Math.sin(a0) * R;
+    const p1x = cx + Math.cos(a1) * R;
+    const p1z = cz + Math.sin(a1) * R;
+    for (const [y0, y1, m, w] of bands) g.wall(p0x, p0z, p1x, p1z, y0, y1, m, w);
+    // Vertical fins between the glass panels.
+    if (i % 2 === 0) {
+      const fx = cx + Math.cos(a0) * (R + 0.35);
+      const fz = cz + Math.sin(a0) * (R + 0.35);
+      g.cyl(fx, fz, 0.22, 0.22, 4.2, 11.2, 4, cladding, null);
+    }
+  }
+
+  // The dome: stepped rings rising to a glazed lantern.
+  const steps = 6;
+  const rise = 10;
+  for (let k = 0; k < steps; k++) {
+    const t0 = (k / steps) * (Math.PI / 2) * 0.86;
+    const t1 = ((k + 1) / steps) * (Math.PI / 2) * 0.86;
+    const r0 = (R + 1.2) * Math.cos(t0);
+    const r1 = (R + 1.2) * Math.cos(t1);
+    const y0 = 14.4 + rise * Math.sin(t0);
+    const y1 = 14.4 + rise * Math.sin(t1);
+    g.cyl(cx, cz, r0, r1, y0, y1, n, dome, null);
+    // Twelve steel ribs running up the dome, standing a little proud of it.
+    for (let q = 0; q < 12; q++) {
+      const a = (q / 12) * Math.PI * 2;
+      const c = Math.cos(a);
+      const s = Math.sin(a);
+      const e = 0.35;
+      const w = 0.28;
+      g.poly(
+        [
+          [cx + c * (r0 + e) - s * w, y0 + e, cz + s * (r0 + e) + c * w],
+          [cx + c * (r0 + e) + s * w, y0 + e, cz + s * (r0 + e) - c * w],
+          [cx + c * (r1 + e) + s * w, y1 + e, cz + s * (r1 + e) - c * w],
+          [cx + c * (r1 + e) - s * w, y1 + e, cz + s * (r1 + e) + c * w],
+        ],
+        rib,
+      );
+    }
+  }
+  const topR = (R + 1.2) * Math.cos((Math.PI / 2) * 0.86);
+  const topY = 14.4 + rise * Math.sin((Math.PI / 2) * 0.86);
+  g.cyl(cx, cz, topR, topR * 0.7, topY, topY + 2.2, 16, glass, dome);
+  ring(g, cx, cz, R + 0.2, R + 1.3, 14.4, cladding, n);
+
+  // Four entrance canopies on columns, the front one with a big screen above.
+  for (let q = 0; q < 4; q++) {
+    const a = (q / 4) * Math.PI * 2 + Math.PI / 2;
+    const ux = Math.cos(a);
+    const uz = Math.sin(a);
+    const ex = cx + ux * (R + 2.2);
+    const ez = cz + uz * (R + 2.2);
+    const half = 5;
+    const depth = 2.2;
+    const [bx0, bz0, bx1, bz1] = Math.abs(ux) > 0.5 ? [ex - depth, ez - half, ex + depth, ez + half] : [ex - half, ez - depth, ex + half, ez + depth];
+    g.box(bx0, bz0, bx1, bz1, 4.4, 4.75, cladding, NO_WIN, cladding);
+    for (const s of [-1, 1]) {
+      const px = Math.abs(ux) > 0.5 ? ex + ux * depth * 0.8 : ex + s * (half - 0.6);
+      const pz = Math.abs(ux) > 0.5 ? ez + s * (half - 0.6) : ez + uz * depth * 0.8;
+      g.cyl(px, pz, 0.2, 0.2, 0, 4.4, 6, METAL_GREY, null);
+    }
+  }
+  const fz = cz + R + 4.6;
+  g.box(-7, fz, 7, fz + 0.4, 5.2, 9.4, mat(Layer.Concrete, [0.2, 0.22, 0.26], 1), SIGN, CONCRETE_DARK);
+  g.box(-7.4, fz - 0.1, 7.4, fz + 0.5, 9.4, 9.8, cladding);
+
+  // Ticket kiosks by the front gate, and a name totem at the road.
+  for (const s of [-1, 1]) g.box(s * 11 - 1.4, fz + 3, s * 11 + 1.4, fz + 5, 0, 2.8, cladding, win(Style.Storefront, 1.4, 2.8, 0.5), led);
+  // A sign pylon at the road: a dark frame with a lit panel in the team colour.
+  g.box(-1.1, hd - 2.6, 1.1, hd - 1.8, 0, 8, mat(Layer.Concrete, [0.32, 0.34, 0.38], 2), NO_WIN, cladding);
+  g.box(-0.85, hd - 1.85, 0.85, hd - 1.75, 3.2, 7.6, led, SIGN, null);
+  g.box(-0.85, hd - 2.65, 0.85, hd - 2.55, 3.2, 7.6, led, SIGN, null);
+
+  // Parking in the four corners, trees and lamps along the plaza.
+  const pk = 11;
+  parking(g, -hw + 1, -hd + 1, -hw + 1 + pk, -hd + 1 + pk * 1.6);
+  parking(g, hw - 1 - pk, -hd + 1, hw - 1, -hd + 1 + pk * 1.6);
+  parking(g, -hw + 1, hd - 1 - pk, -hw + 1 + pk * 1.6, hd - 1);
+  parking(g, hw - 1 - pk * 1.6, hd - 1 - pk, hw - 1, hd - 1);
+  const lamp = mat(Layer.Plaster2, [2.6, 2.55, 2.3], 1);
+  for (let q = 0; q < 12; q++) {
+    const a = (q / 12) * Math.PI * 2 + 0.26;
+    const x = cx + Math.cos(a) * (R + 8.5);
+    const z = cz + Math.sin(a) * (R + 8.5);
+    if (Math.abs(x) > hw - 2 || Math.abs(z) > hd - 2) continue;
+    if (q % 2 === 0) g.tree(x, z, r.range(0.5, 0.7), r.next() * 6);
+    else {
+      g.cyl(x, z, 0.12, 0.09, 0, 7, 6, METAL_GREY, null);
+      g.box(x - 0.5, z - 0.25, x + 0.5, z + 0.25, 7, 7.3, lamp, SIGN, METAL_GREY);
+    }
+  }
+}
+
 export function facility(l: Lot, kind: number): void {
   switch (kind) {
     case FacilityKind.CoalPlant:
@@ -1620,6 +1947,15 @@ export function facility(l: Lot, kind: number): void {
       break;
     case FacilityKind.MarketStreet:
       marketStreet(l);
+      break;
+    case FacilityKind.PoliceHQ:
+      policeHQ(l);
+      break;
+    case FacilityKind.FireHQ:
+      fireHQ(l);
+      break;
+    case FacilityKind.IndoorStadium:
+      indoorStadium(l);
       break;
     default:
       park(l);
