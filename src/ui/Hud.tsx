@@ -3,7 +3,7 @@ import { useEffect, useState } from 'preact/hooks';
 import { aiStatus } from '../game/council/llm';
 import { AiKeyPanel } from './AiKeyPanel';
 import { AccountPanel, ResumeCard } from './AccountPanel';
-import { GAME_NAME, GAME_NAME_HI, Loading } from './Intro';
+import { GAME_NAME, Loading } from './Intro';
 import { DEBT_SERVICE_LIMIT, LOAN_TIERS } from '../sim/economy/budget';
 import { OVERLAYS } from '../render/overlays/dataOverlay';
 import { CitizenFeed, CouncilChamber, IssuesMenu, MinisterRequestCard } from './council/Council';
@@ -795,7 +795,7 @@ function Welcome(): JSX.Element | null {
       <div class="panel welcome">
         <div class="welcome-kicker">A city builder with an AI council</div>
         <h1 id="welcome-title">
-          {GAME_NAME} <span class="welcome-hi" lang="hi">{GAME_NAME_HI}</span>
+          {GAME_NAME}
         </h1>
         <ul class="welcome-points">
           <li>

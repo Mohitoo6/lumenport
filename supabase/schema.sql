@@ -1,4 +1,4 @@
--- Mahanagar cloud saves. Run once in the Supabase dashboard: SQL Editor > New query > Run.
+-- Lumenport cloud saves. Run once in the Supabase dashboard: SQL Editor > New query > Run.
 -- Every row belongs to one signed-in player, and row-level security lets each player read
 -- and write only their own rows, whatever the browser sends.
 

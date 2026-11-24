@@ -1,9 +1,9 @@
 import type { JSX } from 'preact';
 import { ui } from './store';
 
-/** The game's name, in English and in Devanagari. */
-export const GAME_NAME = 'Mahanagar';
-export const GAME_NAME_HI = 'महानगर';
+/** The game's name, and the line under it on the opening screen. */
+export const GAME_NAME = 'Lumenport';
+export const GAME_MOTTO = 'city of light';
 
 /** The loading stages Game.init reports, in order: the bar fills by stage. */
 const STAGES = ['Loading sky and terrain', 'Loading building materials', 'Building the landscape'];
@@ -85,9 +85,7 @@ export function Loading(): JSX.Element {
               </span>
             ))}
         </h1>
-        <div class="intro-sub" lang="hi">
-          {GAME_NAME_HI}
-        </div>
+        <div class="intro-sub">{GAME_MOTTO}</div>
         <div class="intro-tag">A city builder with an AI council</div>
         <div class="loading-bar" role="progressbar" aria-valuemin={0} aria-valuemax={STAGES.length} aria-valuenow={stage}>
           <span style={{ width: `${Math.max(8, (stage / STAGES.length) * 100)}%` }} />

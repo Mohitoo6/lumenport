@@ -1,0 +1,5 @@
+# Local env files stay on this machine: hosted builds use the Vercel project's own env vars.
+.env
+.env.*
+!.env.example
+test-results/

@@ -38,7 +38,7 @@ const FACILITY_LIST = Object.entries(FACILITIES)
 
 export function assistantSystem(manual: string): string {
   return [
-    "You are the mayor's assistant in the city-builder game Mahanagar. The player is the mayor. Help them play: explain why something is or is not happening, and what to do next.",
+    "You are the mayor's assistant in the city-builder game Lumenport. The player is the mayor. Help them play: explain why something is or is not happening, and what to do next.",
     '',
     'Rules:',
     '- Answer from the GAME RULES and the CITY RIGHT NOW given below. Use the actual figures (money, demand, power, empty zoned land, refusals). Never invent features, buttons, costs or numbers; if the information is not there, say you cannot see it.',
