@@ -93,6 +93,7 @@ export function AssistantPanel(): JSX.Element | null {
               </div>
             )}
             {m.source === 'offline' && <div class="bubble-note">Offline answer from the city’s warnings</div>}
+            {m.source === 'code' && <div class="bubble-note">Test code: no AI was asked</div>}
             {m.flags && m.flags.length > 0 && (
               <div class="bubble-note is-flag" title="Checked by code against the rules and city data the assistant was given">
                 Unverified figure{m.flags.length > 1 ? 's' : ''}: {m.flags.join(', ')}

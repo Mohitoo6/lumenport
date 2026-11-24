@@ -189,6 +189,10 @@ export const ui = {
   goalCollapsed: signal(false),
   sandbox: signal(false),
   showBudget: signal(false),
+  /** The City Bank panel's tab. */
+  bankTab: signal<'account' | 'loans' | 'budget'>('account'),
+  /** The treasury at the end of each recent game hour, oldest first (this visit only). */
+  fundsHistory: signal<number[]>([]),
   happiness: signal(0.5),
   /** Time of day as HH:MM, whether it is dark, and how the clock is driven. */
   clock: signal('08:00'),

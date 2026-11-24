@@ -4,7 +4,7 @@ import { aiStatus } from '../game/council/llm';
 import { AiKeyPanel } from './AiKeyPanel';
 import { AccountPanel, ResumeCard } from './AccountPanel';
 import { GAME_NAME, Loading } from './Intro';
-import { DEBT_SERVICE_LIMIT, LOAN_TIERS } from '../sim/economy/budget';
+import { DEBT_SERVICE_LIMIT, LOAN_TIERS, creditRating } from '../sim/economy/budget';
 import { OVERLAYS } from '../render/overlays/dataOverlay';
 import { CitizenFeed, CouncilChamber, IssuesMenu, MinisterRequestCard } from './council/Council';
 import { Inspector } from './council/Inspector';
@@ -77,7 +77,7 @@ function Stats(): JSX.Element {
   const sandbox = ui.sandbox.value;
   return (
     <div class="panel stats">
-      <button type="button" class={`stat stat-btn${ui.showBudget.value ? ' is-open' : ''}`} title="Budget (B)" aria-expanded={ui.showBudget.value} onClick={() => (ui.showBudget.value = !ui.showBudget.value)}>
+      <button type="button" class={`stat stat-btn${ui.showBudget.value ? ' is-open' : ''}`} title="City Bank (B)" aria-expanded={ui.showBudget.value} onClick={() => (ui.showBudget.value = !ui.showBudget.value)}>
         <span class="label">Funds</span>
         <span class="stat-value">{sandbox ? 'Unlimited' : usd(ui.funds.value)}</span>
         {!sandbox && <span class={`stat-sub ${net >= 0 ? 'good' : 'bad'}`}>{`${net >= 0 ? '+' : ''}${usd(net)} / hour`}</span>}
@@ -197,11 +197,136 @@ function Meter(props: { label: string; supply: number; demand: number; unit: str
   );
 }
 
-function BudgetPanel(): JSX.Element | null {
-  if (!ui.showBudget.value) return null;
+/** The treasury over the last game hours, as a small area chart. */
+function FundsChart(): JSX.Element {
+  const pts = [...ui.fundsHistory.value, ui.funds.value];
+  if (pts.length < 3) return <p class="muted menu-note">The chart fills in as the hours pass: one point at the end of each game hour.</p>;
+  const W = 272;
+  const H = 74;
+  // Scale to the range the treasury actually moved in (at least 2% of it), so small
+  // changes on a big balance still show.
+  const min = Math.min(...pts);
+  const max = Math.max(...pts);
+  const span = Math.max(max - min, Math.abs(max) * 0.02, 200);
+  const mid = (min + max) / 2;
+  const lo = mid - span * 0.6;
+  const hi = mid + span * 0.6;
+  const x = (i: number): number => (i / (pts.length - 1)) * W;
+  const y = (v: number): number => H - 4 - ((v - lo) / (hi - lo)) * (H - 10);
+  const line = pts.map((v, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)} ${y(v).toFixed(1)}`).join('');
+  const rising = pts[pts.length - 1]! >= pts[0]!;
+  return (
+    <div class="bank-chart">
+      <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`Treasury over the last ${pts.length - 1} hours, from ${usd(pts[0]!)} to ${usd(pts[pts.length - 1]!)}`}>
+        {lo < 0 && hi > 0 && <line x1="0" x2={W} y1={y(0)} y2={y(0)} class="bank-zero" />}
+        <path d={`${line}L${W} ${H}L0 ${H}Z`} class={`bank-area ${rising ? 'up' : 'down'}`} />
+        <path d={line} class={`bank-line ${rising ? 'up' : 'down'}`} />
+        <circle cx={x(pts.length - 1)} cy={y(pts[pts.length - 1]!)} r="3" class={`bank-dot ${rising ? 'up' : 'down'}`} />
+      </svg>
+      <div class="bank-chart-foot muted">
+        <span>{pts.length - 1} hours ago</span>
+        <span>now</span>
+      </div>
+    </div>
+  );
+}
+
+/** Money in against money out this hour, as two bars. */
+function Flow(): JSX.Element {
+  const b = ui.budget.value;
+  const max = Math.max(1, b.income, b.expense);
+  return (
+    <div class="bank-flow">
+      <div class="bank-flow-row">
+        <span>In</span>
+        <span class="bank-bar">
+          <i class="in" style={{ width: `${(b.income / max) * 100}%` }} />
+        </span>
+        <span class="good">{usd(b.income)}</span>
+      </div>
+      <div class="bank-flow-row">
+        <span>Out</span>
+        <span class="bank-bar">
+          <i class="out" style={{ width: `${(b.expense / max) * 100}%` }} />
+        </span>
+        <span class="bad">{usd(b.expense)}</span>
+      </div>
+    </div>
+  );
+}
+
+function BankAccount(): JSX.Element {
+  const b = ui.budget.value;
+  const loans = ui.loans.value;
+  const rating = creditRating({ population: ui.population.value, income: b.income, net: b.net, loans });
+  let debt = 0;
+  for (const l of loans) debt += l.payment * l.hoursLeft;
+  const runway = b.net < 0 && ui.funds.value > 0 ? Math.floor(ui.funds.value / -b.net) : null;
+  return (
+    <>
+      <section>
+        <h3 class="label">Treasury, last day</h3>
+        <FundsChart />
+      </section>
+      <section>
+        <h3 class="label">This hour</h3>
+        <Flow />
+        {runway !== null && <p class="bank-warn">At this rate the treasury runs out in about {runway} hours.</p>}
+        {b.net < 0 && ui.funds.value <= 0 && <p class="bank-warn">The treasury is empty: services are underfunded and residents are unhappy until the books balance.</p>}
+      </section>
+      <section>
+        <h3 class="label">Credit</h3>
+        <div class="bank-credit">
+          <span class={`bank-grade g-${rating.grade === '-' ? 'none' : rating.grade}`}>{rating.grade}</span>
+          <div>
+            <div>{rating.label}</div>
+            <div class="muted">
+              {loans.length
+                ? `Repayments take ${Math.round(rating.share * 100)}% of hourly income (the bank allows ${Math.round(DEBT_SERVICE_LIMIT * 100)}%). Still owed: ${usd(debt)}.`
+                : 'No loans. The bank lends by city size and income.'}
+            </div>
+          </div>
+        </div>
+      </section>
+    </>
+  );
+}
+
+function BankLoans(): JSX.Element {
+  const loans = ui.loans.value;
+  return (
+    <section>
+      <p class="muted menu-note loan-rules">
+        The bank lends by city size and lets repayments take at most {Math.round(DEBT_SERVICE_LIMIT * 100)}% of hourly income. Each loan held raises the next one's interest.
+      </p>
+      {LOAN_TIERS.map((t, i) => {
+        const taken = loans.find((l) => l.tier === i);
+        const offer = ui.loanOffers.value[i];
+        const terms = offer ? `${usd(offer.payment)} an hour for ${t.hours} hours (${(offer.rate * 100).toFixed(0)}%)` : `${t.hours} hours`;
+        return (
+          <div class={`loan${!taken && offer && !offer.ok ? ' is-refused' : ''}`} key={i}>
+            <div class="loan-body">
+              <div>{usd(t.amount)}</div>
+              <div class="muted">{taken ? `${taken.hoursLeft} payments of ${usd(taken.payment)} left` : offer && !offer.ok ? offer.reason : terms}</div>
+              {taken && (
+                <span class="bank-bar repaid" title={`${Math.round((1 - taken.hoursLeft / t.hours) * 100)}% repaid`}>
+                  <i style={{ width: `${(1 - taken.hoursLeft / t.hours) * 100}%` }} />
+                </span>
+              )}
+            </div>
+            <button type="button" class="btn" disabled={!!taken || !offer?.ok} onClick={() => actions.takeLoan(i)}>
+              {taken ? 'Active' : 'Borrow'}
+            </button>
+          </div>
+        );
+      })}
+    </section>
+  );
+}
+
+function BankBudget(): JSX.Element {
   const b = ui.budget.value;
   const tax = ui.tax.value;
-  const loans = ui.loans.value;
   const row = (label: string, value: number, sign: 1 | -1): JSX.Element => (
     <div class="ledger-row" key={label}>
       <span>{label}</span>
@@ -210,14 +335,7 @@ function BudgetPanel(): JSX.Element | null {
   );
   const zones = ['Residential', 'Commercial', 'Industrial'];
   return (
-    <aside class="panel budget" aria-label="Budget">
-      <div class="panel-head">
-        <h2>Budget</h2>
-        <button type="button" class="icon-btn" aria-label="Close budget" onClick={() => (ui.showBudget.value = false)}>
-          <IconClose size={12} />
-        </button>
-      </div>
-
+    <>
       <section>
         <h3 class="label">Taxes</h3>
         {zones.map((z, i) => (
@@ -252,29 +370,57 @@ function BudgetPanel(): JSX.Element | null {
         <Meter label="Power" supply={ui.power.value[0]} demand={ui.power.value[1]} unit="MW" />
         <Meter label="Water" supply={ui.water.value[0]} demand={ui.water.value[1]} unit="units" />
       </section>
+    </>
+  );
+}
 
-      <section>
-        <h3 class="label">Loans</h3>
-        <p class="muted menu-note loan-rules">
-          The bank lends by city size and lets repayments take at most {Math.round(DEBT_SERVICE_LIMIT * 100)}% of hourly income. Each loan held raises the next one's interest.
-        </p>
-        {LOAN_TIERS.map((t, i) => {
-          const taken = loans.find((l) => l.tier === i);
-          const offer = ui.loanOffers.value[i];
-          const terms = offer ? `${usd(offer.payment)} an hour for ${t.hours} hours (${(offer.rate * 100).toFixed(0)}%)` : `${t.hours} hours`;
-          return (
-            <div class={`loan${!taken && offer && !offer.ok ? ' is-refused' : ''}`} key={i}>
-              <div>
-                <div>{usd(t.amount)}</div>
-                <div class="muted">{taken ? `${taken.hoursLeft} payments of ${usd(taken.payment)} left` : offer && !offer.ok ? offer.reason : terms}</div>
-              </div>
-              <button type="button" class="btn" disabled={!!taken || !offer?.ok} onClick={() => actions.takeLoan(i)}>
-                {taken ? 'Active' : 'Borrow'}
-              </button>
-            </div>
-          );
-        })}
-      </section>
+const BANK_TABS = [
+  ['account', 'Account'],
+  ['loans', 'Loans'],
+  ['budget', 'Budget'],
+] as const;
+
+/** The City Bank (B, or click the funds): the treasury, loans and the hourly budget. */
+function BudgetPanel(): JSX.Element | null {
+  if (!ui.showBudget.value) return null;
+  const b = ui.budget.value;
+  const sandbox = ui.sandbox.value;
+  const tab = ui.bankTab.value;
+  const rating = creditRating({ population: ui.population.value, income: b.income, net: b.net, loans: ui.loans.value });
+  return (
+    <aside class="panel budget bank" aria-label="City Bank">
+      <div class="panel-head">
+        <h2>City Bank</h2>
+        <button type="button" class="icon-btn" aria-label="Close the bank" onClick={() => (ui.showBudget.value = false)}>
+          <IconClose size={12} />
+        </button>
+      </div>
+
+      <div class="bank-card">
+        <div class="bank-card-top">
+          <span class="bank-name">{GAME_NAME} City Bank</span>
+          <span class="bank-chip" aria-hidden="true" />
+        </div>
+        <div class="bank-label">Treasury</div>
+        <div class="bank-balance">{sandbox ? 'Unlimited' : usd(ui.funds.value)}</div>
+        <div class="bank-card-foot">
+          <span class={b.net >= 0 ? 'good' : 'bad'}>{`${b.net >= 0 ? '+' : ''}${usd(b.net)} / hour`}</span>
+          <span class="bank-card-grade">Credit {rating.grade}</span>
+        </div>
+      </div>
+
+      <div class="seg seg-wide bank-tabs" role="tablist" aria-label="Bank">
+        {BANK_TABS.map(([id, label]) => (
+          <button type="button" role="tab" key={id} class={tab === id ? 'is-on' : ''} aria-selected={tab === id} onClick={() => (ui.bankTab.value = id)}>
+            {label}
+            {id === 'loans' && ui.loans.value.length > 0 ? ` (${ui.loans.value.length})` : ''}
+          </button>
+        ))}
+      </div>
+
+      {tab === 'account' && <BankAccount />}
+      {tab === 'loans' && <BankLoans />}
+      {tab === 'budget' && <BankBudget />}
     </aside>
   );
 }
@@ -535,7 +681,7 @@ const HELP: Array<[string[], string]> = [
   [['R', 'F'], 'Tilt'],
   [['Right-drag'], 'Orbit'],
   [['Esc'], 'Cancel tool'],
-  [['B'], 'Budget'],
+  [['B'], 'City Bank'],
   [['V'], 'Data views'],
   [['M'], 'Menu, save and load'],
   [['I'], 'AI inspector'],

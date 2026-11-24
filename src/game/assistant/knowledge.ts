@@ -83,7 +83,7 @@ ${facilities}
       id: 'money',
       about: /money|fund|budget|tax|loan|debt|cost|price|deficit|income|expens|afford|refund|paisa|paise|kharch|karz|पैस|बजट|टैक्स|कर्ज|खर्च/i,
       text: `Money
-- Hourly income is taxes per zone type (Budget panel, B); spending is road upkeep and facility upkeep. Higher taxes lower demand.
+- Hourly income is taxes per zone type (City Bank, B: treasury chart, credit rating, loans and the hourly budget); spending is road upkeep and facility upkeep. Higher taxes lower demand.
 - Loans: ${LOAN_TIERS.map((t) => `${usd(t.amount)} over ${t.hours} hours at ${Math.round(t.rate * 100)}% for cities of ${t.minPopulation.toLocaleString('en-US')}+ residents`).join('; ')}. The bank refuses a loan if all repayments would take more than ${Math.round(DEBT_SERVICE_LIMIT * 100)}% of hourly income, offers only the smallest one while the city loses money, and adds ${Math.round(RISK_PREMIUM * 100)} points of interest for each loan already held.
 - Bulldozing gives no refund.`,
     },

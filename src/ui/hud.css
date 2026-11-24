@@ -1588,3 +1588,243 @@ kbd {
   font-weight: 700;
   color: var(--text);
 }
+
+/* City Bank */
+
+.bank-card {
+  position: relative;
+  margin-top: 12px;
+  padding: 14px 16px 12px;
+  border-radius: 14px;
+  overflow: hidden;
+  background:
+    radial-gradient(120% 140% at 100% 0%, rgba(255, 196, 110, 0.32) 0%, rgba(255, 196, 110, 0) 55%),
+    linear-gradient(135deg, #1d3a4a 0%, #14222e 55%, #0f1820 100%);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.08) inset,
+    0 10px 24px rgba(0, 0, 0, 0.35);
+}
+
+/* A slow sheen across the card. */
+.bank-card::after {
+  content: '';
+  position: absolute;
+  inset: -40% -60%;
+  background: linear-gradient(105deg, transparent 42%, rgba(255, 255, 255, 0.09) 50%, transparent 58%);
+  animation: bank-sheen 6s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.bank-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.bank-name {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #ffd9a0;
+}
+
+.bank-chip {
+  width: 30px;
+  height: 22px;
+  border-radius: 5px;
+  background:
+    linear-gradient(90deg, transparent 45%, rgba(0, 0, 0, 0.18) 46%, rgba(0, 0, 0, 0.18) 54%, transparent 55%),
+    linear-gradient(0deg, transparent 45%, rgba(0, 0, 0, 0.18) 46%, rgba(0, 0, 0, 0.18) 54%, transparent 55%),
+    linear-gradient(135deg, #f7d98c, #c99a3e);
+}
+
+.bank-label {
+  margin-top: 12px;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.bank-balance {
+  font-size: 27px;
+  font-weight: 750;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.bank-card-foot {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 6px;
+  font-size: 12.5px;
+}
+
+.bank-card-grade {
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.bank-tabs {
+  margin-top: 12px;
+}
+
+.bank-chart svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.bank-area.up {
+  fill: rgba(79, 194, 90, 0.16);
+}
+
+.bank-area.down {
+  fill: rgba(240, 90, 80, 0.16);
+}
+
+.bank-line {
+  fill: none;
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+
+.bank-line.up,
+.bank-dot.up {
+  stroke: #5fd06a;
+  fill: none;
+}
+
+.bank-line.down,
+.bank-dot.down {
+  stroke: #f06a5e;
+  fill: none;
+}
+
+.bank-dot {
+  stroke-width: 2;
+  fill: #0f1820 !important;
+}
+
+.bank-zero {
+  stroke: rgba(255, 255, 255, 0.25);
+  stroke-dasharray: 3 3;
+}
+
+.bank-chart-foot {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  margin-top: 2px;
+}
+
+.bank-flow-row {
+  display: grid;
+  grid-template-columns: 30px 1fr 74px;
+  align-items: center;
+  gap: 8px;
+  margin: 5px 0;
+  font-size: 12.5px;
+}
+
+.bank-flow-row > span:last-child {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.bank-bar {
+  display: block;
+  height: 7px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.07);
+  overflow: hidden;
+}
+
+.bank-bar i {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+  background: #5fd06a;
+  transition: width 0.4s ease;
+}
+
+.bank-bar i.out {
+  background: #f06a5e;
+}
+
+.bank-bar.repaid {
+  margin-top: 6px;
+  height: 5px;
+}
+
+.bank-bar.repaid i {
+  background: linear-gradient(90deg, var(--accent), #ffd9a0);
+}
+
+.loan-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.bank-warn {
+  margin: 8px 0 0;
+  padding: 7px 9px;
+  border-radius: 8px;
+  font-size: 12px;
+  color: #ffc4b8;
+  background: rgba(240, 90, 80, 0.12);
+}
+
+.bank-credit {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  font-size: 12.5px;
+}
+
+.bank-grade {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  font-size: 17px;
+  font-weight: 800;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.bank-grade.g-A {
+  color: #5fd06a;
+  background: rgba(79, 194, 90, 0.15);
+}
+
+.bank-grade.g-B {
+  color: #b9dd5f;
+  background: rgba(185, 221, 95, 0.14);
+}
+
+.bank-grade.g-C {
+  color: #ffc56b;
+  background: rgba(255, 197, 107, 0.14);
+}
+
+.bank-grade.g-D {
+  color: #f06a5e;
+  background: rgba(240, 106, 94, 0.15);
+}
+
+@keyframes bank-sheen {
+  0%,
+  60% {
+    transform: translateX(-60%);
+  }
+  100% {
+    transform: translateX(60%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bank-card::after {
+    animation: none;
+    display: none;
+  }
+}

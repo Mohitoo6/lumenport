@@ -43,6 +43,7 @@ import { TerrainRenderer } from '../render/terrain/terrainRenderer';
 import { WaterRenderer } from '../render/water/waterRenderer';
 import type { Command, CommandResult } from '../sim/commands';
 import { LOAN_TIERS, creditView, emptyReport, loanOffer, projectBudget } from '../sim/economy/budget';
+import { cheatAmount } from './cheats';
 import { capacityOf } from '../sim/economy/capacity';
 import { FACILITIES, FacilityKind, Service } from '../sim/facilities';
 import { POWERED, WATERED } from '../sim/utilities/network';
@@ -306,7 +307,7 @@ export class Game {
       ui.aiStats.value = { ...ui.aiStats.value, assistantCalls: ui.aiStats.value.assistantCalls + 1, assistantTokens: ui.aiStats.value.assistantTokens + call.promptTokens + call.completionTokens };
       saveStats(browserKV(), ui.aiStats.value);
     };
-    actions.askAssistant = (q) => void this.assistant.ask(q);
+    actions.askAssistant = (q) => void this.ask(q);
     actions.clearAssistant = () => this.assistant.clear();
     actions.assistantAction = (a) => {
       switch (a.type) {
@@ -359,6 +360,10 @@ export class Game {
     };
     ui.muted.value = this.audio.muted;
     sim.events.on('stateReplaced', () => this.onStateReplaced());
+    // The bank's chart: the treasury at the end of each game hour, the last day kept.
+    ui.fundsHistory.value = [Math.floor(sim.state.funds)];
+    sim.events.on('hourPassed', () => (ui.fundsHistory.value = [...ui.fundsHistory.value, Math.floor(this.sim.state.funds)].slice(-25)));
+    sim.events.on('stateReplaced', () => (ui.fundsHistory.value = [Math.floor(this.sim.state.funds)]));
     sim.events.on('goalReached', (g) => {
       const next = currentGoal(sim.state);
       ui.goalBanner.value = { title: g.title, reward: sim.state.sandbox ? 0 : g.reward, next: next?.title ?? null };
@@ -483,6 +488,17 @@ export class Game {
       this.intro = null;
       ui.intro.value = false;
     }
+  }
+
+  /** The Ask box: the developers' test codes are handled here, everything else by the assistant. */
+  private async ask(q: string): Promise<void> {
+    const amount = await cheatAmount(q);
+    if (amount <= 0) return this.assistant.ask(q);
+    this.sim.state.funds += amount;
+    ui.funds.value = Math.floor(this.sim.state.funds);
+    const a = ui.assistant.value;
+    const text = `Test code accepted: $${amount.toLocaleString('en-US')} added to the treasury.`;
+    ui.assistant.value = { ...a, messages: [...a.messages, { id: Date.now(), role: 'assistant' as const, text, source: 'code' }].slice(-30) };
   }
 
   setCamera(pose: Partial<CameraPose>, instant = true): void {

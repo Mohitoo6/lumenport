@@ -95,6 +95,26 @@ export function loanOffer(tier: number, city: CreditView): LoanOffer {
   return { ok: true, reason: '', rate, payment };
 }
 
+export interface CreditRating {
+  /** A (sound) to D (in trouble); "-" before the city has any income. */
+  grade: 'A' | 'B' | 'C' | 'D' | '-';
+  label: string;
+  /** Share of hourly income going on loan repayments. */
+  share: number;
+}
+
+/** The bank's opinion of the city, from its hourly books and its debts. */
+export function creditRating(city: CreditView): CreditRating {
+  let repaying = 0;
+  for (const l of city.loans) repaying += l.payment;
+  const share = city.income > 0 ? repaying / city.income : repaying > 0 ? 1 : 0;
+  if (city.income <= 0 && repaying === 0) return { grade: '-', label: 'No income yet', share: 0 };
+  if (city.net < 0) return { grade: 'D', label: 'Losing money every hour', share };
+  if (share >= 0.25) return { grade: 'C', label: 'Heavily borrowed', share };
+  if (share >= 0.1) return { grade: 'B', label: 'Borrowing, keeping up', share };
+  return { grade: 'A', label: 'Sound finances', share };
+}
+
 /** The bank's view of a city as it stands now (or with `loans` in place of its own). */
 export function creditView(s: Pick<GameState, 'buildings' | 'roads' | 'tax' | 'loans' | 'stats' | 'policies' | 'metro'>, loans: readonly Loan[] = s.loans): CreditView {
   const b = projectBudget(s.buildings, s.roads, s.tax, loans, s.stats, emptyReport(), s.policies, s.metro);
