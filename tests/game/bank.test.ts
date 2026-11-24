@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { cheatAmount } from '../../src/game/cheats';
+import { CHEAT_CODES, cheatAmount, codeHash } from '../../src/game/cheats';
 import { creditRating } from '../../src/sim/economy/budget';
 
 describe("the bank's credit rating", () => {
@@ -13,14 +13,20 @@ describe("the bank's credit rating", () => {
   });
 });
 
-describe("the developers' test codes", () => {
-  it('grant 50,000, 100,000 or 150,000 for the right codes, whatever the case or spacing around them', async () => {
-    expect(await cheatAmount('samplecode50')).toBe(50_000);
-    expect(await cheatAmount('  GoldRush100 ')).toBe(100_000);
-    expect(await cheatAmount('samplecode150')).toBe(150_000);
+describe('the developer test codes', () => {
+  it('match a code by its hash, whatever the case or spacing around it', async () => {
+    const codes = [{ hash: (await codeHash('sample-code-7'))!, amount: 1234 }];
+    expect(await cheatAmount('sample-code-7', codes)).toBe(1234);
+    expect(await cheatAmount('  SAMPLE-code-7 ', codes)).toBe(1234);
   });
 
   it('ignore everything else, including near misses and ordinary questions', async () => {
-    for (const q of ['samplecode', 'samplecode500', 'gold rush50', 'Why is my money going down?', '', 'samplecode50!']) expect(await cheatAmount(q)).toBe(0);
+    const codes = [{ hash: (await codeHash('sample-code-7'))!, amount: 1234 }];
+    for (const q of ['sample-code-', 'sample-code-77', 'sample code-7', 'Why is my money going down?', '']) expect(await cheatAmount(q, codes)).toBe(0);
+  });
+
+  it('keep only hashes in the code: three amounts, no readable codes', () => {
+    expect(CHEAT_CODES.map((c) => c.amount)).toEqual([50_000, 100_000, 150_000]);
+    for (const c of CHEAT_CODES) expect(c.hash).toMatch(/^[0-9a-f]{64}$/);
   });
 });

@@ -15,3 +15,14 @@ handoff/
 src/gemini work/
 .vercel
 .env*
+
+# Working notes and review screenshots stay on this machine
+PLAN.md
+PROGRESS.md
+docs/GENAI_GUIDE.md
+screenshots/
+scripts/gen-portraits.mjs
+.mcp.json
+
+# Each evaluation run is kept locally; the repository holds the latest
+eval/runs/offline-2*.json

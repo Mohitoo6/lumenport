@@ -1,0 +1,4446 @@
+{
+ "stamp": "2026-11-13T07-54-03",
+ "providers": [
+  "openai/gpt-oss-120b"
+ ],
+ "judgeModel": "qwen/qwen3.8-27b",
+ "unavailable": [
+  "gemini-3.8-flash: unavailable (429 [{ \"error\": { \"code\": 429, \"message\": \"You exceeded your current quota, please check…)",
+  "gemini-3.6-flash: unavailable (429 [{ \"error\": { \"code\": 429, \"message\": \"You exceeded your current quota, please check…)",
+  "nvidia/nemotron-3-super-120b-a12b:free: unavailable (free: 404 This model is unavailable for free. The paid version is available now - use thi…)"
+ ],
+ "meetings": [
+  {
+   "name": "issue: traffic",
+   "group": "issue",
+   "issue": {
+    "kind": "traffic",
+    "title": "Gridlock on Canal Street",
+    "lead": "roads",
+    "facts": [
+     "Canal Street (street, 1 lane each way, 96 m segment) in the city centre.",
+     "Traffic on it: 12.2 cars per 100 m; it jams at about 7. Time of day 18:00 (rush hour).",
+     "Across the city, queues cost drivers 70% of their normal speed.",
+     "Residents living within 200 m of this road: 376.",
+     "Nearest clinic to this road: none in the city. Nearest school: none in the city.",
+     "Nearest fire station: none in the city. Nearest police station: none in the city."
+    ]
+   },
+   "options": [
+    {
+     "id": "A",
+     "title": "Widen Canal Street to a four-lane avenue",
+     "cost": 2496,
+     "monthly": 5,
+     "facts": [
+      "Rebuilds this 96 m segment with two lanes each way and a median: roughly double the capacity, and more traffic drawn onto it.",
+      "The wider road (32 m) takes the front of neighbouring lots: demolishes 1 workplace (272 jobs).",
+      "Nearest clinic to Canal Street: none in the city. Nearest school: none in the city."
+     ],
+     "displacedHomes": 0,
+     "jobsLost": 272,
+     "hasActions": true
+    },
+    {
+     "id": "B",
+     "title": "New relief street parallel to Canal Street",
+     "cost": 960,
+     "monthly": 3,
+     "facts": [
+      "A 96 m two-lane street about 56 m to the west of Canal Street, joining the network at 2 points, so drivers get a second route.",
+      "It runs over open land: no buildings demolished.",
+      "Nearest clinic to the new street: none in the city. Nearest school: none in the city.",
+      "Clears almost no trees."
+     ],
+     "displacedHomes": 0,
+     "jobsLost": 0,
+     "hasActions": true
+    },
+    {
+     "id": "C",
+     "title": "Staggered office hours (policy)",
+     "cost": 0,
+     "monthly": 350,
+     "facts": [
+      "The city pays employers $350 a month to spread start and finish times.",
+      "Traffic at the height of the morning and evening rush drops by about a third, spread over a longer period; the number of trips stays the same.",
+      "Nothing is built or demolished. It can be dropped later."
+     ],
+     "displacedHomes": 0,
+     "jobsLost": 0,
+     "hasActions": true
+    },
+    {
+     "id": "D",
+     "title": "Take no action for now",
+     "cost": 0,
+     "monthly": 0,
+     "facts": [
+      "Nothing is built or changed. The problem is likely to continue."
+     ],
+     "displacedHomes": 0,
+     "jobsLost": 0,
+     "hasActions": false
+    }
+   ],
+   "seats": [
+    {
+     "id": "roads",
+     "reason": "it is your portfolio and you raised it"
+    },
+    {
+     "id": "welfare",
+     "reason": "options A demolish homes or workplaces"
+    },
+    {
+     "id": "planning",
+     "reason": "options A demolish buildings"
+    },
+    {
+     "id": "finance",
+     "reason": "options A, B, C cost money"
+    },
+    {
+     "id": "environment",
+     "reason": "queuing traffic adds fumes"
+    }
+   ],
+   "note": "",
+   "lang": "en",
+   "lines": [
+    {
+     "id": "roads-1",
+     "minister": "roads",
+     "round": 1,
+     "stance": "propose",
+     "option": "C",
+     "text": "Canal Street is carrying 12.2 cars per 100 m on a two‑lane segment and jams at level 7 during the 18:00 rush hour, contributing to the city‑wide 70% speed loss. Reducing peak‑hour demand by a third will immediately ease congestion without any demolition or new construction. I recommend we implement staggered office hours (Option C) as the most cost‑effective, low‑impact solution.",
+     "condition": "provided employer participation",
+     "provider": "Groq · openai/gpt-oss-120b",
+     "checks": {
+      "validOption": true,
+      "namesItsChoice": true,
+      "numbers": {
+       "checked": 4,
+       "ungrounded": []
+      },
+      "sentences": 3,
+      "lengthOk": true,
+      "languageOk": true
+     }
+    },
+    {
+     "id": "environment-1",
+     "minister": "environment",
+     "round": 1,
+     "stance": "support",
+     "option": "C",
+     "text": "I support the staggered office hours because cutting peak‑hour traffic by a third will directly reduce emissions from the 125 vehicles queuing, helping the 89 residents currently breathing polluted air. This low‑impact solution preserves existing green space and avoids demolition, matching our environmental priorities.",
+     "condition": "require quarterly emission monitoring",
+     "provider": "Groq · openai/gpt-oss-120b",
+     "checks": {
+      "validOption": true,
+      "namesItsChoice": true,
+      "numbers": {
+       "checked": 2,
+       "ungrounded": []
+      },
+      "sentences": 2,
+      "lengthOk": true,
+      "languageOk": true
+     }
+    },
+    {
+     "id": "planning-1",
+     "minister": "planning",
+     "round": 1,
+     "stance": "support",
+     "option": "C",
+     "text": "I support the staggered office hours as it eases congestion without demolishing jobs or threatening our housing stock. Maintaining traffic flow will protect the quality of life for the 376 nearby residents and preserve existing jobs. We should monitor any downstream effects on residential noise as traffic patterns shift.",
+     "condition": "monitor residential noise",
+     "provider": "Groq · openai/gpt-oss-120b",
+     "checks": {
+      "validOption": true,
+      "namesItsChoice": true,
+      "numbers": {
+       "checked": 1,
+       "ungrounded": []
+      },
+      "sentences": 3,
+      "lengthOk": true,
+      "languageOk": true
+     }
+    },
+    {
+     "id": "finance-1",
+     "minister": "finance",
+     "round": 1,
+     "stance": "oppose",
+     "option": "B",
+     "text": "The $960 upfront and $3 monthly increase keep our balance healthy and avoid the $350 recurring expense of staggered hours; it's the cheapest way to add capacity without demolishing jobs.",
+     "condition": "",
+     "provider": "Groq · openai/gpt-oss-120b",
+     "checks": {
+      "validOption": true,
+      "namesItsChoice": true,
+      "numbers": {
+       "checked": 2,
+       "ungrounded": []
+      },
+      "sentences": 1,
+      "lengthOk": true,
+      "languageOk": true
+     }
+    },
+    {
+     "id": "welfare-1",
+     "minister": "welfare",
+     "round": 1,
+     "stance": "support",
+     "option": "C",
+     "text": "Mayor, expanding traffic flow at the cost of jobs is unacceptable for our 376 nearby residents and the 272 jobs at risk. Option C reduces rush‑hour pressure without displacing workers, helping our already low 24% happiness and keeping unemployment from rising further. I support the staggered office‑hour policy, provided the additional $350 a month can be funded without raising the residential tax rate.",
+     "condition": "funding without raising residential tax",
+     "provider": "Groq · openai/gpt-oss-120b",
+     "checks": {
+      "validOption": true,
+      "namesItsChoice": true,
+      "numbers": {
+       "checked": 4,
+       "ungrounded": []
+      },
+      "sentences": 3,
+      "lengthOk": true,
+      "languageOk": true
+     }
+    },
+    {
+     "id": "roads-2",
+     "minister": "roads",
+     "round": 2,
+     "stance": "support",
+     "option": "C",
+     "text": "Canal Street is handling 12.2 cars per 100 m on a two‑lane stretch and jams at level 7; cutting peak‑hour trips by a third will drop that density to about 8.1 cars per 100 m, easing flow without any demolition. The $350 monthly outlay is modest compared with the $960 upfront for a new street and avoids induced traffic that a wider network would invite. Maintaining existing road geometry also preserves emergency access routes.",
+     "condition": "employer participation confirmed",
+     "provider": "Groq · openai/gpt-oss-120b",
+     "checks": {
+      "validOption": true,
+      "namesItsChoice": true,
+      "numbers": {
+       "checked": 5,
+       "ungrounded": []
+      },
+      "sentences": 3,
+      "lengthOk": true,
+      "languageOk": true
+     }
+    },
+    {
+     "id": "environment-2",
+     "minister": "environment",
+     "round": 2,
+     "stance": "support",
+     "option": "C",
+     "text": "I remain convinced that staggered office hours is the best environmental response, cutting peak‑hour traffic by a third and reducing emissions from the 125 vehicles that currently queue, protecting the 89 residents breathing polluted air. Building a new relief street would likely induce more traffic and raise overall emissions, which conflicts with our goal to lower the city’s footprint. I therefore support Option C, provided we institute quarterly emission monitoring.",
+     "condition": "quarterly emission monitoring",
+     "provider": "Groq · openai/gpt-oss-120b",
+     "checks": {
+      "validOption": true,
+      "namesItsChoice": true,
+      "numbers": {
+       "checked": 2,
+       "ungrounded": []
+      },
+      "sentences": 3,
+      "lengthOk": true,
+      "languageOk": true
+     }
+    },
+    {
+     "id": "welfare-2",
+     "minister": "welfare",
+     "round": 2,
+     "stance": "support",
+     "option": "C",
+     "text": "I continue to back the staggered office‑hour policy because it safeguards the 272 jobs at risk and helps lift our low 24% happiness without displacing any residents. The additional $350 a month must be funded without raising the residential tax rate.",
+     "condition": "funding without raising residential tax",
+     "provider": "Groq · openai/gpt-oss-120b",
+     "checks": {
+      "validOption": true,
+      "namesItsChoice": true,
+      "numbers": {
+       "checked": 3,
+       "ungrounded": []
+      },
+      "sentences": 2,
+      "lengthOk": true,
+      "languageOk": true
+     }
+    },
+    {
+     "id": "planning-2",
+     "minister": "planning",
+     "round": 2,
+     "stance": "support",
+     "option": "C",
+     "text": "I continue to back the staggered office‑hour policy because it eases congestion without consuming land that could be zoned for housing or displacing any jobs. Preserving the open parcels aligns with our need to develop the 1410 empty plots for residential use. Monitoring residential noise remains important as traffic patterns shift.",
+     "condition": "",
+     "provider": "Groq · openai/gpt-oss-120b",
+     "checks": {
+      "validOption": true,
+      "namesItsChoice": true,
+      "numbers": {
+       "checked": 1,
+       "ungrounded": []
+      },
+      "sentences": 3,
+      "lengthOk": true,
+      "languageOk": true
+     }
+    },
+    {
+     "id": "finance-2",
+     "minister": "finance",
+     "round": 2,
+     "stance": "support",
+     "option": "B",
+     "text": "Mayor, the $960 upfront and $3 extra per month will bring the treasury to $95,077 and leave the monthly balance at $1,492 – still comfortably positive – while adding capacity without any job losses; it’s a fraction of the $350 monthly outlay that option C would demand. The modest increase preserves our fiscal cushion and avoids the larger recurring expense. For these reasons I continue to back option B.",
+     "condition": "",
+     "provider": "Groq · openai/gpt-oss-120b",
+     "checks": {
+      "validOption": true,
+      "namesItsChoice": true,
+      "numbers": {
+       "checked": 4,
+       "ungrounded": []
+      },
+      "sentences": 3,
+      "lengthOk": true,
+      "languageOk": true
+     }
+    },
+    {
+     "id": "chief",
+     "minister": "chief",
+     "round": 3,
+     "stance": "neutral",
+     "option": "C",
+     "text": "The council agreed that staggered office hours will cut peak‑hour traffic by a third, easing the jam on Canal Street without demolition, job loss or new emissions, and meets the environmental and welfare priorities while keeping the road network unchanged.",
+     "condition": "Employer participation confirmed; funding must not raise residential taxes; monitor residential noise; quarterly emission monitoring required",
+     "provider": "Groq · openai/gpt-oss-120b",
+     "checks": {
+      "validOption": true,
+      "namesItsChoice": true,
+      "numbers": {
+       "checked": 0,
+       "ungrounded": []
+      },
+      "sentences": 1,
+      "lengthOk": true,
+      "languageOk": true
+     }
+    }
+   ],
+   "silent": [],
+   "failed": [],
+   "decision": {
+    "option": "C",
+    "summary": "The council agreed that staggered office hours will cut peak‑hour traffic by a third, easing the jam on Canal Street without demolition, job loss or new emissions, and meets the environmental and welfare priorities while keeping the road network unchanged.",
+    "dissent": "Finance Minister Suresh Agarwal prefers the cheaper relief‑street option B",
+    "conditions": "Employer participation confirmed; funding must not raise residential taxes; monitor residential noise; quarterly emission monitoring required",
+    "tally": {
+     "C": [
+      "roads",
+      "welfare",
+      "planning",
+      "environment"
+     ],
+     "B": [
+      "finance"
+     ]
+    },
+    "provider": "Groq · openai/gpt-oss-120b"
+   },
+   "final": {
+    "roads": "C",
+    "environment": "C",
+    "planning": "C",
+    "finance": "B",
+    "welfare": "C"
+   },
+   "seconds": 196,
+   "judge": {
+    "provider": "Groq · qwen/qwen3.8-27b",
+    "verdicts": [
+     {
+      "id": "roads-1",
+      "grounded": 2,
+      "on_topic": 5,
+      "in_role": 5,
+      "reasoning": 3,
+      "unsupported": [
+       "two-lane segment",
+       "jams at level 7"
+      ]
+     },
+     {
+      "id": "environment-1",
+      "grounded": 4,
+      "on_topic": 5,
+      "in_role": 5,
+      "reasoning": 4,
+      "unsupported": []
+     },
+     {
+      "id": "planning-1",
+      "grounded": 4,
+      "on_topic": 5,
+      "in_role": 4,
+      "reasoning": 4,
+      "unsupported": []
+     },
+     {
+      "id": "finance-1",
+      "grounded": 5,
+      "on_topic": 5,
+      "in_role": 4,
+      "reasoning": 4,
+      "unsupported": []
+     },
+     {
+      "id": "welfare-1",
+      "grounded": 5,
+      "on_topic": 5,
+      "in_role": 4,
+      "reasoning": 4,
+      "unsupported": []
+     },
+     {
+      "id": "roads-2",
+      "grounded": 3,
+      "on_topic": 5,
+      "in_role": 5,
+      "reasoning": 5,
+      "unsupported": [
+       "two-lane stretch",
+       "jams at level 7",
+       "preserves emergency access routes"
+      ]
+     },
+     {
+      "id": "environment-2",
+      "grounded": 4,
+      "on_topic": 5,
+      "in_role": 5,
+      "reasoning": 4,
+      "unsupported": []
+     },
+     {
+      "id": "welfare-2",
+      "grounded": 5,
+      "on_topic": 5,
+      "in_role": 4,
+      "reasoning": 4,
+      "unsupported": []
+     },
+     {
+      "id": "planning-2",
+      "grounded": 3,
+      "on_topic": 5,
+      "in_role": 5,
+      "reasoning": 4,
+      "unsupported": [
+       "develop the 1410 empty plots for residential use"
+      ]
+     },
+     {
+      "id": "finance-2",
+      "grounded": 5,
+      "on_topic": 5,
+      "in_role": 4,
+      "reasoning": 5,
+      "unsupported": []
+     },
+     {
+      "id": "chief",
+      "grounded": 3,
+      "on_topic": 5,
+      "in_role": 2,
+      "reasoning": 3,
+      "unsupported": [
+       "The council agreed",
+       "new emissions"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "name": "issue: water",
+   "group": "issue",
+   "issue": {
+    "kind": "water",
+    "title": "Water shortage",
+    "lead": "energy",
+    "facts": [
+     "City water: demand 3,792 water units, supply 3,200 water units (118% used).",
+     "Buildings currently without water: 11, including homes for 298 residents.",
+     "Without water, residents move out and nothing new is built on that street.",
+     "The worst-off area is in the city centre."
+    ]
+   },
+   "options": [
+    {
+     "id": "A",
+     "title": "Build a water tower",
+     "cost": 2800,
+     "monthly": 110,
+     "facts": [
+      "A water tower in the city centre, 11 m from the problem area. Adds 1,600 water units.",
+      "Nearest homes: 80 m away."
+     ],
+     "displacedHomes": 0,
+     "jobsLost": 0,
+     "hasActions": true
+    },
+    {
+     "id": "B",
+     "title": "Take no action for now",
+     "cost": 0,
+     "monthly": 0,
+     "facts": [
+      "Nothing is built or changed. The problem is likely to continue."
+     ],
+     "displacedHomes": 0,
+     "jobsLost": 0,
+     "hasActions": false
+    }
+   ],
+   "seats": [
+    {
+     "id": "energy",
+     "reason": "it is your portfolio and you raised it"
+    },
+    {
+     "id": "finance",
+     "reason": "options A cost money"
+    },
+    {
+     "id": "planning",
+     "reason": "shortages stop growth"
+    }
+   ],
+   "note": "",
+   "lang": "en",
+   "lines": [
+    {
+     "id": "energy-1",
+     "minister": "energy",
+     "round": 1,
+     "stance": "propose",
+     "option": "A",
+     "text": "Mayor, the water network is operating at 118% of capacity, with 11 buildings and 298 residents without service; we need to restore at least a 15% spare margin. I propose we build the water tower (Option A), which adds 1,600 water units, raising total supply to 4,800 and creating a roughly 21% spare margin, securing water for the affected area. This will address the immediate shortage while preserving future growth.",
+     "condition": "",
+     "provider": "Groq · openai/gpt-oss-120b",
+     "checks": {
+      "validOption": true,
+      "namesItsChoice": true,
+      "numbers": {
+       "checked": 6,
+       "ungrounded": [
+        21
+       ]
+      },
+      "sentences": 3,
+      "lengthOk": true,
+      "languageOk": true
+     }
+    },
+    {
+     "id": "planning-1",
+     "minister": "planning",
+     "round": 1,
+     "stance": "support",
+     "option": "A",
+     "text": "Mayor, the water shortage threatens 11 homes and 298 residents, jeopardizing occupancy and future housing growth; securing reliable water supply is essential for retaining those households and enabling development on the 1,410 empty plots. I support the water tower (Option A) as it restores service and adds a buffer, provided the tower's footprint does not require demolition of any existing housing.",
+     "condition": "no displacement of existing homes",
+     "provider": "Groq · openai/gpt-oss-120b",
+     "checks": {
+      "validOption": true,
+      "namesItsChoice": true,
+      "numbers": {
+       "checked": 2,
+       "ungrounded": []
+      },
+      "sentences": 2,
+      "lengthOk": true,
+      "languageOk": true
+     }
+    },
+    {
+     "id": "finance-1",
+     "minister": "finance",
+     "round": 1,
+     "stance": "support",
+     "option": "A",
+     "text": "The $2,800 upfront and $110 extra each month will reduce the treasury to $93,237 and the projected monthly balance to $1,385, still a healthy surplus, and it restores water for 298 residents while adding a safety margin. From a finance standpoint the outlay is affordable and does not jeopardise our ability to meet other obligations.",
+     "condition": "",
+     "provider": "Groq · openai/gpt-oss-120b",
+     "checks": {
+      "validOption": true,
+      "namesItsChoice": true,
+      "numbers": {
+       "checked": 5,
+       "ungrounded": []
+      },
+      "sentences": 2,
+      "lengthOk": true,
+      "languageOk": true
+     }
+    },
+    {
+     "id": "planning-2",
+     "minister": "planning",
+     "round": 2,
+     "stance": "support",
+     "option": "A",
+     "text": "I remain in favour of the water tower; it safeguards the 298 residents and enables occupancy of the empty plots, provided its footprint does not require demolition of any existing homes.",
+     "condition": "no demolition of existing homes",
+     "provider": "Groq · openai/gpt-oss-120b",
+     "checks": {
+      "validOption": true,
+      "namesItsChoice": true,
+      "numbers": {
+       "checked": 1,
+       "ungrounded": []
+      },
+      "sentences": 1,
+      "lengthOk": true,
+      "languageOk": true
+     }
+    },
+    {
+     "id": "finance-2",
+     "minister": "finance",
+     "round": 2,
+     "stance": "support",
+     "option": "A",
+     "text": "I remain comfortable with option A; the $2,800 outlay reduces the treasury to $93,237 and the monthly balance to $1,385, preserving a healthy surplus while restoring water to the 298 affected residents.",
+     "condition": "",
+     "provider": "Groq · openai/gpt-oss-120b",
+     "checks": {
+      "validOption": true,
+      "namesItsChoice": true,
+      "numbers": {
+       "checked": 4,
+       "ungrounded": []
+      },
+      "sentences": 1,
+      "lengthOk": true,
+      "languageOk": true
+     }
+    },
+    {
+     "id": "energy-2",
+     "minister": "energy",
+     "round": 2,
+     "stance": "support",
+     "option": "A",
+     "text": "Mayor, the water tower will raise supply to 4,800 units, delivering a 21% spare margin and restoring water to the 298 residents, while our power usage remains unchanged. This meets our 15% spare‑margin requirement and prevents further household outages. I support Option A, provided the tower’s footprint does not require demolition of existing homes.",
+     "condition": "",
+     "provider": "Groq · openai/gpt-oss-120b",
+     "checks": {
+      "validOption": true,
+      "namesItsChoice": true,
+      "numbers": {
+       "checked": 4,
+       "ungrounded": []
+      },
+      "sentences": 3,
+      "lengthOk": true,
+      "languageOk": true
+     }
+    },
+    {
+     "id": "chief",
+     "minister": "chief",
+     "round": 3,
+     "stance": "neutral",
+     "option": "A",
+     "text": "All three ministers agreed that building the water tower resolves the current shortage, restores water to 298 residents, creates a safety margin and is financially affordable.",
+     "condition": "tower footprint must not require demolition of any existing homes",
+     "provider": "Groq · openai/gpt-oss-120b",
+     "checks": {
+      "validOption": true,
+      "namesItsChoice": true,
+      "numbers": {
+       "checked": 1,
+       "ungrounded": []
+      },
+      "sentences": 1,
+      "lengthOk": true,
+      "languageOk": true
+     }
+    }
+   ],
+   "silent": [],
+   "failed": [],
+   "decision": {
+    "option": "A",
+    "summary": "All three ministers agreed that building the water tower resolves the current shortage, restores water to 298 residents, creates a safety margin and is financially affordable.",
+    "dissent": "",
+    "conditions": "tower footprint must not require demolition of any existing homes",
+    "tally": {
+     "A": [
+      "energy",
+      "finance",
+      "planning"
+     ]
+    },
+    "provider": "Groq · openai/gpt-oss-120b"
+   },
+   "final": {
+    "energy": "A",
+    "planning": "A",
+    "finance": "A"
+   },
+   "seconds": 98,
+   "judge": {
+    "provider": "Groq · qwen/qwen3.8-27b",
+    "verdicts": [
+     {
+      "id": "energy-1",
+      "grounded": 5,
+      "on_topic": 5,
+      "in_role": 5,
+      "reasoning": 4,
+      "unsupported": []
+     },
+     {
+      "id": "planning-1",
+      "grounded": 5,
+      "on_topic": 5,
+      "in_role": 5,
+      "reasoning": 5,
+      "unsupported": []
+     },
+     {
+      "id": "finance-1",
+      "grounded": 5,
+      "on_topic": 5,
+      "in_role": 5,
+      "reasoning": 5,
+      "unsupported": []
+     },
+     {
+      "id": "planning-2",
+      "grounded": 5,
+      "on_topic": 5,
+      "in_role": 5,
+      "reasoning": 3,
+      "unsupported": []
+     },
+     {
+      "id": "finance-2",
+      "grounded": 5,
+      "on_topic": 5,
+      "in_role": 5,
+      "reasoning": 4,
+      "unsupported": []
+     },
+     {
+      "id": "energy-2",
+      "grounded": 5,
+      "on_topic": 5,
+      "in_role": 5,
+      "reasoning": 4,
+      "unsupported": []
+     },
+     {
+      "id": "chief",
+      "grounded": 5,
+      "on_topic": 5,
+      "in_role": 5,
+      "reasoning": 4,
+      "unsupported": []
+     }
+    ]
+   }
+  },
+  {
+   "name": "issue: health",
+   "group": "issue",
+   "issue": {
+    "kind": "health",
+    "title": "No clinic nearby",
+    "lead": "health",
+    "facts": [
+     "1966 of 1966 residents (100%) have no clinic within reach; most of them live in the city centre.",
+     "Living within reach of a clinic raises happiness and land value."
+    ]
+   },
+   "options": [
+    {
+     "id": "A",
+     "title": "Build a clinic",
+     "cost": 6000,
+     "monthly": 380,
+     "facts": [
+      "A clinic in the city centre, 24 m from the problem area. Brings a clinic within reach of the uncovered residents.",
+      "Nearest homes: right next to it."
+     ],
+     "displacedHomes": 0,
+     "jobsLost": 0,
+     "hasActions": true
+    },
+    {
+     "id": "B",
+     "title": "Build a clinic (alternative site)",
+     "cost": 6000,
+     "monthly": 380,
+     "facts": [
+      "A clinic in the city centre, 106 m from the problem area. Brings a clinic within reach of the uncovered residents.",
+      "Nearest homes: right next to it."
+     ],
+     "displacedHomes": 0,
+     "jobsLost": 0,
+     "hasActions": true
+    },
+    {
+     "id": "C",
+     "title": "Take no action for now",
+     "cost": 0,
+     "monthly": 0,
+     "facts": [
+      "Nothing is built or changed. The problem is likely to continue."
+     ],
+     "displacedHomes": 0,
+     "jobsLost": 0,
+     "hasActions": false
+    }
+   ],
+   "seats": [
+    {
+     "id": "health",
+     "reason": "it is your portfolio and you raised it"
+    },
+    {
+     "id": "finance",
+     "reason": "options A, B cost money"
+    },
+    {
+     "id": "welfare",
+     "reason": "residents’ wellbeing"
+    }
+   ],
+   "note": "",
+   "lang": "en",
+   "lines": [
+    {
+     "id": "health-1",
+     "minister": "health",
+     "round": 1,
+     "stance": "propose",
+     "option": "A",
+     "text": "Mayor, with all 1,966 residents currently lacking a clinic, I recommend we build the clinic at the 24‑metre site to bring essential health services within reach and improve happiness and land value. This location provides the most direct access for the affected population while meeting our coverage goal. We must include traffic‑flow measures to protect the neighbouring homes.",
+     "condition": "include traffic mitigation for adjacent homes",
+     "provider": "Groq · openai/gpt-oss-120b",
+     "checks": {
+      "validOption": true,
+      "namesItsChoice": true,
+      "numbers": {
+       "checked": 1,
+       "ungrounded": []
+      },
+      "sentences": 3,
+      "lengthOk": true,
+      "languageOk": true
+     }
+    },
+    {
+     "id": "welfare-1",
+     "minister": "welfare",
+     "round": 1,
+     "stance": "support",
+     "option": "A",
+     "text": "Mayor, building the clinic at the 24‑metre site will directly improve the wellbeing of all 1,966 residents who currently lack any health access, raising our city‑wide happiness from a low 24% and supporting fair treatment of the city centre neighbourhood. It does so without any upfront displacement and keeps our tax burden unchanged.",
+     "condition": "ensure rent stability for nearby households",
+     "provider": "Groq · openai/gpt-oss-120b",
+     "checks": {
+      "validOption": true,
+      "namesItsChoice": true,
+      "numbers": {
+       "checked": 2,
+       "ungrounded": []
+      },
+      "sentences": 2,
+      "lengthOk": true,
+      "languageOk": true
+     }
+    },
+    {
+     "id": "finance-1",
+     "minister": "finance",
+     "round": 1,
+     "stance": "support",
+     "option": "A",
+     "text": "Mayor, the $6,000 capital outlay plus $380 extra per month fit comfortably within our $96,037 treasury and the projected $1,495 monthly surplus, leaving a healthy balance after the increase; the 24‑metre site also maximises the happiness and land‑value boost for the affected residents. I support Option A, provided we keep an eye on the monthly balance to stay comfortably positive.",
+     "condition": "",
+     "provider": "Groq · openai/gpt-oss-120b",
+     "checks": {
+      "validOption": true,
+      "namesItsChoice": true,
+      "numbers": {
+       "checked": 5,
+       "ungrounded": []
+      },
+      "sentences": 2,
+      "lengthOk": true,
+      "languageOk": true
+     }
+    },
+    {
+     "id": "welfare-2",
+     "minister": "welfare",
+     "round": 2,
+     "stance": "support",
+     "option": "A",
+     "text": "I continue to support Option A, ensuring rent stability for nearby households.",
+     "condition": "",
+     "provider": "Groq · openai/gpt-oss-120b",
+     "checks": {
+      "validOption": true,
+      "namesItsChoice": true,
+      "numbers": {
+       "checked": 0,
+       "ungrounded": []
+      },
+      "sentences": 1,
+      "lengthOk": true,
+      "languageOk": true
+     }
+    },
+    {
+     "id": "health-2",
+     "minister": "health",
+     "round": 2,
+     "stance": "support",
+     "option": "A",
+     "text": "Mayor, I continue to support building the clinic at the 24‑metre site because it eliminates the 100 % coverage gap and will raise resident happiness and land values, which are linked to health outcomes. The proximity to homes demands traffic‑flow mitigation to protect air quality and noise levels for neighbours.",
+     "condition": "include traffic mitigation for adjacent homes",
+     "provider": "Groq · openai/gpt-oss-120b",
+     "checks": {
+      "validOption": true,
+      "namesItsChoice": true,
+      "numbers": {
+       "checked": 2,
+       "ungrounded": []
+      },
+      "sentences": 2,
+      "lengthOk": true,
+      "languageOk": true
+     }
+    },
+    {
+     "id": "finance-2",
+     "minister": "finance",
+     "round": 2,
+     "stance": "support",
+     "option": "A",
+     "text": "Mayor, the $6,000 capital cost plus the $380 monthly increase still leaves a projected balance of roughly $1,115, comfortably positive, so I remain in favour of Option A. We will continue to watch the monthly surplus to ensure it stays healthy.",
+     "condition": "",
+     "provider": "Groq · openai/gpt-oss-120b",
+     "checks": {
+      "validOption": true,
+      "namesItsChoice": true,
+      "numbers": {
+       "checked": 3,
+       "ungrounded": []
+      },
+      "sentences": 2,
+      "lengthOk": true,
+      "languageOk": true
+     }
+    },
+    {
+     "id": "chief",
+     "minister": "chief",
+     "round": 3,
+     "stance": "neutral",
+     "option": "A",
+     "text": "All three ministers agree that a clinic at the 24‑metre site eliminates the 100 % coverage gap, boosts happiness and land values, and fits comfortably within the treasury budget.",
+     "condition": "Include traffic‑flow mitigation for adjacent homes and ensure rent stability for nearby households.",
+     "provider": "Groq · openai/gpt-oss-120b",
+     "checks": {
+      "validOption": true,
+      "namesItsChoice": true,
+      "numbers": {
+       "checked": 2,
+       "ungrounded": []
+      },
+      "sentences": 1,
+      "lengthOk": true,
+      "languageOk": true
+     }
+    }
+   ],
+   "silent": [],
+   "failed": [],
+   "decision": {
+    "option": "A",
+    "summary": "All three ministers agree that a clinic at the 24‑metre site eliminates the 100 % coverage gap, boosts happiness and land values, and fits comfortably within the treasury budget.",
+    "dissent": "",
+    "conditions": "Include traffic‑flow mitigation for adjacent homes and ensure rent stability for nearby households.",
+    "tally": {
+     "A": [
+      "health",
+      "finance",
+      "welfare"
+     ]
+    },
+    "provider": "Groq · openai/gpt-oss-120b"
+   },
+   "final": {
+    "health": "A",
+    "welfare": "A",
+    "finance": "A"
+   },
+   "seconds": 79,
+   "judge": {
+    "provider": "Groq · qwen/qwen3.8-27b",
+    "verdicts": [
+     {
+      "id": "health-1",
+      "grounded": 5,
+      "on_topic": 5,
+      "in_role": 5,
+      "reasoning": 5,
+      "unsupported": []
+     },
+     {
+      "id": "welfare-1",
+      "grounded": 4,
+      "on_topic": 5,
+      "in_role": 5,
+      "reasoning": 5,
+      "unsupported": [
+       "without any upfront displacement"
+      ]
+     },
+     {
+      "id": "finance-1",
+      "grounded": 5,
+      "on_topic": 5,
+      "in_role": 5,
+      "reasoning": 5,
+      "unsupported": []
+     },
+     {
+      "id": "welfare-2",
+      "grounded": 2,
+      "on_topic": 2,
+      "in_role": 4,
+      "reasoning": 2,
+      "unsupported": [
+       "rent stability for nearby households"
+      ]
+     },
+     {
+      "id": "health-2",
+      "grounded": 4,
+      "on_topic": 5,
+      "in_role": 5,
+      "reasoning": 5,
+      "unsupported": [
+       "linked to health outcomes"
+      ]
+     },
+     {
+      "id": "finance-2",
+      "grounded": 5,
+      "on_topic": 5,
+      "in_role": 5,
+      "reasoning": 5,
+      "unsupported": []
+     },
+     {
+      "id": "chief",
+      "grounded": 5,
+      "on_topic": 5,
+      "in_role": 5,
+      "reasoning": 5,
+      "unsupported": []
+     }
+    ]
+   }
+  },
+  {
+   "name": "issue: education",
+   "group": "issue",
+   "issue": {
+    "kind": "education",
+    "title": "No school nearby",
+    "lead": "education",
+    "facts": [
+     "1966 of 1966 residents (100%) have no school within reach; most of them live in the city centre.",
+     "Living within reach of a school raises happiness and land value."
+    ]
+   },
+   "options": [
+    {
+     "id": "A",
+     "title": "Build a school",
+     "cost": 7000,
+     "monthly": 420,
+     "facts": [
+      "A school in the city centre, 27 m from the problem area. Brings a school within reach of the uncovered families.",
+      "Nearest homes: right next to it."
+     ],
+     "displacedHomes": 0,
+     "jobsLost": 0,
+     "hasActions": true
+    },
+    {
+     "id": "B",
+     "title": "Build a school (alternative site)",
+     "cost": 7000,
+     "monthly": 420,
+     "facts": [
+      "A school in the city centre, 104 m from the problem area. Brings a school within reach of the uncovered families.",
+      "Nearest homes: right next to it."
+     ],
+     "displacedHomes": 0,
+     "jobsLost": 0,
+     "hasActions": true
+    },
+    {
+     "id": "C",
+     "title": "Take no action for now",
+     "cost": 0,
+     "monthly": 0,
+     "facts": [
+      "Nothing is built or changed. The problem is likely to continue."
+     ],
+     "displacedHomes": 0,
+     "jobsLost": 0,
+     "hasActions": false
+    }
+   ],
+   "seats": [
+    {
+     "id": "education",
+     "reason": "it is your portfolio and you raised it"
+    },
+    {
+     "id": "finance",
+     "reason": "options A, B cost money"
+    },
+    {
+     "id": "welfare",
+     "reason": "residents’ wellbeing"
+    }
+   ],
+   "note": "",
+   "lang": "en",
+   "lines": [
+    {
+     "id": "education-1",
+     "minister": "education",
+     "round": 1,
+     "stance": "propose",
+     "option": "A",
+     "text": "Mayor, the data shows all 1,966 residents lack a school within reach, harming happiness and future jobs. I propose we build the new school at the closer site, 27 m from the affected area, because it will bring education within immediate reach of the families and support higher land values. This will also allow us to plan safe routes for children.",
+     "condition": "ensure safe pedestrian pathways",
+     "provider": "Groq · openai/gpt-oss-120b",
+     "checks": {
+      "validOption": true,
+      "namesItsChoice": true,
+      "numbers": {
+       "checked": 1,
+       "ungrounded": []
+      },
+      "sentences": 3,
+      "lengthOk": true,
+      "languageOk": true
+     }
+    },
+    {
+     "id": "welfare-1",
+     "minister": "welfare",
+     "round": 1,
+     "stance": "support",
+     "option": "A",
+     "text": "Mayor, with all 1,966 residents currently without a school, our community wellbeing and happiness are at a critical low of 24%, and addressing this will lift morale and future job prospects. Building the school at the closer 27 m site directly benefits those families and aligns with our mandate to improve resident happiness without displacement. I back this option provided we safeguard existing homes during construction.",
+     "condition": "no resident displacement",
+     "provider": "Groq · openai/gpt-oss-120b",
+     "checks": {
+      "validOption": true,
+      "namesItsChoice": true,
+      "numbers": {
+       "checked": 2,
+       "ungrounded": []
+      },
+      "sentences": 3,
+      "lengthOk": true,
+      "languageOk": true
+     }
+    },
+    {
+     "id": "finance-1",
+     "minister": "finance",
+     "round": 1,
+     "stance": "support",
+     "option": "A",
+     "text": "Mayor, the $7,000 upfront and the extra $420 per month will cut our projected monthly surplus from $1,495 to $1,075, still leaving a comfortable buffer, and the treasury will fall to $89,037, well above our safety line. I see no fiscal obstacle to the closer school, provided we keep the monthly surplus above $1,000.",
+     "condition": "maintain monthly surplus > $1,000",
+     "provider": "Groq · openai/gpt-oss-120b",
+     "checks": {
+      "validOption": true,
+      "namesItsChoice": true,
+      "numbers": {
+       "checked": 6,
+       "ungrounded": []
+      },
+      "sentences": 2,
+      "lengthOk": true,
+      "languageOk": true
+     }
+    },
+    {
+     "id": "education-2",
+     "minister": "education",
+     "round": 2,
+     "stance": "support",
+     "option": "A",
+     "text": "Mayor, the evidence that all 1,966 residents lack a school remains decisive; the nearer site at 27 m will bring education within immediate reach and boost happiness and land values. I remain confident that this will also allow us to design safe routes for children and protect existing homes during construction.",
+     "condition": "ensure safe pedestrian pathways and no resident displacement",
+     "provider": "Groq · openai/gpt-oss-120b",
+     "checks": {
+      "validOption": true,
+      "namesItsChoice": true,
+      "numbers": {
+       "checked": 1,
+       "ungrounded": []
+      },
+      "sentences": 2,
+      "lengthOk": true,
+      "languageOk": true
+     }
+    },
+    {
+     "id": "welfare-2",
+     "minister": "welfare",
+     "round": 2,
+     "stance": "support",
+     "option": "A",
+     "text": "I continue to support option A because it will bring a school within reach of the 1,966 residents and raise our city’s happiness, which is currently 24%. It does so without displacing any households.",
+     "condition": "no resident displacement",
+     "provider": "Groq · openai/gpt-oss-120b",
+     "checks": {
+      "validOption": true,
+      "namesItsChoice": true,
+      "numbers": {
+       "checked": 1,
+       "ungrounded": []
+      },
+      "sentences": 2,
+      "lengthOk": true,
+      "languageOk": true
+     }
+    },
+    {
+     "id": "finance-2",
+     "minister": "finance",
+     "round": 2,
+     "stance": "support",
+     "option": "A",
+     "text": "I concur with the council's direction; the $7,000 capital outlay and $420 monthly expense still leave us with a surplus of about $1,075, well above the $1,000 threshold. This preserves a comfortable fiscal cushion while addressing the education need.",
+     "condition": "",
+     "provider": "Groq · openai/gpt-oss-120b",
+     "checks": {
+      "validOption": true,
+      "namesItsChoice": true,
+      "numbers": {
+       "checked": 4,
+       "ungrounded": []
+      },
+      "sentences": 2,
+      "lengthOk": true,
+      "languageOk": true
+     }
+    },
+    {
+     "id": "chief",
+     "minister": "chief",
+     "round": 3,
+     "stance": "neutral",
+     "option": "A",
+     "text": "All three ministers agreed that building the school at the nearer 27 m site best addresses the 100% of residents lacking a school, improves happiness and land values, and remains fiscally sound.",
+     "condition": "Ensure safe pedestrian pathways, avoid resident displacement during construction, and keep the monthly surplus above $1,000.",
+     "provider": "Groq · openai/gpt-oss-120b",
+     "checks": {
+      "validOption": true,
+      "namesItsChoice": true,
+      "numbers": {
+       "checked": 2,
+       "ungrounded": []
+      },
+      "sentences": 1,
+      "lengthOk": true,
+      "languageOk": true
+     }
+    }
+   ],
+   "silent": [],
+   "failed": [],
+   "decision": {
+    "option": "A",
+    "summary": "All three ministers agreed that building the school at the nearer 27 m site best addresses the 100% of residents lacking a school, improves happiness and land values, and remains fiscally sound.",
+    "dissent": "",
+    "conditions": "Ensure safe pedestrian pathways, avoid resident displacement during construction, and keep the monthly surplus above $1,000.",
+    "tally": {
+     "A": [
+      "education",
+      "finance",
+      "welfare"
+     ]
+    },
+    "provider": "Groq · openai/gpt-oss-120b"
+   },
+   "final": {
+    "education": "A",
+    "welfare": "A",
+    "finance": "A"
+   },
+   "seconds": 76,
+   "judge": {
+    "provider": "Groq · qwen/qwen3.8-27b",
+    "verdicts": [
+     {
+      "id": "education-1",
+      "grounded": 5,
+      "on_topic": 5,
+      "in_role": 5,
+      "reasoning": 5,
+      "unsupported": []
+     },
+     {
+      "id": "welfare-1",
+      "grounded": 5,
+      "on_topic": 5,
+      "in_role": 5,
+      "reasoning": 4,
+      "unsupported": []
+     },
+     {
+      "id": "finance-1",
+      "grounded": 1,
+      "on_topic": 5,
+      "in_role": 4,
+      "reasoning": 4,
+      "unsupported": [
+       "treasury will fall to $89,037",
+       "well above our safety line"
+      ]
+     },
+     {
+      "id": "education-2",
+      "grounded": 5,
+      "on_topic": 5,
+      "in_role": 5,
+      "reasoning": 4,
+      "unsupported": []
+     },
+     {
+      "id": "welfare-2",
+      "grounded": 5,
+      "on_topic": 5,
+      "in_role": 5,
+      "reasoning": 4,
+      "unsupported": []
+     },
+     {
+      "id": "finance-2",
+      "grounded": 2,
+      "on_topic": 5,
+      "in_role": 4,
+      "reasoning": 4,
+      "unsupported": [
+       "well above the $1,000 threshold",
+       "council's direction"
+      ]
+     },
+     {
+      "id": "chief",
+      "grounded": 5,
+      "on_topic": 5,
+      "in_role": 5,
+      "reasoning": 5,
+      "unsupported": []
+     }
+    ]
+   }
+  },
+  {
+   "name": "issue: fire",
+   "group": "issue",
+   "issue": {
+    "kind": "fire",
+    "title": "No fire cover nearby",
+    "lead": "safety",
+    "facts": [
+     "1966 of 1966 residents (100%) have no fire station within reach; most of them live in the city centre.",
+     "Living within reach of a fire station raises happiness and land value."
+    ]
+   },
+   "options": [
+    {
+     "id": "A",
+     "title": "Build a fire station",
+     "cost": 5500,
+     "monthly": 340,
+     "facts": [
+      "A fire station in the city centre, 24 m from the problem area. Brings fire cover to the uncovered homes.",
+      "Nearest homes: right next to it."
+     ],
+     "displacedHomes": 0,
+     "jobsLost": 0,
+     "hasActions": true
+    },
+    {
+     "id": "B",
+     "title": "Build a fire station (alternative site)",
+     "cost": 5500,
+     "monthly": 340,
+     "facts": [
+      "A fire station in the city centre, 106 m from the problem area. Brings fire cover to the uncovered homes.",
+      "Nearest homes: right next to it."
+     ],
+     "displacedHomes": 0,
+     "jobsLost": 0,
+     "hasActions": true
+    },
+    {
+     "id": "C",
+     "title": "Take no action for now",
+     "cost": 0,
+     "monthly": 0,
+     "facts": [
+      "Nothing is built or changed. The problem is likely to continue."
+     ],
+     "displacedHomes": 0,
+     "jobsLost": 0,
+     "hasActions": false
+    }
+   ],
+   "seats": [
+    {
+     "id": "safety",
+     "reason": "it is your portfolio and you raised it"
+    },
+    {
+     "id": "finance",
+     "reason": "options A, B cost money"
+    },
+    {
+     "id": "welfare",
+     "reason": "residents’ wellbeing"
+    }
+   ],
+   "note": "",
+   "lang": "en",
+   "lines": [
+    {
+     "id": "safety-1",
+     "minister": "safety",
+     "round": 1,
+     "stance": "propose",
+     "option": "A",
+     "text": "Mayor, 100% of our residents lack fire coverage, all concentrated in the city centre, which depresses safety and property values. Building a fire station 24 m from the problem area will bring immediate cover and improve response times. The cost is $5,500 upfront and $340 monthly, a necessary investment for public safety.",
+     "condition": "",
+     "provider": "Groq · openai/gpt-oss-120b",
+     "checks": {
+      "validOption": true,
+      "namesItsChoice": true,
+      "numbers": {
+       "checked": 4,
+       "ungrounded": []
+      },
+      "sentences": 3,
+      "lengthOk": true,
+      "languageOk": true
+     }
+    },
+    {
+     "id": "welfare-1",
+     "minister": "welfare",
+     "round": 1,
+     "stance": "support",
+     "option": "A",
+     "text": "Mayor, the lack of fire cover affects all 1,966 residents and is a clear driver of our low 24% happiness rate; providing coverage will lift wellbeing across the city centre. A fire station just 24 m away will deliver the most immediate improvement in safety perception and land value, supporting our welfare goals without displacing anyone.",
+     "condition": "",
+     "provider": "Groq · openai/gpt-oss-120b",
+     "checks": {
+      "validOption": true,
+      "namesItsChoice": true,
+      "numbers": {
+       "checked": 2,
+       "ungrounded": []
+      },
+      "sentences": 2,
+      "lengthOk": true,
+      "languageOk": true
+     }
+    },
+    {
+     "id": "finance-1",
+     "minister": "finance",
+     "round": 1,
+     "stance": "support",
+     "option": "A",
+     "text": "Mayor, the $5,500 outlay and $340 monthly hit will shave $340 off our surplus, leaving us with $1,155 a month and a treasury still over $90k – enough to keep the lights on and the accountants smiling. I support option A as it provides the needed coverage at the same price as the alternative.",
+     "condition": "Keep other discretionary spending frozen this quarter",
+     "provider": "Groq · openai/gpt-oss-120b",
+     "checks": {
+      "validOption": true,
+      "namesItsChoice": true,
+      "numbers": {
+       "checked": 5,
+       "ungrounded": [
+        90
+       ]
+      },
+      "sentences": 2,
+      "lengthOk": true,
+      "languageOk": true
+     }
+    },
+    {
+     "id": "welfare-2",
+     "minister": "welfare",
+     "round": 2,
+     "stance": "support",
+     "option": "A",
+     "text": "Mayor and colleagues, I continue to support building the fire station at the 24 m site, as it will lift the wellbeing of all 1,966 residents and raise our low happiness rate without displacing anyone. The immediate safety boost aligns with our welfare goals.",
+     "condition": "",
+     "provider": "Groq · openai/gpt-oss-120b",
+     "checks": {
+      "validOption": true,
+      "namesItsChoice": true,
+      "numbers": {
+       "checked": 1,
+       "ungrounded": []
+      },
+      "sentences": 2,
+      "lengthOk": true,
+      "languageOk": true
+     }
+    },
+    {
+     "id": "safety-2",
+     "minister": "safety",
+     "round": 2,
+     "stance": "support",
+     "option": "A",
+     "text": "Mayor, fire coverage for all 1,966 residents is essential; the 24 m site gives the fastest response and lifts safety, happiness and property values. The $5,500 capital outlay and $340 monthly are justified given the total lack of fire services. We must also guarantee the new station does not impede traffic so emergency vehicles keep their response times.",
+     "condition": "Station design must preserve emergency routes",
+     "provider": "Groq · openai/gpt-oss-120b",
+     "checks": {
+      "validOption": true,
+      "namesItsChoice": true,
+      "numbers": {
+       "checked": 3,
+       "ungrounded": []
+      },
+      "sentences": 3,
+      "lengthOk": true,
+      "languageOk": true
+     }
+    },
+    {
+     "id": "finance-2",
+     "minister": "finance",
+     "round": 2,
+     "stance": "support",
+     "option": "A",
+     "text": "Mayor, the $5,500 outlay and $340 monthly increase will reduce our projected surplus to $1,155, leaving the treasury comfortably above $90k, so the books stay green. The fire station 24 m away delivers coverage to all 1,966 residents, giving us the cheapest solution that actually solves the problem. I therefore continue to support option A, provided we keep other discretionary spending frozen this quarter.",
+     "condition": "Keep other discretionary spending frozen this quarter",
+     "provider": "Groq · openai/gpt-oss-120b",
+     "checks": {
+      "validOption": true,
+      "namesItsChoice": true,
+      "numbers": {
+       "checked": 5,
+       "ungrounded": []
+      },
+      "sentences": 3,
+      "lengthOk": true,
+      "languageOk": true
+     }
+    },
+    {
+     "id": "chief",
+     "minister": "chief",
+     "round": 3,
+     "stance": "neutral",
+     "option": "A",
+     "text": "All three ministers—Safety, Finance and Welfare—support building a fire station at the 24 m site, which will provide fire coverage to all 1,966 residents, improve safety, happiness and land values, and is affordable within the current budget. The $5,500 upfront cost and $340 monthly expense are deemed manageable. The council agrees the station will address the complete lack of fire services in the city centre. The proposal meets the mayor’s objective of enhancing public safety without displacement.",
+     "condition": "Keep other discretionary spending frozen this quarter and ensure the station design preserves emergency routes.",
+     "provider": "Groq · openai/gpt-oss-120b",
+     "checks": {
+      "validOption": true,
+      "namesItsChoice": true,
+      "numbers": {
+       "checked": 3,
+       "ungrounded": []
+      },
+      "sentences": 4,
+      "lengthOk": true,
+      "languageOk": true
+     }
+    }
+   ],
+   "silent": [],
+   "failed": [],
+   "decision": {
+    "option": "A",
+    "summary": "All three ministers—Safety, Finance and Welfare—support building a fire station at the 24 m site, which will provide fire coverage to all 1,966 residents, improve safety, happiness and land values, and is affordable within the current budget. The $5,500 upfront cost and $340 monthly expense are deemed manageable. The council agrees the station will address the complete lack of fire services in the city centre. The proposal meets the mayor’s objective of enhancing public safety without displacement.",
+    "dissent": "",
+    "conditions": "Keep other discretionary spending frozen this quarter and ensure the station design preserves emergency routes.",
+    "tally": {
+     "A": [
+      "safety",
+      "finance",
+      "welfare"
+     ]
+    },
+    "provider": "Groq · openai/gpt-oss-120b"
+   },
+   "final": {
+    "safety": "A",
+    "welfare": "A",
+    "finance": "A"
+   },
+   "seconds": 84,
+   "judge": {
+    "provider": "Groq · qwen/qwen3.8-27b",
+    "verdicts": [
+     {
+      "id": "safety-1",
+      "grounded": 5,
+      "on_topic": 5,
+      "in_role": 5,
+      "reasoning": 4,
+      "unsupported": []
+     },
+     {
+      "id": "welfare-1",
+      "grounded": 4,
+      "on_topic": 5,
+      "in_role": 5,
+      "reasoning": 5,
+      "unsupported": [
+       "clear driver"
+      ]
+     },
+     {
+      "id": "finance-1",
+      "grounded": 5,
+      "on_topic": 5,
+      "in_role": 5,
+      "reasoning": 5,
+      "unsupported": []
+     },
+     {
+      "id": "welfare-2",
+      "grounded": 3,
+      "on_topic": 5,
+      "in_role": 5,
+      "reasoning": 2,
+      "unsupported": [
+       "immediate safety boost"
+      ]
+     },
+     {
+      "id": "safety-2",
+      "grounded": 5,
+      "on_topic": 5,
+      "in_role": 5,
+      "reasoning": 4,
+      "unsupported": []
+     },
+     {
+      "id": "finance-2",
+      "grounded": 3,
+      "on_topic": 5,
+      "in_role": 5,
+      "reasoning": 4,
+      "unsupported": [
+       "cheapest solution"
+      ]
+     },
+     {
+      "id": "chief",
+      "grounded": 1,
+      "on_topic": 3,
+      "in_role": 2,
+      "reasoning": 3,
+      "unsupported": [
+       "meets the mayor’s objective",
+       "without displacement"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "name": "issue: jobs",
+   "group": "issue",
+   "issue": {
+    "kind": "jobs",
+    "title": "Not enough jobs",
+    "lead": "planning",
+    "facts": [
+     "Workers: 1081; employed: 774; unemployment 28%.",
+     "Jobs: 476 in shops and offices, 298 in industry. Demand: homes -8, shops -100, industry 44 (out of ±100).",
+     "Homes only grow while there are jobs for the people who would live in them."
+    ]
+   },
+   "options": [
+    {
+     "id": "A",
+     "title": "Zone new land for industry",
+     "cost": 0,
+     "monthly": 0,
+     "facts": [
+      "About 104 plots of empty land about 350 m south-east of the centre, zoned for industry (low density). Factories hire the most workers per plot.",
+      "Nearest existing homes: 390 m away.",
+      "Free to zone; buildings appear as demand allows. More buildings mean more traffic and more power and water use."
+     ],
+     "displacedHomes": 0,
+     "jobsLost": 0,
+     "hasActions": true
+    },
+    {
+     "id": "B",
+     "title": "Zone new land for shops and offices",
+     "cost": 0,
+     "monthly": 0,
+     "facts": [
+      "About 152 plots of empty land about 250 m south of the centre, zoned for shops and offices (low density). Shops close to homes give jobs without the pollution.",
+      "Nearest existing homes: 200 m away.",
+      "Free to zone; buildings appear as demand allows. More buildings mean more traffic and more power and water use."
+     ],
+     "displacedHomes": 0,
+     "jobsLost": 0,
+     "hasActions": true
+    },
+    {
+     "id": "C",
+     "title": "Take no action for now",
+     "cost": 0,
+     "monthly": 0,
+     "facts": [
+      "Nothing is built or changed. The problem is likely to continue."
+     ],
+     "displacedHomes": 0,
+     "jobsLost": 0,
+     "hasActions": false
+    }
+   ],
+   "seats": [
+    {
+     "id": "planning",
+     "reason": "it is your portfolio and you raised it"
+    },
+    {
+     "id": "welfare",
+     "reason": "jobs and homes for residents"
+    },
+    {
+     "id": "roads",
+     "reason": "new districts add traffic"
+    }
+   ],
+   "note": "",
+   "lang": "en",
+   "lines": [
+    {
+     "id": "planning-1",
+     "minister": "planning",
+     "round": 1,
+     "stance": "propose",
+     "option": "B",
+     "text": "The unemployment rate is high and our housing growth is stalled because there are insufficient jobs, especially in the retail and office sector where demand is most acute. Zoning the nearby empty plots for shops and offices will create the needed jobs close to existing neighborhoods, supporting residents without introducing the pollution and distance associated with new industry. This approach aligns with our goal of keeping housing viable while expanding employment opportunities.",
+     "condition": "monitor traffic impact",
+     "provider": "Groq · openai/gpt-oss-120b",
+     "checks": {
+      "validOption": true,
+      "namesItsChoice": true,
+      "numbers": {
+       "checked": 0,
+       "ungrounded": []
+      },
+      "sentences": 3,
+      "lengthOk": true,
+      "languageOk": true
+     }
+    },
+    {
+     "id": "roads-1",
+     "minister": "roads",
+     "round": 1,
+     "stance": "support",
+     "option": "B",
+     "text": "Option B adds jobs nearer to existing homes, so vehicle trips will be shorter and we avoid heavy truck traffic that a new industrial zone would generate. The added traffic will still strain Canal and King Streets, so we must monitor loads and be ready to widen or add signal timing if densities exceed current levels.",
+     "condition": "upgrade key corridors if traffic >13 cars/100 m",
+     "provider": "Groq · openai/gpt-oss-120b",
+     "checks": {
+      "validOption": true,
+      "namesItsChoice": true,
+      "numbers": {
+       "checked": 0,
+       "ungrounded": []
+      },
+      "sentences": 2,
+      "lengthOk": true,
+      "languageOk": true
+     }
+    },
+    {
+     "id": "welfare-1",
+     "minister": "welfare",
+     "round": 1,
+     "stance": "support",
+     "option": "A",
+     "text": "Mayor, the unemployment rate of 28% is unsustainable and we need to create many jobs quickly; industry plots have the highest worker capacity per plot and the demand for industry is positive, so zoning the 104 plots for industry will most effectively reduce joblessness and lift overall happiness. We must, however, guard resident wellbeing by requiring strict emissions standards and reliable transport to the new workplaces.",
+     "condition": "strict pollution controls and transport links",
+     "provider": "Groq · openai/gpt-oss-120b",
+     "checks": {
+      "validOption": true,
+      "namesItsChoice": true,
+      "numbers": {
+       "checked": 2,
+       "ungrounded": []
+      },
+      "sentences": 2,
+      "lengthOk": true,
+      "languageOk": true
+     }
+    },
+    {
+     "id": "welfare-2",
+     "minister": "welfare",
+     "round": 2,
+     "stance": "support",
+     "option": "A",
+     "text": "Mayor, with 303 workers out of 1081 unemployed, zoning the industrial plots will create the most jobs per plot and can significantly lower the 28% unemployment driving our low 24% happiness, so I continue to back option A.",
+     "condition": "strict emissions standards",
+     "provider": "Groq · openai/gpt-oss-120b",
+     "checks": {
+      "validOption": true,
+      "namesItsChoice": true,
+      "numbers": {
+       "checked": 4,
+       "ungrounded": []
+      },
+      "sentences": 1,
+      "lengthOk": true,
+      "languageOk": true
+     }
+    },
+    {
+     "id": "planning-2",
+     "minister": "planning",
+     "round": 2,
+     "stance": "support",
+     "option": "B",
+     "text": "Mayor, the sharp deficit in retail and office jobs (-100 demand) and the close proximity of the 152 plots to existing neighborhoods make zoning for shops and offices the most effective way to create jobs that support our housing stock without introducing industrial pollution. This will help resume home building by providing residents with nearby employment. I will monitor traffic impacts and endorse upgrading key corridors if traffic exceeds thresholds.",
+     "condition": "upgrade key corridors if traffic >13 cars/100 m",
+     "provider": "Groq · openai/gpt-oss-120b",
+     "checks": {
+      "validOption": true,
+      "namesItsChoice": true,
+      "numbers": {
+       "checked": 2,
+       "ungrounded": []
+      },
+      "sentences": 3,
+      "lengthOk": true,
+      "languageOk": true
+     }
+    },
+    {
+     "id": "roads-2",
+     "minister": "roads",
+     "round": 2,
+     "stance": "support",
+     "option": "B",
+     "text": "I continue to back zoning the south plots for shops and offices because it creates jobs close to existing homes, keeping vehicle trips short and avoiding the heavy truck traffic an industrial zone would generate; the added traffic will still press Canal and King Streets but remains within manageable limits. We will monitor corridor loads and be ready to widen or adjust signal timing if densities exceed 13 cars per 100 m.",
+     "condition": "upgrade key corridors if traffic >13 cars/100 m",
+     "provider": "Groq · openai/gpt-oss-120b",
+     "checks": {
+      "validOption": true,
+      "namesItsChoice": true,
+      "numbers": {
+       "checked": 2,
+       "ungrounded": []
+      },
+      "sentences": 2,
+      "lengthOk": true,
+      "languageOk": true
+     }
+    },
+    {
+     "id": "chief",
+     "minister": "chief",
+     "round": 3,
+     "stance": "neutral",
+     "option": "B",
+     "text": "The council weighed the acute shortage of retail and office jobs (‑100 demand) against a modest industry demand (+44) and the need to revive housing; two ministers (Housing, Roads) backed zoning the 152 south‑side plots for shops and offices, which creates jobs near homes and limits industrial pollution, while the Welfare minister favored industry but its demand is lower. With traffic impacts manageable and mitigable, option B best aligns with employment and housing goals.",
+     "condition": "Monitor traffic impact and upgrade Canal and King Streets if traffic exceeds 13 cars per 100 m; proceed with zoning at no upfront cost.",
+     "provider": "Groq · openai/gpt-oss-120b",
+     "checks": {
+      "validOption": true,
+      "namesItsChoice": true,
+      "numbers": {
+       "checked": 3,
+       "ungrounded": []
+      },
+      "sentences": 2,
+      "lengthOk": true,
+      "languageOk": true
+     }
+    }
+   ],
+   "silent": [],
+   "failed": [],
+   "decision": {
+    "option": "B",
+    "summary": "The council weighed the acute shortage of retail and office jobs (‑100 demand) against a modest industry demand (+44) and the need to revive housing; two ministers (Housing, Roads) backed zoning the 152 south‑side plots for shops and offices, which creates jobs near homes and limits industrial pollution, while the Welfare minister favored industry but its demand is lower. With traffic impacts manageable and mitigable, option B best aligns with employment and housing goals.",
+    "dissent": "Imran Sheikh (Welfare) prefers option A, citing higher job capacity per industrial plot.",
+    "conditions": "Monitor traffic impact and upgrade Canal and King Streets if traffic exceeds 13 cars per 100 m; proceed with zoning at no upfront cost.",
+    "tally": {
+     "B": [
+      "planning",
+      "roads"
+     ],
+     "A": [
+      "welfare"
+     ]
+    },
+    "provider": "Groq · openai/gpt-oss-120b"
+   },
+   "final": {
+    "planning": "B",
+    "roads": "B",
+    "welfare": "A"
+   },
+   "seconds": 94,
+   "judge": {
+    "provider": "Groq · qwen/qwen3.8-27b",
+    "verdicts": [
+     {
+      "id": "planning-1",
+      "grounded": 5,
+      "on_topic": 5,
+      "in_role": 5,
+      "reasoning": 4,
+      "unsupported": []
+     },
+     {
+      "id": "roads-1",
+      "grounded": 4,
+      "on_topic": 5,
+      "in_role": 5,
+      "reasoning": 4,
+      "unsupported": [
+       "avoid heavy truck traffic that a new industrial zone would generate"
+      ]
+     },
+     {
+      "id": "welfare-1",
+      "grounded": 4,
+      "on_topic": 5,
+      "in_role": 5,
+      "reasoning": 5,
+      "unsupported": [
+       "reliable transport to the new workplaces"
+      ]
+     },
+     {
+      "id": "welfare-2",
+      "grounded": 5,
+      "on_topic": 5,
+      "in_role": 5,
+      "reasoning": 4,
+      "unsupported": []
+     },
+     {
+      "id": "planning-2",
+      "grounded": 5,
+      "on_topic": 5,
+      "in_role": 4,
+      "reasoning": 5,
+      "unsupported": []
+     },
+     {
+      "id": "roads-2",
+      "grounded": 5,
+      "on_topic": 5,
+      "in_role": 5,
+      "reasoning": 5,
+      "unsupported": []
+     },
+     {
+      "id": "chief",
+      "grounded": 5,
+      "on_topic": 5,
+      "in_role": 5,
+      "reasoning": 5,
+      "unsupported": []
+     }
+    ]
+   }
+  },
+  {
+   "name": "hindi: traffic",
+   "group": "hindi",
+   "issue": {
+    "kind": "traffic",
+    "title": "Gridlock on Canal Street",
+    "lead": "roads",
+    "facts": [
+     "Canal Street (street, 1 lane each way, 96 m segment) in the city centre.",
+     "Traffic on it: 12.2 cars per 100 m; it jams at about 7. Time of day 18:00 (rush hour).",
+     "Across the city, queues cost drivers 70% of their normal speed.",
+     "Residents living within 200 m of this road: 376.",
+     "Nearest clinic to this road: none in the city. Nearest school: none in the city.",
+     "Nearest fire station: none in the city. Nearest police station: none in the city."
+    ]
+   },
+   "options": [
+    {
+     "id": "A",
+     "title": "Widen Canal Street to a four-lane avenue",
+     "cost": 2496,
+     "monthly": 5,
+     "facts": [
+      "Rebuilds this 96 m segment with two lanes each way and a median: roughly double the capacity, and more traffic drawn onto it.",
+      "The wider road (32 m) takes the front of neighbouring lots: demolishes 1 workplace (272 jobs).",
+      "Nearest clinic to Canal Street: none in the city. Nearest school: none in the city."
+     ],
+     "displacedHomes": 0,
+     "jobsLost": 272,
+     "hasActions": true
+    },
+    {
+     "id": "B",
+     "title": "New relief street parallel to Canal Street",
+     "cost": 960,
+     "monthly": 3,
+     "facts": [
+      "A 96 m two-lane street about 56 m to the west of Canal Street, joining the network at 2 points, so drivers get a second route.",
+      "It runs over open land: no buildings demolished.",
+      "Nearest clinic to the new street: none in the city. Nearest school: none in the city.",
+      "Clears almost no trees."
+     ],
+     "displacedHomes": 0,
+     "jobsLost": 0,
+     "hasActions": true
+    },
+    {
+     "id": "C",
+     "title": "Staggered office hours (policy)",
+     "cost": 0,
+     "monthly": 350,
+     "facts": [
+      "The city pays employers $350 a month to spread start and finish times.",
+      "Traffic at the height of the morning and evening rush drops by about a third, spread over a longer period; the number of trips stays the same.",
+      "Nothing is built or demolished. It can be dropped later."
+     ],
+     "displacedHomes": 0,
+     "jobsLost": 0,
+     "hasActions": true
+    },
+    {
+     "id": "D",
+     "title": "Take no action for now",
+     "cost": 0,
+     "monthly": 0,
+     "facts": [
+      "Nothing is built or changed. The problem is likely to continue."
+     ],
+     "displacedHomes": 0,
+     "jobsLost": 0,
+     "hasActions": false
+    }
+   ],
+   "seats": [
+    {
+     "id": "roads",
+     "reason": "it is your portfolio and you raised it"
+    },
+    {
+     "id": "welfare",
+     "reason": "options A demolish homes or workplaces"
+    },
+    {
+     "id": "planning",
+     "reason": "options A demolish buildings"
+    },
+    {
+     "id": "finance",
+     "reason": "options A, B, C cost money"
+    },
+    {
+     "id": "environment",
+     "reason": "queuing traffic adds fumes"
+    }
+   ],
+   "note": "",
+   "lang": "hi",
+   "lines": [
+    {
+     "id": "roads-1",
+     "minister": "roads",
+     "round": 1,
+     "stance": "propose",
+     "option": "B",
+     "text": "Mayor ji, Canal Street pe rush‑hour mein 12.2 gaadi per 100 m ka bhaar hai aur jam 7 tak pahunch raha hai, jo city‑wide speed loss ko 70 % tak badha raha hai। Main naya parallel relief street ka vikalp (Option B) aapke samne rakh raha hoon kyunki yeh 96 m ka do‑lane raasta 56 m door se bana kar traffic ka alternative pradan karega, bina koi rozgaar ya bhawan ko nuksan pahunchaye aur lagat bhi bahut kam hai।",
+     "condition": "",
+     "provider": "Groq · openai/gpt-oss-120b",
+     "checks": {
+      "validOption": true,
+      "namesItsChoice": true,
+      "numbers": {
+       "checked": 5,
+       "ungrounded": []
+      },
+      "sentences": 2,
+      "lengthOk": true,
+      "languageOk": false
+     }
+    },
+    {
+     "id": "environment-1",
+     "minister": "environment",
+     "round": 1,
+     "stance": "oppose",
+     "option": "C",
+     "text": "Mayor ji, traffic jam se honi wali धुएँ ki मात्रा हमारे 89 निवासी जिनका वायु गुणवत्ता 30 % से ऊपर है, उन्हें और बढ़ा रही है। चौड़े रास्ते से अधिक वाहन आकर्षित होंगे, इसलिए मैं विकल्प C – staggered office hours – को समर्थन देता हूँ, क्योंकि यह यात्रा के समय को फैलाकर उत्सर्जन घटाता है और कोई नई इमारत नहीं बनाता।",
+     "condition": "यदि बजट अनुमति दे",
+     "provider": "Groq · openai/gpt-oss-120b",
+     "checks": {
+      "validOption": true,
+      "namesItsChoice": true,
+      "numbers": {
+       "checked": 2,
+       "ungrounded": []
+      },
+      "sentences": 2,
+      "lengthOk": true,
+      "languageOk": true
+     }
+    },
+    {
+     "id": "welfare-1",
+     "minister": "welfare",
+     "round": 1,
+     "stance": "support",
+     "option": "B",
+     "text": "Mayor ji, Canal Street ke 96 m segment par jo 272 नौकरी वाले कार्यस्थल ko Option A se giraaya ja sakta hai, usse unemployment aur city ki happiness par नकारात्मक असर पड़ेगा, जबकि Option B केवल 56 m दूर खुले ज़मीन पर नया दो‑लेन मार्ग बनाता है, कोई घर या काम नहीं खोता और 376 पड़ोसियों को भी सुरक्षित रखता है। इस कारण मैं Option B ko समर्थन देता हूँ।",
+     "condition": "6 महीने बाद ट्रैफिक प्रभाव की समीक्षा",
+     "provider": "Groq · openai/gpt-oss-120b",
+     "checks": {
+      "validOption": true,
+      "namesItsChoice": true,
+      "numbers": {
+       "checked": 4,
+       "ungrounded": []
+      },
+      "sentences": 2,
+      "lengthOk": true,
+      "languageOk": false
+     }
+    },
+    {
+     "id": "planning-1",
+     "minister": "planning",
+     "round": 1,
+     "stance": "support",
+     "option": "B",
+     "text": "Mayor ji, मौजूदा 96 m की दो‑लेन सड़क को 56 m पश्चिम में बनाकर वैकल्पिक मार्ग देना हमारे लिए सबसे सुरक्षित विकल्प है, क्योंकि इससे कोई रोजगारस्थल या आवासीय इकाई नहीं खोती और ट्रैफिक का बोझ घटता है। यह समाधान हमारे खाली ज़ोन (1410 प्लॉट) को भविष्य में आवासीय विकास के लिए भी सुरक्षित रखता है।",
+     "condition": "नया सड़क मौजूदा आवासीय ज़ोनिंग को नहीं छेड़े",
+     "provider": "Groq · openai/gpt-oss-120b",
+     "checks": {
+      "validOption": true,
+      "namesItsChoice": true,
+      "numbers": {
+       "checked": 3,
+       "ungrounded": []
+      },
+      "sentences": 2,
+      "lengthOk": true,
+      "languageOk": true
+     }
+    },
+    {
+     "id": "finance-1",
+     "minister": "finance",
+     "round": 1,
+     "stance": "support",
+     "option": "B",
+     "text": "Mayor ji, hamare treasury mein $96,037 bache hain aur projected monthly balance $1,495 hai। Option B ka upfront $960 aur $3 per month ka kharcha humein balance $1,492 tak rakhta hai, jo hamare liye safe hai, aur yeh ek naya relief street dega bina koi rozgaar ya bhawan ko nuksan pahunchaye। Isse hum aarthik bojh kam rakhte hue traffic jam ka hal pradan kar sakte hain।",
+     "condition": "",
+     "provider": "Groq · openai/gpt-oss-120b",
+     "checks": {
+      "validOption": true,
+      "namesItsChoice": true,
+      "numbers": {
+       "checked": 4,
+       "ungrounded": []
+      },
+      "sentences": 3,
+      "lengthOk": true,
+      "languageOk": false
+     }
+    },
+    {
+     "id": "welfare-2",
+     "minister": "welfare",
+     "round": 2,
+     "stance": "support",
+     "option": "B",
+     "text": "Mayor ji, Canal Street ke 96 m segment par 272 नौकरियों की हानि se unemployment aur city ki 24 % happiness par bura prabhav padega, jabki Option B sirf 56 m door khule zameen par naya do‑lane raasta banata hai aur 376 पड़ोसियों को बिना कोई रोजगार या आवास खोए सुरक्षित रखता है। इसलिए मैं फिर से Option B को समर्थन देता हूँ और सामाजिक प्रभाव की जाँच के लिए छह महीने बाद समीक्षा करने का प्रस्ताव रखता हूँ।",
+     "condition": "6 महीने बाद ट्रैफ़िक प्रभाव की समीक्षा",
+     "provider": "Groq · openai/gpt-oss-120b",
+     "checks": {
+      "validOption": true,
+      "namesItsChoice": true,
+      "numbers": {
+       "checked": 5,
+       "ungrounded": []
+      },
+      "sentences": 2,
+      "lengthOk": true,
+      "languageOk": false
+     }
+    },
+    {
+     "id": "environment-2",
+     "minister": "environment",
+     "round": 2,
+     "stance": "oppose",
+     "option": "C",
+     "text": "Mayor ji, मौजूदा जाम से 89 निवासियों की वायु गुणवत्ता पहले से ही 30 % से ऊपर है, और चौड़ी सड़कों से ट्रैफ़िक आकर्षित हो कर उत्सर्जन बढ़ेगा। विकल्प B से नई सड़क बनाकर वाहन प्रवाह बढ़ेगा, जिससे हमारे पर्यावरणीय लक्ष्य को नुकसान होगा। इसलिए मैं विकल्प C – staggered office hours – को समर्थन देता हूँ, क्योंकि यह बिना नई निर्माण के पीक समय में वाहनों की संख्या घटाता है।",
+     "condition": "यदि बजट अनुमति दे",
+     "provider": "Groq · openai/gpt-oss-120b",
+     "checks": {
+      "validOption": true,
+      "namesItsChoice": true,
+      "numbers": {
+       "checked": 2,
+       "ungrounded": []
+      },
+      "sentences": 3,
+      "lengthOk": true,
+      "languageOk": true
+     }
+    },
+    {
+     "id": "finance-2",
+     "minister": "finance",
+     "round": 2,
+     "stance": "oppose",
+     "option": "B",
+     "text": "Mayor ji, main Option C ke $350 mahine ke kharche ko dekh kar chintit hoon kyunki isse hamara projected monthly balance $1,495 se sirf $145 tak gir jayega, jabki Option B sirf $960 ka upfront aur $3 mahine ka kharcha kar ke balance $1,492 hi rakhega; isliye main Option B ko samarthan deta hoon. Treasury $96,037 mein hai aur hum is chhote kharche se traffic jam ka hal bhi pa sakte hain।",
+     "condition": "",
+     "provider": "Groq · openai/gpt-oss-120b",
+     "checks": {
+      "validOption": true,
+      "namesItsChoice": true,
+      "numbers": {
+       "checked": 6,
+       "ungrounded": []
+      },
+      "sentences": 2,
+      "lengthOk": true,
+      "languageOk": false
+     }
+    },
+    {
+     "id": "planning-2",
+     "minister": "planning",
+     "round": 2,
+     "stance": "support",
+     "option": "B",
+     "text": "मेरी सहमति वही बनी रहती है; विकल्प B नई राहत सड़क बनाकर मौजूदा आवासीय ज़ोनिंग और नौकरियों को नहीं छूता, जिससे हमारे खाली प्लॉट भविष्य के आवासीय विकास के लिए सुरक्षित रहते हैं।",
+     "condition": "नया सड़क मौजूदा आवासीय ज़ोनिंग को नहीं छेड़े",
+     "provider": "Groq · openai/gpt-oss-120b",
+     "checks": {
+      "validOption": true,
+      "namesItsChoice": true,
+      "numbers": {
+       "checked": 0,
+       "ungrounded": []
+      },
+      "sentences": 1,
+      "lengthOk": true,
+      "languageOk": true
+     }
+    },
+    {
+     "id": "roads-2",
+     "minister": "roads",
+     "round": 2,
+     "stance": "support",
+     "option": "B",
+     "text": "Mayor ji, Canal Street ki 12.2 gaadi per 100 m ki bhari jam ko dekhte hue, naya parallel relief street (Option B) 96 m ka do‑lane raasta 56 m door se bana kar turant alternative pradan karta hai, bina rozgaar ya bhawan ko nuksan aur $960 ki shuruaati lagat se hi, jo humare congestion ko kam karne ke liye sabse pratikhshik upaay hai। Main is vikalp ko aapke samne phir se samarthan deta hoon, lekin 6 mahine baad iska traffic prabhav dekh kar aage ki yojna banani hogi।",
+     "condition": "6 महीने बाद ट्रैफिक प्रभाव की समीक्षा",
+     "provider": "Groq · openai/gpt-oss-120b",
+     "checks": {
+      "validOption": true,
+      "namesItsChoice": true,
+      "numbers": {
+       "checked": 5,
+       "ungrounded": []
+      },
+      "sentences": 2,
+      "lengthOk": true,
+      "languageOk": false
+     }
+    },
+    {
+     "id": "chief",
+     "minister": "chief",
+     "round": 3,
+     "stance": "neutral",
+     "option": "B",
+     "text": "बहुतेरे मंत्री—Roads, Welfare, Housing और Finance—ने विकल्प B को समर्थन दिया क्योंकि यह कम लागत में 96 m का नया दो‑लेन मार्ग बनाकर मौजूदा रोजगार और आवास को नहीं खोता और तुरंत भीड़भाड़ घटाने में मदद करेगा। पर्यावरण विभाग ने विकल्प C को प्राथमिकता दी, पर वित्तीय नुकसान के कारण वह असहमत रहा। इस कारण, परिषद ने विकल्प B को सबसे उपयुक्त माना।",
+     "condition": "नया सड़क मौजूदा आवासीय ज़ोनिंग को नहीं छेड़े और 6 महीने बाद ट्रैफ़िक प्रभाव की समीक्षा की जानी चाहिए।",
+     "provider": "Groq · openai/gpt-oss-120b",
+     "checks": {
+      "validOption": true,
+      "namesItsChoice": true,
+      "numbers": {
+       "checked": 1,
+       "ungrounded": []
+      },
+      "sentences": 3,
+      "lengthOk": true,
+      "languageOk": true
+     }
+    }
+   ],
+   "silent": [],
+   "failed": [],
+   "decision": {
+    "option": "B",
+    "summary": "बहुतेरे मंत्री—Roads, Welfare, Housing और Finance—ने विकल्प B को समर्थन दिया क्योंकि यह कम लागत में 96 m का नया दो‑लेन मार्ग बनाकर मौजूदा रोजगार और आवास को नहीं खोता और तुरंत भीड़भाड़ घटाने में मदद करेगा। पर्यावरण विभाग ने विकल्प C को प्राथमिकता दी, पर वित्तीय नुकसान के कारण वह असहमत रहा। इस कारण, परिषद ने विकल्प B को सबसे उपयुक्त माना।",
+    "dissent": "पर्यावरण मंत्री अनन्या बोस ने विकल्प C का समर्थन किया, क्योंकि उन्हें नई सड़क से बढ़ते उत्सर्जन की चिंता है।",
+    "conditions": "नया सड़क मौजूदा आवासीय ज़ोनिंग को नहीं छेड़े और 6 महीने बाद ट्रैफ़िक प्रभाव की समीक्षा की जानी चाहिए।",
+    "tally": {
+     "B": [
+      "roads",
+      "welfare",
+      "planning",
+      "finance"
+     ],
+     "C": [
+      "environment"
+     ]
+    },
+    "provider": "Groq · openai/gpt-oss-120b"
+   },
+   "final": {
+    "roads": "B",
+    "environment": "C",
+    "welfare": "B",
+    "planning": "B",
+    "finance": "B"
+   },
+   "seconds": 199,
+   "judge": {
+    "provider": "Groq · qwen/qwen3.8-27b",
+    "verdicts": [
+     {
+      "id": "roads-1",
+      "grounded": 5,
+      "on_topic": 5,
+      "in_role": 5,
+      "reasoning": 5,
+      "unsupported": []
+     },
+     {
+      "id": "environment-1",
+      "grounded": 4,
+      "on_topic": 5,
+      "in_role": 5,
+      "reasoning": 4,
+      "unsupported": [
+       "claims traffic jam increases emission for the 89 residents specifically (inference)"
+      ]
+     },
+     {
+      "id": "welfare-1",
+      "grounded": 5,
+      "on_topic": 5,
+      "in_role": 5,
+      "reasoning": 5,
+      "unsupported": []
+     },
+     {
+      "id": "planning-1",
+      "grounded": 4,
+      "on_topic": 5,
+      "in_role": 5,
+      "reasoning": 4,
+      "unsupported": [
+       "claims B keeps the 1410 empty zoned plots safe (not explicitly stated, only that B does not demolish buildings)"
+      ]
+     },
+     {
+      "id": "finance-1",
+      "grounded": 5,
+      "on_topic": 5,
+      "in_role": 5,
+      "reasoning": 5,
+      "unsupported": []
+     },
+     {
+      "id": "welfare-2",
+      "grounded": 5,
+      "on_topic": 5,
+      "in_role": 4,
+      "reasoning": 4,
+      "unsupported": []
+     },
+     {
+      "id": "environment-2",
+      "grounded": 4,
+      "on_topic": 5,
+      "in_role": 5,
+      "reasoning": 4,
+      "unsupported": [
+       "claims B increases vehicle flow/emissions compared to status quo (inference)"
+      ]
+     },
+     {
+      "id": "finance-2",
+      "grounded": 2,
+      "on_topic": 5,
+      "in_role": 5,
+      "reasoning": 3,
+      "unsupported": [
+       "states balance drops to $145 (actual calculation is $1,145)"
+      ]
+     },
+     {
+      "id": "planning-2",
+      "grounded": 4,
+      "on_topic": 5,
+      "in_role": 5,
+      "reasoning": 3,
+      "unsupported": []
+     },
+     {
+      "id": "roads-2",
+      "grounded": 5,
+      "on_topic": 5,
+      "in_role": 4,
+      "reasoning": 4,
+      "unsupported": []
+     },
+     {
+      "id": "chief",
+      "grounded": 5,
+      "on_topic": 5,
+      "in_role": 5,
+      "reasoning": 4,
+      "unsupported": [
+       "attributes Environment's opposition primarily to financial loss (they cited pollution)"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "name": "constraint: traffic",
+   "group": "constraint",
+   "issue": {
+    "kind": "traffic",
+    "title": "Gridlock on Canal Street",
+    "lead": "roads",
+    "facts": [
+     "Canal Street (street, 1 lane each way, 96 m segment) in the city centre.",
+     "Traffic on it: 12.2 cars per 100 m; it jams at about 7. Time of day 18:00 (rush hour).",
+     "Across the city, queues cost drivers 70% of their normal speed.",
+     "Residents living within 200 m of this road: 376.",
+     "Nearest clinic to this road: none in the city. Nearest school: none in the city.",
+     "Nearest fire station: none in the city. Nearest police station: none in the city."
+    ]
+   },
+   "options": [
+    {
+     "id": "A",
+     "title": "Widen Canal Street to a four-lane avenue",
+     "cost": 2496,
+     "monthly": 5,
+     "facts": [
+      "Rebuilds this 96 m segment with two lanes each way and a median: roughly double the capacity, and more traffic drawn onto it.",
+      "The wider road (32 m) takes the front of neighbouring lots: demolishes 1 workplace (272 jobs).",
+      "Nearest clinic to Canal Street: none in the city. Nearest school: none in the city."
+     ],
+     "displacedHomes": 0,
+     "jobsLost": 272,
+     "hasActions": true
+    },
+    {
+     "id": "B",
+     "title": "New relief street parallel to Canal Street",
+     "cost": 960,
+     "monthly": 3,
+     "facts": [
+      "A 96 m two-lane street about 56 m to the west of Canal Street, joining the network at 2 points, so drivers get a second route.",
+      "It runs over open land: no buildings demolished.",
+      "Nearest clinic to the new street: none in the city. Nearest school: none in the city.",
+      "Clears almost no trees."
+     ],
+     "displacedHomes": 0,
+     "jobsLost": 0,
+     "hasActions": true
+    },
+    {
+     "id": "C",
+     "title": "Staggered office hours (policy)",
+     "cost": 0,
+     "monthly": 350,
+     "facts": [
+      "The city pays employers $350 a month to spread start and finish times.",
+      "Traffic at the height of the morning and evening rush drops by about a third, spread over a longer period; the number of trips stays the same.",
+      "Nothing is built or demolished. It can be dropped later."
+     ],
+     "displacedHomes": 0,
+     "jobsLost": 0,
+     "hasActions": true
+    },
+    {
+     "id": "D",
+     "title": "Take no action for now",
+     "cost": 0,
+     "monthly": 0,
+     "facts": [
+      "Nothing is built or changed. The problem is likely to continue."
+     ],
+     "displacedHomes": 0,
+     "jobsLost": 0,
+     "hasActions": false
+    }
+   ],
+   "seats": [
+    {
+     "id": "roads",
+     "reason": "it is your portfolio and you raised it"
+    },
+    {
+     "id": "welfare",
+     "reason": "options A demolish homes or workplaces"
+    },
+    {
+     "id": "planning",
+     "reason": "options A demolish buildings"
+    },
+    {
+     "id": "finance",
+     "reason": "options A, B, C cost money"
+    },
+    {
+     "id": "environment",
+     "reason": "queuing traffic adds fumes"
+    }
+   ],
+   "note": "Do not demolish any homes or workplaces. Keep the upfront cost under $1,500.",
+   "lang": "en",
+   "lines": [
+    {
+     "id": "roads-1",
+     "minister": "roads",
+     "round": 1,
+     "stance": "propose",
+     "option": "B",
+     "text": "Mayor, Canal Street is at 12.2 cars per 100 m on a two‑lane segment and jams at level 7 during the 18:00 rush, costing drivers 70 % of normal speed city‑wide. I propose we construct the new parallel relief street (Option B) at a $960 upfront cost, which adds a two‑lane alternative without demolishing any jobs or homes. This will divert a significant share of traffic, easing the bottleneck while staying within the budget.",
+     "condition": "Provide proper connection points to existing network",
+     "provider": "Groq · openai/gpt-oss-120b",
+     "checks": {
+      "validOption": true,
+      "namesItsChoice": true,
+      "numbers": {
+       "checked": 5,
+       "ungrounded": []
+      },
+      "sentences": 3,
+      "lengthOk": true,
+      "languageOk": true
+     }
+    },
+    {
+     "id": "welfare-1",
+     "minister": "welfare",
+     "round": 1,
+     "stance": "support",
+     "option": "B",
+     "text": "Mayor, from a welfare perspective the relief street avoids any displacement of homes or jobs and stays under the $1,500 upfront limit, which aligns with our mandate to protect residents. It should ease the rush‑hour jam, helping the 376 nearby residents who currently endure long delays, and the low monthly cost means we won’t have to raise taxes that would further strain the 28% unemployment rate.",
+     "condition": "Include noise mitigation measures for nearby residents",
+     "provider": "Groq · openai/gpt-oss-120b",
+     "checks": {
+      "validOption": true,
+      "namesItsChoice": true,
+      "numbers": {
+       "checked": 3,
+       "ungrounded": []
+      },
+      "sentences": 2,
+      "lengthOk": true,
+      "languageOk": true
+     }
+    },
+    {
+     "id": "environment-1",
+     "minister": "environment",
+     "round": 1,
+     "stance": "oppose",
+     "option": "C",
+     "text": "Mayor, while a new relief street would add capacity, it risks inducing more traffic and offers little emission reduction. I recommend we implement staggered office hours (Option C) which cuts peak‑hour traffic by a third without any construction or loss of green space. This approach directly lowers vehicle emissions for the 125 cars on Canal Street and helps the 89 residents currently breathing polluted air. We should monitor compliance to ensure the intended traffic smoothing.",
+     "condition": "require ≥80% employer enrollment",
+     "provider": "Groq · openai/gpt-oss-120b",
+     "checks": {
+      "validOption": true,
+      "namesItsChoice": true,
+      "numbers": {
+       "checked": 2,
+       "ungrounded": []
+      },
+      "sentences": 4,
+      "lengthOk": true,
+      "languageOk": true
+     }
+    },
+    {
+     "id": "planning-1",
+     "minister": "planning",
+     "round": 1,
+     "stance": "support",
+     "option": "B",
+     "text": "I support the relief street proposal as it eases the bottleneck without demolishing any homes or jobs, preserving the housing‑workplace balance that our department must protect. The low upfront cost respects the mayor's budget ceiling and avoids displacing the 376 nearby residents.",
+     "condition": "align the new street to avoid encroaching on earmarked housing plots",
+     "provider": "Groq · openai/gpt-oss-120b",
+     "checks": {
+      "validOption": true,
+      "namesItsChoice": true,
+      "numbers": {
+       "checked": 1,
+       "ungrounded": []
+      },
+      "sentences": 2,
+      "lengthOk": true,
+      "languageOk": true
+     }
+    },
+    {
+     "id": "finance-1",
+     "minister": "finance",
+     "round": 1,
+     "stance": "support",
+     "option": "B",
+     "text": "Mayor, with the treasury at $96,037 and a projected monthly surplus of $1,495, the $960 upfront cost and $3 extra monthly spend of Option B leaves us well within our limits, preserving a healthy balance while staying under the $1,500 ceiling; it also avoids demolition costs, making it the most fiscally prudent choice.",
+     "condition": "",
+     "provider": "Groq · openai/gpt-oss-120b",
+     "checks": {
+      "validOption": true,
+      "namesItsChoice": true,
+      "numbers": {
+       "checked": 4,
+       "ungrounded": []
+      },
+      "sentences": 1,
+      "lengthOk": true,
+      "languageOk": true
+     }
+    },
+    {
+     "id": "environment-2",
+     "minister": "environment",
+     "round": 2,
+     "stance": "oppose",
+     "option": "C",
+     "text": "Mayor, while the relief street stays within budget, it will likely induce additional traffic and offers no real emission cut; staggered office hours cut peak traffic by a third without new construction, directly lowering emissions for the 125 vehicles and helping the 89 residents breathing polluted air. I therefore oppose B and back C.",
+     "condition": "",
+     "provider": "Groq · openai/gpt-oss-120b",
+     "checks": {
+      "validOption": true,
+      "namesItsChoice": true,
+      "numbers": {
+       "checked": 2,
+       "ungrounded": []
+      },
+      "sentences": 2,
+      "lengthOk": true,
+      "languageOk": true
+     }
+    },
+    {
+     "id": "roads-2",
+     "minister": "roads",
+     "round": 2,
+     "stance": "support",
+     "option": "B",
+     "text": "Mayor, the relief street still offers the most direct capacity increase without demolishing jobs, staying under the $1,500 cap and adding only $3 a month, which fits our budget. It will divert a sizable share of the 125 vehicles on Canal Street, cutting the jam level from 7 to a manageable flow and preserving emergency routes. To address the environmental concern, we will install noise barriers and monitor traffic volumes to prevent induced demand.",
+     "condition": "Include noise mitigation and traffic demand monitoring",
+     "provider": "Groq · openai/gpt-oss-120b",
+     "checks": {
+      "validOption": true,
+      "namesItsChoice": true,
+      "numbers": {
+       "checked": 2,
+       "ungrounded": []
+      },
+      "sentences": 3,
+      "lengthOk": true,
+      "languageOk": true
+     }
+    },
+    {
+     "id": "planning-2",
+     "minister": "planning",
+     "round": 2,
+     "stance": "support",
+     "option": "B",
+     "text": "Mayor, from a housing perspective the relief street respects our mandate by avoiding any demolition of homes or workplaces and preserves the existing residential fabric, while still addressing the Canal Street bottleneck. It also stays well within the $1,500 upfront ceiling, leaving the housing budget untouched. I remain confident that, provided the alignment steers clear of parcels earmarked for future housing, this option best balances land use and mobility needs.",
+     "condition": "align the new street to avoid earmarked housing plots",
+     "provider": "Groq · openai/gpt-oss-120b",
+     "checks": {
+      "validOption": true,
+      "namesItsChoice": true,
+      "numbers": {
+       "checked": 1,
+       "ungrounded": []
+      },
+      "sentences": 3,
+      "lengthOk": true,
+      "languageOk": true
+     }
+    },
+    {
+     "id": "welfare-2",
+     "minister": "welfare",
+     "round": 2,
+     "stance": "support",
+     "option": "B",
+     "text": "Mayor, the relief street aligns with our mandate to protect the 376 residents nearby, avoids any displacement, and stays under the $1,500 upfront limit, helping to reduce rush‑hour stress without raising taxes that would burden the 28% unemployed. I continue to back Option B, provided we include noise mitigation measures for the adjoining neighbourhoods.",
+     "condition": "Include noise mitigation measures for nearby residents",
+     "provider": "Groq · openai/gpt-oss-120b",
+     "checks": {
+      "validOption": true,
+      "namesItsChoice": true,
+      "numbers": {
+       "checked": 3,
+       "ungrounded": []
+      },
+      "sentences": 2,
+      "lengthOk": true,
+      "languageOk": true
+     }
+    },
+    {
+     "id": "finance-2",
+     "minister": "finance",
+     "round": 2,
+     "stance": "support",
+     "option": "B",
+     "text": "Mayor, the treasury sits at $96,037 with a projected $1,495 surplus; the $960 upfront and $3 monthly outlay of Option B leaves the balance essentially untouched, whereas Option C would chew $350 each month and shrink our cushion. Staying under the $1,500 ceiling and avoiding any demolition, the relief street gives the best value for money. I therefore continue to support Option B.",
+     "condition": "",
+     "provider": "Groq · openai/gpt-oss-120b",
+     "checks": {
+      "validOption": true,
+      "namesItsChoice": true,
+      "numbers": {
+       "checked": 5,
+       "ungrounded": []
+      },
+      "sentences": 3,
+      "lengthOk": true,
+      "languageOk": true
+     }
+    },
+    {
+     "id": "chief",
+     "minister": "chief",
+     "round": 3,
+     "stance": "neutral",
+     "option": "B",
+     "text": "The Roads, Welfare, Housing and Finance ministers all agreed that the new parallel relief street (Option B) stays under the $1,500 upfront limit, avoids any demolition, and provides the needed capacity to cut the Canal Street jam, making it the most fiscally prudent and socially acceptable choice.",
+     "condition": "Include noise‑mitigation measures, align the street to avoid earmarked housing plots, and implement traffic‑demand monitoring.",
+     "provider": "Groq · openai/gpt-oss-120b",
+     "checks": {
+      "validOption": true,
+      "namesItsChoice": true,
+      "numbers": {
+       "checked": 1,
+       "ungrounded": []
+      },
+      "sentences": 1,
+      "lengthOk": true,
+      "languageOk": true
+     }
+    }
+   ],
+   "silent": [],
+   "failed": [],
+   "decision": {
+    "option": "B",
+    "summary": "The Roads, Welfare, Housing and Finance ministers all agreed that the new parallel relief street (Option B) stays under the $1,500 upfront limit, avoids any demolition, and provides the needed capacity to cut the Canal Street jam, making it the most fiscally prudent and socially acceptable choice.",
+    "dissent": "Ananya Bose (Environment) continues to oppose B, preferring staggered office hours (Option C).",
+    "conditions": "Include noise‑mitigation measures, align the street to avoid earmarked housing plots, and implement traffic‑demand monitoring.",
+    "tally": {
+     "B": [
+      "roads",
+      "welfare",
+      "planning",
+      "finance"
+     ],
+     "C": [
+      "environment"
+     ]
+    },
+    "provider": "Groq · openai/gpt-oss-120b"
+   },
+   "final": {
+    "roads": "B",
+    "welfare": "B",
+    "environment": "C",
+    "planning": "B",
+    "finance": "B"
+   },
+   "seconds": 182,
+   "judge": {
+    "provider": "Groq · qwen/qwen3.8-27b",
+    "verdicts": [
+     {
+      "id": "roads-1",
+      "grounded": 5,
+      "on_topic": 5,
+      "in_role": 5,
+      "reasoning": 5,
+      "unsupported": []
+     },
+     {
+      "id": "welfare-1",
+      "grounded": 4,
+      "on_topic": 5,
+      "in_role": 5,
+      "reasoning": 4,
+      "unsupported": [
+       "...lowering... that would further strain the 28% unemployment rate."
+      ]
+     },
+     {
+      "id": "environment-1",
+      "grounded": 4,
+      "on_topic": 5,
+      "in_role": 5,
+      "reasoning": 4,
+      "unsupported": [
+       "directly lowering vehicle emissions for the 125 cars on Canal Street and helps the 89 residents currently breathing polluted air"
+      ]
+     },
+     {
+      "id": "planning-1",
+      "grounded": 5,
+      "on_topic": 5,
+      "in_role": 5,
+      "reasoning": 4,
+      "unsupported": []
+     },
+     {
+      "id": "finance-1",
+      "grounded": 5,
+      "on_topic": 5,
+      "in_role": 5,
+      "reasoning": 5,
+      "unsupported": []
+     },
+     {
+      "id": "environment-2",
+      "grounded": 5,
+      "on_topic": 5,
+      "in_role": 5,
+      "reasoning": 4,
+      "unsupported": []
+     },
+     {
+      "id": "roads-2",
+      "grounded": 2,
+      "on_topic": 5,
+      "in_role": 3,
+      "reasoning": 3,
+      "unsupported": [
+       "preserving emergency routes",
+       "we will install noise barriers"
+      ]
+     },
+     {
+      "id": "planning-2",
+      "grounded": 5,
+      "on_topic": 5,
+      "in_role": 5,
+      "reasoning": 4,
+      "unsupported": []
+     },
+     {
+      "id": "welfare-2",
+      "grounded": 4,
+      "on_topic": 5,
+      "in_role": 5,
+      "reasoning": 4,
+      "unsupported": [
+       "...provided we include noise mitigation measures"
+      ]
+     },
+     {
+      "id": "finance-2",
+      "grounded": 5,
+      "on_topic": 5,
+      "in_role": 5,
+      "reasoning": 5,
+      "unsupported": []
+     },
+     {
+      "id": "chief",
+      "grounded": 5,
+      "on_topic": 5,
+      "in_role": 5,
+      "reasoning": 4,
+      "unsupported": []
+     }
+    ]
+   }
+  },
+  {
+   "name": "counterfactual: A demolishes nothing (run 1)",
+   "group": "counterfactual",
+   "variant": "clean",
+   "issue": {
+    "kind": "traffic",
+    "title": "Gridlock on Canal Street",
+    "lead": "roads",
+    "facts": [
+     "Canal Street (street, 1 lane each way, 96 m segment) in the city centre.",
+     "Traffic on it: 12.2 cars per 100 m; it jams at about 7. Time of day 18:00 (rush hour).",
+     "Across the city, queues cost drivers 70% of their normal speed.",
+     "Residents living within 200 m of this road: 376.",
+     "Nearest clinic to this road: none in the city. Nearest school: none in the city.",
+     "Nearest fire station: none in the city. Nearest police station: none in the city."
+    ]
+   },
+   "options": [
+    {
+     "id": "A",
+     "title": "Widen Canal Street to a four-lane avenue",
+     "cost": 2496,
+     "monthly": 5,
+     "facts": [
+      "Rebuilds this 96 m segment with two lanes each way and a median: roughly double the capacity, and more traffic drawn onto it.",
+      "The extra width fits inside the existing road reserve: no buildings are demolished.",
+      "Nearest clinic to Canal Street: none in the city. Nearest school: none in the city."
+     ],
+     "displacedHomes": 0,
+     "jobsLost": 0,
+     "hasActions": true
+    },
+    {
+     "id": "B",
+     "title": "New relief street parallel to Canal Street",
+     "cost": 960,
+     "monthly": 3,
+     "facts": [
+      "A 96 m two-lane street about 56 m to the west of Canal Street, joining the network at 2 points, so drivers get a second route.",
+      "It runs over open land: no buildings demolished.",
+      "Nearest clinic to the new street: none in the city. Nearest school: none in the city.",
+      "Clears almost no trees."
+     ],
+     "displacedHomes": 0,
+     "jobsLost": 0,
+     "hasActions": true
+    },
+    {
+     "id": "C",
+     "title": "Staggered office hours (policy)",
+     "cost": 0,
+     "monthly": 350,
+     "facts": [
+      "The city pays employers $350 a month to spread start and finish times.",
+      "Traffic at the height of the morning and evening rush drops by about a third, spread over a longer period; the number of trips stays the same.",
+      "Nothing is built or demolished. It can be dropped later."
+     ],
+     "displacedHomes": 0,
+     "jobsLost": 0,
+     "hasActions": true
+    },
+    {
+     "id": "D",
+     "title": "Take no action for now",
+     "cost": 0,
+     "monthly": 0,
+     "facts": [
+      "Nothing is built or changed. The problem is likely to continue."
+     ],
+     "displacedHomes": 0,
+     "jobsLost": 0,
+     "hasActions": false
+    }
+   ],
+   "seats": [
+    {
+     "id": "roads",
+     "reason": "it is your portfolio and you raised it"
+    },
+    {
+     "id": "welfare",
+     "reason": "options A demolish homes or workplaces"
+    },
+    {
+     "id": "planning",
+     "reason": "options A demolish buildings"
+    },
+    {
+     "id": "finance",
+     "reason": "options A, B, C cost money"
+    },
+    {
+     "id": "environment",
+     "reason": "queuing traffic adds fumes"
+    }
+   ],
+   "note": "",
+   "lang": "en",
+   "lines": [
+    {
+     "id": "roads-1",
+     "minister": "roads",
+     "round": 1,
+     "stance": "propose",
+     "option": "A",
+     "text": "Canal Street is jammed at 12.2 cars per 100 m on a two‑lane segment, causing 70 % speed loss city‑wide. Widening the 96 m stretch to a four‑lane avenue will roughly double capacity, eliminating the bottleneck at a one‑time cost of $2,496 and $5 per month thereafter. This directly addresses the worst corridor and keeps emergency routes clear.",
+     "condition": "if funding approved",
+     "provider": "Groq · openai/gpt-oss-120b",
+     "checks": {
+      "validOption": true,
+      "namesItsChoice": true,
+      "numbers": {
+       "checked": 5,
+       "ungrounded": []
+      },
+      "sentences": 3,
+      "lengthOk": true,
+      "languageOk": true
+     }
+    },
+    {
+     "id": "welfare-1",
+     "minister": "welfare",
+     "round": 1,
+     "stance": "support",
+     "option": "B",
+     "text": "Mayor, widening Canal Street does not displace residents but it will likely draw more traffic and increase noise for the 376 households nearby, while option B provides an alternate route without demolishing homes and at lower cost. The new relief street can relieve the bottleneck and preserve the current neighbourhood environment, supporting our low happiness and high unemployment concerns. I support option B, provided the design includes safe sidewalks and crossing points for the residents.",
+     "condition": "ensure safe pedestrian pathways for nearby residents",
+     "provider": "Groq · openai/gpt-oss-120b",
+     "checks": {
+      "validOption": true,
+      "namesItsChoice": true,
+      "numbers": {
+       "checked": 1,
+       "ungrounded": []
+      },
+      "sentences": 3,
+      "lengthOk": true,
+      "languageOk": true
+     }
+    },
+    {
+     "id": "environment-1",
+     "minister": "environment",
+     "round": 1,
+     "stance": "support",
+     "option": "C",
+     "text": "Mayor, expanding road capacity will likely induce more vehicle miles and keep emissions high, whereas shifting office hours can cut peak traffic by a third, directly lowering fumes for residents. I support the staggered office hours policy as it reduces congestion without new construction, aligning with our goal to cut local air pollution.",
+     "condition": "if emission monitoring confirms a 10% drop",
+     "provider": "Groq · openai/gpt-oss-120b",
+     "checks": {
+      "validOption": true,
+      "namesItsChoice": true,
+      "numbers": {
+       "checked": 0,
+       "ungrounded": []
+      },
+      "sentences": 2,
+      "lengthOk": true,
+      "languageOk": true
+     }
+    },
+    {
+     "id": "planning-1",
+     "minister": "planning",
+     "round": 1,
+     "stance": "support",
+     "option": "C",
+     "text": "I support the staggered office‑hours policy because it reduces peak congestion without consuming any land that could be earmarked for the 1,410 vacant housing plots, preserving our ability to meet the slight housing shortage. It also avoids any risk of demolishing homes or altering the residential character of the Canal Street corridor. This low‑cost measure aligns with our mandate to keep housing stable while addressing traffic impacts.",
+     "condition": "",
+     "provider": "Groq · openai/gpt-oss-120b",
+     "checks": {
+      "validOption": true,
+      "namesItsChoice": true,
+      "numbers": {
+       "checked": 1,
+       "ungrounded": []
+      },
+      "sentences": 3,
+      "lengthOk": true,
+      "languageOk": true
+     }
+    },
+    {
+     "id": "finance-1",
+     "minister": "finance",
+     "round": 1,
+     "stance": "support",
+     "option": "B",
+     "text": "Our treasury sits at $96,037 with a projected monthly surplus of $1,495; the $960 upfront and $3 extra per month for a relief street would still leave us with a comfortable $1,492 cushion, the cheapest of the lot while offering an alternate route. It keeps the books tidy and the traffic moving, provided it demonstrably eases the jam.",
+     "condition": "traffic study confirms sufficient relief",
+     "provider": "Groq · openai/gpt-oss-120b",
+     "checks": {
+      "validOption": true,
+      "namesItsChoice": true,
+      "numbers": {
+       "checked": 4,
+       "ungrounded": []
+      },
+      "sentences": 2,
+      "lengthOk": true,
+      "languageOk": true
+     }
+    },
+    {
+     "id": "welfare-2",
+     "minister": "welfare",
+     "round": 2,
+     "stance": "support",
+     "option": "B",
+     "text": "I continue to back option B because it eases the Canal Street jam without adding traffic or noise to the 376 households nearby, and it does so at the lowest cost, protecting our low happiness and high unemployment concerns.",
+     "condition": "ensure safe pedestrian pathways",
+     "provider": "Groq · openai/gpt-oss-120b",
+     "checks": {
+      "validOption": true,
+      "namesItsChoice": true,
+      "numbers": {
+       "checked": 1,
+       "ungrounded": []
+      },
+      "sentences": 1,
+      "lengthOk": true,
+      "languageOk": true
+     }
+    },
+    {
+     "id": "planning-2",
+     "minister": "planning",
+     "round": 2,
+     "stance": "support",
+     "option": "C",
+     "text": "Option C aligns with our need to preserve the 1,410 vacant plots for housing while avoiding any displacement of the 376 households near Canal Street. The staggered office‑hours policy reduces peak congestion without consuming land, supporting our slight housing shortage and protecting residential character. I continue to support option C, provided its implementation is coordinated with housing development plans.",
+     "condition": "",
+     "provider": "Groq · openai/gpt-oss-120b",
+     "checks": {
+      "validOption": true,
+      "namesItsChoice": true,
+      "numbers": {
+       "checked": 2,
+       "ungrounded": []
+      },
+      "sentences": 3,
+      "lengthOk": true,
+      "languageOk": true
+     }
+    },
+    {
+     "id": "environment-2",
+     "minister": "environment",
+     "round": 2,
+     "stance": "support",
+     "option": "C",
+     "text": "I continue to back the staggered office‑hours policy because it cuts peak traffic by a third, directly lowering vehicle emissions for our residents without any new road construction. This aligns with our mandate to improve air quality while preserving green space.",
+     "condition": "emission monitoring confirms at least a 10% drop",
+     "provider": "Groq · openai/gpt-oss-120b",
+     "checks": {
+      "validOption": true,
+      "namesItsChoice": true,
+      "numbers": {
+       "checked": 0,
+       "ungrounded": []
+      },
+      "sentences": 2,
+      "lengthOk": true,
+      "languageOk": true
+     }
+    },
+    {
+     "id": "finance-2",
+     "minister": "finance",
+     "round": 2,
+     "stance": "support",
+     "option": "B",
+     "text": "Mayor, with the treasury at $96,037 and a projected monthly surplus of $1,495, the $960 upfront and $3 extra per month for a relief street leaves us with a $1,492 cushion, the most economical solution that still provides a new route. I therefore support option B.",
+     "condition": "traffic study confirms sufficient relief",
+     "provider": "Groq · openai/gpt-oss-120b",
+     "checks": {
+      "validOption": true,
+      "namesItsChoice": true,
+      "numbers": {
+       "checked": 4,
+       "ungrounded": []
+      },
+      "sentences": 2,
+      "lengthOk": true,
+      "languageOk": true
+     }
+    },
+    {
+     "id": "roads-2",
+     "minister": "roads",
+     "round": 2,
+     "stance": "support",
+     "option": "B",
+     "text": "Mayor, Canal Street is carrying 12.2 cars per 100 m on a two‑lane stretch, far above the 7 cars/100 m jam point. A parallel two‑lane relief street adds the same capacity as a four‑lane widening but at a fraction of the cost ($960 upfront, $3 per month) and avoids induced traffic on the main corridor. Splitting the flow should bring Canal Street below the jam threshold while preserving the neighbourhood. I support option B, provided a traffic study confirms it will relieve the jam.",
+     "condition": "traffic study confirms sufficient relief",
+     "provider": "Groq · openai/gpt-oss-120b",
+     "checks": {
+      "validOption": true,
+      "namesItsChoice": true,
+      "numbers": {
+       "checked": 4,
+       "ungrounded": []
+      },
+      "sentences": 4,
+      "lengthOk": true,
+      "languageOk": true
+     }
+    },
+    {
+     "id": "chief",
+     "minister": "chief",
+     "round": 3,
+     "stance": "neutral",
+     "option": "B",
+     "text": "Chief Secretary could not be reached. Most ministers back option B.",
+     "condition": "",
+     "provider": "rules",
+     "checks": {
+      "validOption": true,
+      "namesItsChoice": true,
+      "numbers": {
+       "checked": 0,
+       "ungrounded": []
+      },
+      "sentences": 2,
+      "lengthOk": true,
+      "languageOk": true
+     }
+    }
+   ],
+   "silent": [],
+   "failed": [
+    {
+     "who": "chief",
+     "round": 3,
+     "error": "All AI providers failed. Groq openai/gpt-oss-120b: 429 Rate limit reached for model `openai/gpt-oss-120b` in organization `org_01kh8cpj7me2erhjqd9adjp9zd` service tier `on_demand` on tokens per day (T"
+    }
+   ],
+   "decision": {
+    "option": "B",
+    "summary": "Chief Secretary could not be reached. Most ministers back option B.",
+    "dissent": "",
+    "conditions": "",
+    "tally": {
+     "B": [
+      "roads",
+      "welfare",
+      "finance"
+     ],
+     "C": [
+      "planning",
+      "environment"
+     ]
+    },
+    "provider": "rules"
+   },
+   "final": {
+    "roads": "B",
+    "welfare": "B",
+    "environment": "C",
+    "planning": "C",
+    "finance": "B"
+   },
+   "seconds": 886,
+   "judge": {
+    "provider": "Groq · qwen/qwen3.8-27b",
+    "verdicts": [
+     {
+      "id": "roads-1",
+      "grounded": 3,
+      "on_topic": 5,
+      "in_role": 5,
+      "reasoning": 4,
+      "unsupported": [
+       "keeping emergency routes clear"
+      ]
+     },
+     {
+      "id": "welfare-1",
+      "grounded": 3,
+      "on_topic": 5,
+      "in_role": 3,
+      "reasoning": 4,
+      "unsupported": [
+       "will likely draw more traffic and increase noise",
+       "households"
+      ]
+     },
+     {
+      "id": "environment-1",
+      "grounded": 4,
+      "on_topic": 5,
+      "in_role": 5,
+      "reasoning": 4,
+      "unsupported": [
+       "likely induce more vehicle miles"
+      ]
+     },
+     {
+      "id": "planning-1",
+      "grounded": 4,
+      "on_topic": 5,
+      "in_role": 5,
+      "reasoning": 5,
+      "unsupported": []
+     },
+     {
+      "id": "finance-1",
+      "grounded": 5,
+      "on_topic": 5,
+      "in_role": 5,
+      "reasoning": 5,
+      "unsupported": []
+     },
+     {
+      "id": "welfare-2",
+      "grounded": 3,
+      "on_topic": 5,
+      "in_role": 2,
+      "reasoning": 3,
+      "unsupported": [
+       "lowest cost"
+      ]
+     },
+     {
+      "id": "planning-2",
+      "grounded": 4,
+      "on_topic": 5,
+      "in_role": 5,
+      "reasoning": 4,
+      "unsupported": []
+     },
+     {
+      "id": "environment-2",
+      "grounded": 4,
+      "on_topic": 5,
+      "in_role": 5,
+      "reasoning": 4,
+      "unsupported": []
+     },
+     {
+      "id": "finance-2",
+      "grounded": 5,
+      "on_topic": 5,
+      "in_role": 5,
+      "reasoning": 4,
+      "unsupported": []
+     },
+     {
+      "id": "roads-2",
+      "grounded": 5,
+      "on_topic": 5,
+      "in_role": 5,
+      "reasoning": 4,
+      "unsupported": []
+     },
+     {
+      "id": "chief",
+      "grounded": 5,
+      "on_topic": 5,
+      "in_role": 5,
+      "reasoning": 5,
+      "unsupported": []
+     }
+    ]
+   }
+  },
+  {
+   "name": "counterfactual: A demolishes 40 homes (run 1)",
+   "group": "counterfactual",
+   "variant": "harsh",
+   "issue": {
+    "kind": "traffic",
+    "title": "Gridlock on Canal Street",
+    "lead": "roads",
+    "facts": [
+     "Canal Street (street, 1 lane each way, 96 m segment) in the city centre.",
+     "Traffic on it: 12.2 cars per 100 m; it jams at about 7. Time of day 18:00 (rush hour).",
+     "Across the city, queues cost drivers 70% of their normal speed.",
+     "Residents living within 200 m of this road: 376.",
+     "Nearest clinic to this road: none in the city. Nearest school: none in the city.",
+     "Nearest fire station: none in the city. Nearest police station: none in the city."
+    ]
+   },
+   "options": [
+    {
+     "id": "A",
+     "title": "Widen Canal Street to a four-lane avenue",
+     "cost": 2496,
+     "monthly": 5,
+     "facts": [
+      "Rebuilds this 96 m segment with two lanes each way and a median: roughly double the capacity, and more traffic drawn onto it.",
+      "The wider road takes the front of neighbouring lots: demolishes 40 homes (1,380 residents) and 6 workplaces (210 jobs).",
+      "Nearest clinic to Canal Street: none in the city. Nearest school: none in the city."
+     ],
+     "displacedHomes": 40,
+     "jobsLost": 210,
+     "hasActions": true
+    },
+    {
+     "id": "B",
+     "title": "New relief street parallel to Canal Street",
+     "cost": 960,
+     "monthly": 3,
+     "facts": [
+      "A 96 m two-lane street about 56 m to the west of Canal Street, joining the network at 2 points, so drivers get a second route.",
+      "It runs over open land: no buildings demolished.",
+      "Nearest clinic to the new street: none in the city. Nearest school: none in the city.",
+      "Clears almost no trees."
+     ],
+     "displacedHomes": 0,
+     "jobsLost": 0,
+     "hasActions": true
+    },
+    {
+     "id": "C",
+     "title": "Staggered office hours (policy)",
+     "cost": 0,
+     "monthly": 350,
+     "facts": [
+      "The city pays employers $350 a month to spread start and finish times.",
+      "Traffic at the height of the morning and evening rush drops by about a third, spread over a longer period; the number of trips stays the same.",
+      "Nothing is built or demolished. It can be dropped later."
+     ],
+     "displacedHomes": 0,
+     "jobsLost": 0,
+     "hasActions": true
+    },
+    {
+     "id": "D",
+     "title": "Take no action for now",
+     "cost": 0,
+     "monthly": 0,
+     "facts": [
+      "Nothing is built or changed. The problem is likely to continue."
+     ],
+     "displacedHomes": 0,
+     "jobsLost": 0,
+     "hasActions": false
+    }
+   ],
+   "seats": [
+    {
+     "id": "roads",
+     "reason": "it is your portfolio and you raised it"
+    },
+    {
+     "id": "welfare",
+     "reason": "options A demolish homes or workplaces"
+    },
+    {
+     "id": "planning",
+     "reason": "options A demolish buildings"
+    },
+    {
+     "id": "finance",
+     "reason": "options A, B, C cost money"
+    },
+    {
+     "id": "environment",
+     "reason": "queuing traffic adds fumes"
+    }
+   ],
+   "note": "",
+   "lang": "en",
+   "lines": [
+    {
+     "id": "roads-1",
+     "minister": "roads",
+     "round": 1,
+     "stance": "propose",
+     "option": "B",
+     "text": "Canal Street’s two‑lane 96‑metre stretch is overloaded at 12.2 cars per 100 m, causing rush‑hour jams and contributing to a city‑wide 70% speed loss. Building a parallel two‑lane relief street on the open land will divert traffic without demolishing homes or jobs, and at $960 upfront plus $3 a month it is the most cost‑effective capacity boost. This should restore reasonable flow while we keep emergency routes clear.",
+     "condition": "land must stay undeveloped",
+     "provider": "Groq · openai/gpt-oss-120b",
+     "checks": {
+      "validOption": true,
+      "namesItsChoice": true,
+      "numbers": {
+       "checked": 5,
+       "ungrounded": []
+      },
+      "sentences": 3,
+      "lengthOk": true,
+      "languageOk": true
+     }
+    },
+    {
+     "id": "environment-1",
+     "minister": "environment",
+     "round": 1,
+     "stance": "oppose",
+     "option": "C",
+     "text": "Mayor, widening Canal Street will encourage more traffic and the demolition of 40 homes would worsen local air quality, which we cannot accept. Implementing staggered office hours cuts peak congestion by a third, reduces idling emissions and avoids any new road construction, aligning with our environmental goals at a modest $350 monthly cost. This approach protects residents’ health while preserving existing green space.",
+     "condition": "ensure employer compliance",
+     "provider": "Groq · openai/gpt-oss-120b",
+     "checks": {
+      "validOption": true,
+      "namesItsChoice": true,
+      "numbers": {
+       "checked": 2,
+       "ungrounded": []
+      },
+      "sentences": 3,
+      "lengthOk": true,
+      "languageOk": true
+     }
+    },
+    {
+     "id": "environment-2",
+     "minister": "environment",
+     "round": 2,
+     "stance": "support",
+     "option": "C",
+     "text": "Mayor, I maintain that staggered office hours offer the cleanest solution, cutting peak emissions without new construction or habitat loss, and the modest monthly cost is justified by the health benefits for the 89 residents already over the pollution threshold.",
+     "condition": "ensure employer compliance",
+     "provider": "Groq · openai/gpt-oss-120b",
+     "checks": {
+      "validOption": true,
+      "namesItsChoice": true,
+      "numbers": {
+       "checked": 1,
+       "ungrounded": []
+      },
+      "sentences": 1,
+      "lengthOk": true,
+      "languageOk": true
+     }
+    },
+    {
+     "id": "chief",
+     "minister": "chief",
+     "round": 3,
+     "stance": "neutral",
+     "option": "B",
+     "text": "The council concluded that constructing a parallel two‑lane relief street is the most cost‑effective way to relieve the rush‑hour jam, adds capacity without displacing residents or jobs, and respects the open‑land constraint, thereby addressing the congestion while keeping emergency routes clear.",
+     "condition": "The land used for the new street must remain undeveloped.",
+     "provider": "Groq · openai/gpt-oss-120b",
+     "checks": {
+      "validOption": true,
+      "namesItsChoice": true,
+      "numbers": {
+       "checked": 0,
+       "ungrounded": []
+      },
+      "sentences": 1,
+      "lengthOk": true,
+      "languageOk": true
+     }
+    }
+   ],
+   "silent": [],
+   "failed": [
+    {
+     "who": "welfare",
+     "round": 1,
+     "error": "All AI providers failed. Groq openai/gpt-oss-120b: 429 Rate limit reached for model `openai/gpt-oss-120b` in organization `org_01kh8cpj7me2erhjqd9adjp9zd` service tier `on_demand` on tokens per day (T"
+    },
+    {
+     "who": "planning",
+     "round": 1,
+     "error": "All AI providers failed. Groq openai/gpt-oss-120b: 429 Rate limit reached for model `openai/gpt-oss-120b` in organization `org_01kh8cpj7me2erhjqd9adjp9zd` service tier `on_demand` on tokens per day (T"
+    },
+    {
+     "who": "finance",
+     "round": 1,
+     "error": "All AI providers failed. Groq openai/gpt-oss-120b: 429 Rate limit reached for model `openai/gpt-oss-120b` in organization `org_01kh8cpj7me2erhjqd9adjp9zd` service tier `on_demand` on tokens per day (T"
+    },
+    {
+     "who": "roads",
+     "round": 2,
+     "error": "All AI providers failed. Groq openai/gpt-oss-120b: 429 Rate limit reached for model `openai/gpt-oss-120b` in organization `org_01kh8cpj7me2erhjqd9adjp9zd` service tier `on_demand` on tokens per day (T"
+    }
+   ],
+   "decision": {
+    "option": "B",
+    "summary": "The council concluded that constructing a parallel two‑lane relief street is the most cost‑effective way to relieve the rush‑hour jam, adds capacity without displacing residents or jobs, and respects the open‑land constraint, thereby addressing the congestion while keeping emergency routes clear.",
+    "dissent": "Ananya Bose (Environment) still prefers option C, arguing it better protects air quality.",
+    "conditions": "The land used for the new street must remain undeveloped.",
+    "tally": {
+     "B": [
+      "roads"
+     ],
+     "C": [
+      "environment"
+     ]
+    },
+    "provider": "Groq · openai/gpt-oss-120b"
+   },
+   "final": {
+    "roads": "B",
+    "environment": "C"
+   },
+   "seconds": 1729,
+   "judge": {
+    "provider": "Groq · qwen/qwen3.8-27b",
+    "verdicts": [
+     {
+      "id": "roads-1",
+      "grounded": 4,
+      "on_topic": 5,
+      "in_role": 5,
+      "reasoning": 4,
+      "unsupported": [
+       "keeping emergency routes clear"
+      ]
+     },
+     {
+      "id": "environment-1",
+      "grounded": 2,
+      "on_topic": 5,
+      "in_role": 4,
+      "reasoning": 3,
+      "unsupported": [
+       "demolition of 40 homes would worsen local air quality",
+       "reduces idling emissions",
+       "preserving existing green space"
+      ]
+     },
+     {
+      "id": "environment-2",
+      "grounded": 4,
+      "on_topic": 5,
+      "in_role": 4,
+      "reasoning": 4,
+      "unsupported": [
+       "habitats loss"
+      ]
+     },
+     {
+      "id": "chief",
+      "grounded": 4,
+      "on_topic": 5,
+      "in_role": 5,
+      "reasoning": 4,
+      "unsupported": [
+       "keeping emergency routes clear"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "name": "counterfactual: A demolishes nothing (run 2)",
+   "group": "counterfactual",
+   "variant": "clean",
+   "issue": {
+    "kind": "traffic",
+    "title": "Gridlock on Canal Street",
+    "lead": "roads",
+    "facts": [
+     "Canal Street (street, 1 lane each way, 96 m segment) in the city centre.",
+     "Traffic on it: 12.2 cars per 100 m; it jams at about 7. Time of day 18:00 (rush hour).",
+     "Across the city, queues cost drivers 70% of their normal speed.",
+     "Residents living within 200 m of this road: 376.",
+     "Nearest clinic to this road: none in the city. Nearest school: none in the city.",
+     "Nearest fire station: none in the city. Nearest police station: none in the city."
+    ]
+   },
+   "options": [
+    {
+     "id": "A",
+     "title": "Widen Canal Street to a four-lane avenue",
+     "cost": 2496,
+     "monthly": 5,
+     "facts": [
+      "Rebuilds this 96 m segment with two lanes each way and a median: roughly double the capacity, and more traffic drawn onto it.",
+      "The extra width fits inside the existing road reserve: no buildings are demolished.",
+      "Nearest clinic to Canal Street: none in the city. Nearest school: none in the city."
+     ],
+     "displacedHomes": 0,
+     "jobsLost": 0,
+     "hasActions": true
+    },
+    {
+     "id": "B",
+     "title": "New relief street parallel to Canal Street",
+     "cost": 960,
+     "monthly": 3,
+     "facts": [
+      "A 96 m two-lane street about 56 m to the west of Canal Street, joining the network at 2 points, so drivers get a second route.",
+      "It runs over open land: no buildings demolished.",
+      "Nearest clinic to the new street: none in the city. Nearest school: none in the city.",
+      "Clears almost no trees."
+     ],
+     "displacedHomes": 0,
+     "jobsLost": 0,
+     "hasActions": true
+    },
+    {
+     "id": "C",
+     "title": "Staggered office hours (policy)",
+     "cost": 0,
+     "monthly": 350,
+     "facts": [
+      "The city pays employers $350 a month to spread start and finish times.",
+      "Traffic at the height of the morning and evening rush drops by about a third, spread over a longer period; the number of trips stays the same.",
+      "Nothing is built or demolished. It can be dropped later."
+     ],
+     "displacedHomes": 0,
+     "jobsLost": 0,
+     "hasActions": true
+    },
+    {
+     "id": "D",
+     "title": "Take no action for now",
+     "cost": 0,
+     "monthly": 0,
+     "facts": [
+      "Nothing is built or changed. The problem is likely to continue."
+     ],
+     "displacedHomes": 0,
+     "jobsLost": 0,
+     "hasActions": false
+    }
+   ],
+   "seats": [
+    {
+     "id": "roads",
+     "reason": "it is your portfolio and you raised it"
+    },
+    {
+     "id": "welfare",
+     "reason": "options A demolish homes or workplaces"
+    },
+    {
+     "id": "planning",
+     "reason": "options A demolish buildings"
+    },
+    {
+     "id": "finance",
+     "reason": "options A, B, C cost money"
+    },
+    {
+     "id": "environment",
+     "reason": "queuing traffic adds fumes"
+    }
+   ],
+   "note": "",
+   "lang": "en",
+   "lines": [
+    {
+     "id": "roads-1",
+     "minister": "roads",
+     "round": 1,
+     "stance": "propose",
+     "option": "B",
+     "text": "Mayor, Canal Street is operating at 12.2 cars per 100 m, jammed at density 7, and widening it would only double capacity while drawing more traffic. Building a parallel relief street gives us an additional two‑lane corridor at a fraction of the cost ($960 upfront, $3 /month) and creates an alternate route, cutting the load on Canal by roughly half. This meets our priority to relieve the worst corridor without inflating demand.",
+     "condition": "provided land use permits",
+     "provider": "Groq · openai/gpt-oss-120b",
+     "checks": {
+      "validOption": true,
+      "namesItsChoice": true,
+      "numbers": {
+       "checked": 3,
+       "ungrounded": []
+      },
+      "sentences": 3,
+      "lengthOk": true,
+      "languageOk": true
+     }
+    },
+    {
+     "id": "finance-1",
+     "minister": "finance",
+     "round": 1,
+     "stance": "support",
+     "option": "B",
+     "text": "Mayor, the Treasury stands at $96,037 with a projected monthly surplus of $1,495, so the $960 upfront and $3 extra per month for the relief street is well within our means. It preserves our cash buffer while delivering the needed capacity increase, and the modest monthly outlay barely dents the surplus. I support the Roads Minister's recommendation for option B, provided we secure the necessary land permits.",
+     "condition": "land use permits secured",
+     "provider": "Groq · openai/gpt-oss-120b",
+     "checks": {
+      "validOption": true,
+      "namesItsChoice": true,
+      "numbers": {
+       "checked": 3,
+       "ungrounded": []
+      },
+      "sentences": 3,
+      "lengthOk": true,
+      "languageOk": true
+     }
+    },
+    {
+     "id": "planning-1",
+     "minister": "planning",
+     "round": 1,
+     "stance": "support",
+     "option": "C",
+     "text": "From a housing standpoint, preserving open land for future residential development is critical, so building a new relief street would consume valuable zonable plots. The staggered office hours policy eases peak congestion without sacrificing land that could host new homes, aligning with our modest housing demand and keeping monthly costs low. I support Option C provided we verify employer participation.",
+     "condition": "ensure employer participation",
+     "provider": "Groq · openai/gpt-oss-120b",
+     "checks": {
+      "validOption": true,
+      "namesItsChoice": true,
+      "numbers": {
+       "checked": 0,
+       "ungrounded": []
+      },
+      "sentences": 3,
+      "lengthOk": true,
+      "languageOk": true
+     }
+    },
+    {
+     "id": "environment-1",
+     "minister": "environment",
+     "round": 1,
+     "stance": "propose",
+     "option": "C",
+     "text": "Mayor, spreading office hours cuts the peak traffic density by about a third, which directly reduces the emissions that are already affecting 89 nearby residents. It avoids any new road construction that would encourage additional vehicle use. The modest $350 monthly spend is justified by the health benefit.",
+     "condition": "monitor air quality to confirm reduction",
+     "provider": "Groq · openai/gpt-oss-120b",
+     "checks": {
+      "validOption": true,
+      "namesItsChoice": true,
+      "numbers": {
+       "checked": 2,
+       "ungrounded": []
+      },
+      "sentences": 3,
+      "lengthOk": true,
+      "languageOk": true
+     }
+    },
+    {
+     "id": "planning-2",
+     "minister": "planning",
+     "round": 2,
+     "stance": "support",
+     "option": "C",
+     "text": "I continue to support Option C because it eases peak congestion without consuming any of our valuable zonable land, preserving space for future residential development and aligning with our modest housing demand. The policy’s modest monthly cost is manageable and fits our housing priorities.",
+     "condition": "ensure employer participation",
+     "provider": "Groq · openai/gpt-oss-120b",
+     "checks": {
+      "validOption": true,
+      "namesItsChoice": true,
+      "numbers": {
+       "checked": 0,
+       "ungrounded": []
+      },
+      "sentences": 2,
+      "lengthOk": true,
+      "languageOk": true
+     }
+    },
+    {
+     "id": "chief",
+     "minister": "chief",
+     "round": 3,
+     "stance": "neutral",
+     "option": "B",
+     "text": "The council agreed that a new parallel relief street will cut the load on Canal Street by roughly half, directly eliminating the rush‑hour jam at a modest $960 upfront and $3 monthly cost, fitting the Treasury’s surplus and Roads’ capacity goals.",
+     "condition": "Land‑use permits must be secured and include reservations to preserve the site for future residential zoning.",
+     "provider": "Groq · openai/gpt-oss-120b",
+     "checks": {
+      "validOption": true,
+      "namesItsChoice": true,
+      "numbers": {
+       "checked": 1,
+       "ungrounded": []
+      },
+      "sentences": 1,
+      "lengthOk": true,
+      "languageOk": true
+     }
+    }
+   ],
+   "silent": [],
+   "failed": [
+    {
+     "who": "welfare",
+     "round": 1,
+     "error": "All AI providers failed. Groq openai/gpt-oss-120b: 429 Rate limit reached for model `openai/gpt-oss-120b` in organization `org_01kh8cpj7me2erhjqd9adjp9zd` service tier `on_demand` on tokens per day (T"
+    },
+    {
+     "who": "environment",
+     "round": 2,
+     "error": "All AI providers failed. Groq openai/gpt-oss-120b: 429 Rate limit reached for model `openai/gpt-oss-120b` in organization `org_01kh8cpj7me2erhjqd9adjp9zd` service tier `on_demand` on tokens per day (T"
+    },
+    {
+     "who": "finance",
+     "round": 2,
+     "error": "All AI providers failed. Groq openai/gpt-oss-120b: 429 Rate limit reached for model `openai/gpt-oss-120b` in organization `org_01kh8cpj7me2erhjqd9adjp9zd` service tier `on_demand` on tokens per day (T"
+    },
+    {
+     "who": "roads",
+     "round": 2,
+     "error": "All AI providers failed. Groq openai/gpt-oss-120b: 429 Rate limit reached for model `openai/gpt-oss-120b` in organization `org_01kh8cpj7me2erhjqd9adjp9zd` service tier `on_demand` on tokens per day (T"
+    }
+   ],
+   "decision": {
+    "option": "B",
+    "summary": "The council agreed that a new parallel relief street will cut the load on Canal Street by roughly half, directly eliminating the rush‑hour jam at a modest $960 upfront and $3 monthly cost, fitting the Treasury’s surplus and Roads’ capacity goals.",
+    "dissent": "Housing and Environment ministers prefer staggered office hours, citing land use and emissions concerns.",
+    "conditions": "Land‑use permits must be secured and include reservations to preserve the site for future residential zoning.",
+    "tally": {
+     "B": [
+      "roads",
+      "finance"
+     ],
+     "C": [
+      "planning",
+      "environment"
+     ]
+    },
+    "provider": "Groq · openai/gpt-oss-120b"
+   },
+   "final": {
+    "roads": "B",
+    "finance": "B",
+    "planning": "C",
+    "environment": "C"
+   },
+   "seconds": 5546,
+   "judge": {
+    "provider": "Groq · qwen/qwen3.8-27b",
+    "verdicts": [
+     {
+      "id": "roads-1",
+      "grounded": 2,
+      "on_topic": 5,
+      "in_role": 5,
+      "reasoning": 4,
+      "unsupported": [
+       "cutting the load on Canal by roughly half"
+      ]
+     },
+     {
+      "id": "finance-1",
+      "grounded": 3,
+      "on_topic": 5,
+      "in_role": 5,
+      "reasoning": 4,
+      "unsupported": [
+       "necessary land permits"
+      ]
+     },
+     {
+      "id": "planning-1",
+      "grounded": 1,
+      "on_topic": 5,
+      "in_role": 4,
+      "reasoning": 4,
+      "unsupported": [
+       "building a new relief street would consume valuable zonable plots"
+      ]
+     },
+     {
+      "id": "environment-1",
+      "grounded": 3,
+      "on_topic": 5,
+      "in_role": 5,
+      "reasoning": 5,
+      "unsupported": [
+       "directly reduces the emissions that are already affecting 89 nearby residents"
+      ]
+     },
+     {
+      "id": "planning-2",
+      "grounded": 1,
+      "on_topic": 5,
+      "in_role": 4,
+      "reasoning": 2,
+      "unsupported": [
+       "without consuming any of our valuable zonable land"
+      ]
+     },
+     {
+      "id": "chief",
+      "grounded": 2,
+      "on_topic": 5,
+      "in_role": 5,
+      "reasoning": 5,
+      "unsupported": [
+       "cut the load on Canal Street by roughly half",
+       "directly eliminating the rush‑hour jam"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "name": "counterfactual: A demolishes 40 homes (run 2)",
+   "group": "counterfactual",
+   "variant": "harsh",
+   "issue": {
+    "kind": "traffic",
+    "title": "Gridlock on Canal Street",
+    "lead": "roads",
+    "facts": [
+     "Canal Street (street, 1 lane each way, 96 m segment) in the city centre.",
+     "Traffic on it: 12.2 cars per 100 m; it jams at about 7. Time of day 18:00 (rush hour).",
+     "Across the city, queues cost drivers 70% of their normal speed.",
+     "Residents living within 200 m of this road: 376.",
+     "Nearest clinic to this road: none in the city. Nearest school: none in the city.",
+     "Nearest fire station: none in the city. Nearest police station: none in the city."
+    ]
+   },
+   "options": [
+    {
+     "id": "A",
+     "title": "Widen Canal Street to a four-lane avenue",
+     "cost": 2496,
+     "monthly": 5,
+     "facts": [
+      "Rebuilds this 96 m segment with two lanes each way and a median: roughly double the capacity, and more traffic drawn onto it.",
+      "The wider road takes the front of neighbouring lots: demolishes 40 homes (1,380 residents) and 6 workplaces (210 jobs).",
+      "Nearest clinic to Canal Street: none in the city. Nearest school: none in the city."
+     ],
+     "displacedHomes": 40,
+     "jobsLost": 210,
+     "hasActions": true
+    },
+    {
+     "id": "B",
+     "title": "New relief street parallel to Canal Street",
+     "cost": 960,
+     "monthly": 3,
+     "facts": [
+      "A 96 m two-lane street about 56 m to the west of Canal Street, joining the network at 2 points, so drivers get a second route.",
+      "It runs over open land: no buildings demolished.",
+      "Nearest clinic to the new street: none in the city. Nearest school: none in the city.",
+      "Clears almost no trees."
+     ],
+     "displacedHomes": 0,
+     "jobsLost": 0,
+     "hasActions": true
+    },
+    {
+     "id": "C",
+     "title": "Staggered office hours (policy)",
+     "cost": 0,
+     "monthly": 350,
+     "facts": [
+      "The city pays employers $350 a month to spread start and finish times.",
+      "Traffic at the height of the morning and evening rush drops by about a third, spread over a longer period; the number of trips stays the same.",
+      "Nothing is built or demolished. It can be dropped later."
+     ],
+     "displacedHomes": 0,
+     "jobsLost": 0,
+     "hasActions": true
+    },
+    {
+     "id": "D",
+     "title": "Take no action for now",
+     "cost": 0,
+     "monthly": 0,
+     "facts": [
+      "Nothing is built or changed. The problem is likely to continue."
+     ],
+     "displacedHomes": 0,
+     "jobsLost": 0,
+     "hasActions": false
+    }
+   ],
+   "seats": [
+    {
+     "id": "roads",
+     "reason": "it is your portfolio and you raised it"
+    },
+    {
+     "id": "welfare",
+     "reason": "options A demolish homes or workplaces"
+    },
+    {
+     "id": "planning",
+     "reason": "options A demolish buildings"
+    },
+    {
+     "id": "finance",
+     "reason": "options A, B, C cost money"
+    },
+    {
+     "id": "environment",
+     "reason": "queuing traffic adds fumes"
+    }
+   ],
+   "note": "",
+   "lang": "en",
+   "lines": [
+    {
+     "id": "roads-1",
+     "minister": "roads",
+     "round": 1,
+     "stance": "propose",
+     "option": "B",
+     "text": "Mayor, Canal Street is operating at 12.2 cars per 100 m and jams at 7 pm, which is unsustainable. I propose we build the new parallel relief street (Option B) because it adds a second two‑lane corridor without displacing residents or jobs and costs only $960 upfront plus $3 a month. It will divert enough traffic to bring speeds back toward normal while keeping our emergency routes clear.",
+     "condition": "ensure signal coordination at junctions",
+     "provider": "Groq · openai/gpt-oss-120b",
+     "checks": {
+      "validOption": true,
+      "namesItsChoice": true,
+      "numbers": {
+       "checked": 3,
+       "ungrounded": []
+      },
+      "sentences": 3,
+      "lengthOk": true,
+      "languageOk": true
+     }
+    },
+    {
+     "id": "roads-2",
+     "minister": "roads",
+     "round": 2,
+     "stance": "support",
+     "option": "B",
+     "text": "Mayor, the data show Canal Street is at 12.2 cars per 100 m and jams at 7 pm, so we need capacity relief without displacing residents. The parallel relief street (Option B) adds a two‑lane alternative at minimal cost and no demolition, which will divert enough traffic to restore speeds. I maintain my support for Option B, provided we synchronize signals at the intersecting junctions.",
+     "condition": "ensure signal coordination at junctions",
+     "provider": "Groq · openai/gpt-oss-120b",
+     "checks": {
+      "validOption": true,
+      "namesItsChoice": true,
+      "numbers": {
+       "checked": 2,
+       "ungrounded": []
+      },
+      "sentences": 3,
+      "lengthOk": true,
+      "languageOk": true
+     }
+    },
+    {
+     "id": "chief",
+     "minister": "chief",
+     "round": 3,
+     "stance": "neutral",
+     "option": "B",
+     "text": "The council concluded that the new parallel relief street offers the needed capacity increase at minimal cost and without displacing residents or jobs, addressing the rush‑hour jam on Canal Street while preserving emergency routes.",
+     "condition": "ensure signal coordination at junctions",
+     "provider": "Groq · openai/gpt-oss-120b",
+     "checks": {
+      "validOption": true,
+      "namesItsChoice": true,
+      "numbers": {
+       "checked": 0,
+       "ungrounded": []
+      },
+      "sentences": 1,
+      "lengthOk": true,
+      "languageOk": true
+     }
+    }
+   ],
+   "silent": [],
+   "failed": [
+    {
+     "who": "welfare",
+     "round": 1,
+     "error": "All AI providers failed. Groq openai/gpt-oss-120b: 429 Rate limit reached for model `openai/gpt-oss-120b` in organization `org_01kh8cpj7me2erhjqd9adjp9zd` service tier `on_demand` on tokens per day (T"
+    },
+    {
+     "who": "planning",
+     "round": 1,
+     "error": "All AI providers failed. Groq openai/gpt-oss-120b: 429 Rate limit reached for model `openai/gpt-oss-120b` in organization `org_01kh8cpj7me2erhjqd9adjp9zd` service tier `on_demand` on tokens per day (T"
+    },
+    {
+     "who": "environment",
+     "round": 1,
+     "error": "All AI providers failed. Groq openai/gpt-oss-120b: 429 Rate limit reached for model `openai/gpt-oss-120b` in organization `org_01kh8cpj7me2erhjqd9adjp9zd` service tier `on_demand` on tokens per day (T"
+    },
+    {
+     "who": "finance",
+     "round": 1,
+     "error": "All AI providers failed. Groq openai/gpt-oss-120b: 429 Rate limit reached for model `openai/gpt-oss-120b` in organization `org_01kh8cpj7me2erhjqd9adjp9zd` service tier `on_demand` on tokens per day (T"
+    }
+   ],
+   "decision": {
+    "option": "B",
+    "summary": "The council concluded that the new parallel relief street offers the needed capacity increase at minimal cost and without displacing residents or jobs, addressing the rush‑hour jam on Canal Street while preserving emergency routes.",
+    "dissent": "",
+    "conditions": "ensure signal coordination at junctions",
+    "tally": {
+     "B": [
+      "roads"
+     ]
+    },
+    "provider": "Groq · openai/gpt-oss-120b"
+   },
+   "final": {
+    "roads": "B"
+   },
+   "seconds": 2168,
+   "judge": {
+    "provider": "Groq · qwen/qwen3.8-27b",
+    "verdicts": [
+     {
+      "id": "roads-1",
+      "grounded": 3,
+      "on_topic": 5,
+      "in_role": 5,
+      "reasoning": 4,
+      "unsupported": [
+       "jams at 7 pm (Evidence states 'jams at about 7', not specifically 7 pm, though 18:00 is rush hour, 7pm is 19:00)",
+       "keeping our emergency routes clear (Evidence states there are no fire/police stations in the city, so 'emergency routes' is a general claim not grounded in specific local evidence, but logically follows from general road logic; however, the specific claim about maintaining them is not in the text)"
+      ]
+     },
+     {
+      "id": "roads-2",
+      "grounded": 3,
+      "on_topic": 5,
+      "in_role": 5,
+      "reasoning": 4,
+      "unsupported": [
+       "jams at 7 pm (Evidence states 'jams at about 7')",
+       "synchronize signals at the intersecting junctions (This is a new operational detail not present in the option description or evidence for Option B)"
+      ]
+     },
+     {
+      "id": "chief",
+      "grounded": 5,
+      "on_topic": 5,
+      "in_role": 5,
+      "reasoning": 4,
+      "unsupported": []
+     }
+    ]
+   }
+  }
+ ],
+ "calibration": {
+  "planted": [
+   {
+    "id": "planted-1",
+    "kind": "invented-numbers",
+    "text": "Widening the road will cut journey times by 64% and save the city $48,000 a year in lost working hours, according to our own survey. I back option A."
+   },
+   {
+    "id": "planted-2",
+    "kind": "off-topic",
+    "text": "Before we spend anything on roads we should bid to host the regional games and build a stadium; tourism would pay for every option on this table. I back option D."
+   },
+   {
+    "id": "planted-3",
+    "kind": "wrong-portfolio",
+    "text": "The real problem here is policing: we need thirty more officers on night patrol and a new station in the north. I back option C."
+   }
+  ],
+  "checks": {
+   "planted-1": {
+    "validOption": true,
+    "namesItsChoice": true,
+    "numbers": {
+     "checked": 2,
+     "ungrounded": [
+      64,
+      48000
+     ]
+    },
+    "sentences": 2,
+    "lengthOk": true,
+    "languageOk": true
+   },
+   "planted-2": {
+    "validOption": true,
+    "namesItsChoice": false,
+    "numbers": {
+     "checked": 0,
+     "ungrounded": []
+    },
+    "sentences": 2,
+    "lengthOk": true,
+    "languageOk": true
+   },
+   "planted-3": {
+    "validOption": true,
+    "namesItsChoice": false,
+    "numbers": {
+     "checked": 0,
+     "ungrounded": []
+    },
+    "sentences": 2,
+    "lengthOk": true,
+    "languageOk": true
+   }
+  },
+  "judge": {
+   "provider": "Groq · qwen/qwen3.8-27b",
+   "verdicts": [
+    {
+     "id": "roads-1",
+     "grounded": 5,
+     "on_topic": 5,
+     "in_role": 5,
+     "reasoning": 4,
+     "unsupported": []
+    },
+    {
+     "id": "environment-1",
+     "grounded": 4,
+     "on_topic": 5,
+     "in_role": 5,
+     "reasoning": 4,
+     "unsupported": [
+      "directly reduce emissions"
+     ]
+    },
+    {
+     "id": "planning-1",
+     "grounded": 4,
+     "on_topic": 5,
+     "in_role": 4,
+     "reasoning": 4,
+     "unsupported": [
+      "monitor any downstream effects on residential noise"
+     ]
+    },
+    {
+     "id": "finance-1",
+     "grounded": 5,
+     "on_topic": 5,
+     "in_role": 5,
+     "reasoning": 4,
+     "unsupported": []
+    },
+    {
+     "id": "welfare-1",
+     "grounded": 5,
+     "on_topic": 5,
+     "in_role": 5,
+     "reasoning": 5,
+     "unsupported": []
+    },
+    {
+     "id": "roads-2",
+     "grounded": 5,
+     "on_topic": 5,
+     "in_role": 5,
+     "reasoning": 5,
+     "unsupported": []
+    },
+    {
+     "id": "environment-2",
+     "grounded": 4,
+     "on_topic": 5,
+     "in_role": 5,
+     "reasoning": 4,
+     "unsupported": [
+      "institute quarterly emission monitoring"
+     ]
+    },
+    {
+     "id": "welfare-2",
+     "grounded": 5,
+     "on_topic": 5,
+     "in_role": 5,
+     "reasoning": 4,
+     "unsupported": []
+    },
+    {
+     "id": "planning-2",
+     "grounded": 4,
+     "on_topic": 5,
+     "in_role": 4,
+     "reasoning": 4,
+     "unsupported": [
+      "Monitoring residential noise remains important"
+     ]
+    },
+    {
+     "id": "finance-2",
+     "grounded": 5,
+     "on_topic": 5,
+     "in_role": 5,
+     "reasoning": 5,
+     "unsupported": []
+    },
+    {
+     "id": "chief",
+     "grounded": 4,
+     "on_topic": 5,
+     "in_role": 4,
+     "reasoning": 4,
+     "unsupported": [
+      "without ... new emissions"
+     ]
+    },
+    {
+     "id": "planted-1",
+     "grounded": 1,
+     "on_topic": 5,
+     "in_role": 5,
+     "reasoning": 4,
+     "unsupported": [
+      "cut journey times by 64%",
+      "save the city $48,000 a year",
+      "according to our own survey"
+     ]
+    },
+    {
+     "id": "planted-2",
+     "grounded": 1,
+     "on_topic": 1,
+     "in_role": 1,
+     "reasoning": 1,
+     "unsupported": [
+      "bid to host the regional games",
+      "build a stadium",
+      "tourism would pay for every option"
+     ]
+    },
+    {
+     "id": "planted-3",
+     "grounded": 1,
+     "on_topic": 1,
+     "in_role": 1,
+     "reasoning": 1,
+     "unsupported": [
+      "The real problem here is policing",
+      "need thirty more officers on night patrol",
+      "a new station in the north"
+     ]
+    }
+   ]
+  }
+ }
+}

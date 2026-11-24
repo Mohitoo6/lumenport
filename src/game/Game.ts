@@ -167,6 +167,8 @@ export class Game {
   }
 
   private async init(): Promise<void> {
+    // The opening screen counts from here, when it first appears, not from page load.
+    const openedAt = performance.now();
     const { engine, sim, atmosphere } = this;
     const state = sim.state;
     const aniso = Math.min(8, engine.renderer.capabilities.getMaxAnisotropy());
@@ -447,7 +449,7 @@ export class Game {
     if (loadWarnings.length) console.warn('[assets]', loadWarnings.join('; '));
     // Let the opening screen finish drawing its skyline, even when everything was cached.
     const cinematic = !this.options.shots && !matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (cinematic) await new Promise((done) => setTimeout(done, Math.max(0, INTRO_MIN_MS - performance.now())));
+    if (cinematic) await new Promise((done) => setTimeout(done, Math.max(0, openedAt + INTRO_MIN_MS - performance.now())));
     if (cinematic) this.startIntro();
     ui.loading.value = null;
     this.ready = true;
@@ -1145,7 +1147,7 @@ export class Game {
 const SIGNIN_NUDGE_POPULATION = 300;
 
 /** The opening: the loading screen stays up at least this long, then the camera flies in. */
-const INTRO_MIN_MS = 2600;
+const INTRO_MIN_MS = 2800;
 const INTRO_SECONDS = 4.2;
 
 function nextFrame(): Promise<void> {

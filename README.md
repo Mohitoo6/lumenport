@@ -1,122 +1,25 @@
 # Lumenport
 
-A 3D city-builder with an AI council, running in the browser. Built with TypeScript, Vite
-and Three.js. Play it at https://lumenport.vercel.app (the game was called Metropolis until
-November 2026; saves and settings carry over, and the old addresses still work).
+**A 3D city-builder in the browser, governed with an AI council.**
+Build a city street by street; when something goes wrong, nine AI ministers argue the
+options from your city's real numbers, code checks every figure and rule, and you, the
+mayor, make the call.
 
-```
-npm install
-npm run dev        # http://localhost:5173
-```
+**[▶ Play it now: lumenport.vercel.app](https://lumenport.vercel.app)** · no install, runs
+in any modern browser · TypeScript, Three.js, multi-agent LLMs
 
-Other commands: `npm test` (simulation, AI and render tests), `npm run check` (type check),
-`npm run eval:offline` (evaluates the AI with no model calls; writes `docs/EVALUATION.md`),
-`npm run shots` (Playwright screenshots into `screenshots/`), `npm run assets` (re-download
-CC0 textures and skies).
+![The opening: a skyline draws itself, then the camera flies down onto the map](docs/media/opening.gif)
 
-## Playing
+## The AI council
 
-Lay a street, place a power plant and a water tower beside it, then zone land along the
-road for homes, shops and industry. Watch the demand bars, keep the budget in the black
-(B), and add services and parks to raise happiness. The Views menu (V) shows what is
-going on: power, water, traffic, pollution, crime, land value, happiness and coverage.
+![A council meeting with live AI: the brief, ministers speaking in turn, the Chief Secretary's verdict and the AI inspector](docs/media/council.gif)
 
-The goal card at the top left leads the way: sixteen goals from the first street to a
-metropolis of 10,000, each paying a city grant (none in sandbox). Building costs money:
-roads by the metre, facilities by the building, and zoning by the cell (the city lays the
-hook-ups). Services come small and big: a police station and, from 3,000 residents, a
-police headquarters; a fire station and a central fire station; a clinic and, from 2,000,
-a hospital. There is also a cricket ground and, from 5,000 residents, a domed indoor
-stadium; the Business menu has the IT park, university, a shopping mall, a multiplex and
-a bazaar street. The bank lends by city size and lets repayments take at most 35% of
-hourly income. An empty treasury is not
-a free pass: while the funds are below zero, services are underfunded and residents are
-unhappier until the books are fixed.
+[▶ Watch a full meeting with live AI (MP4, 1 minute, 2x speed)](docs/media/council-meeting.mp4)
 
-## Controls
-
-| Action | Input |
-|---|---|
-| Move | Drag the map (any tool but zoning), two-finger swipe on a trackpad, one finger on a touch screen, W A S D or arrow keys, or push the screen edge |
-| Rotate / tilt | Q E / R F, right-drag (Alt + drag or two-finger click-drag on a trackpad), or twist two fingers on a touch screen |
-| Zoom | Mouse wheel or pinch. Menu > Scroll chooses what a trackpad swipe or wheel does (Auto, Move map, Zoom) |
-| Use a tool | Left click (drag to zone). Right click or Esc steps back |
-| Inspect a building | Click it with no tool selected |
-| Bulldoze / curved roads | X / C |
-| Speed | Space to pause, 1 2 3 (normal, twice, four times as quick) |
-| Budget / data views / menu | B / V / M |
-| Light | Click the clock: Auto, Day, Night. The clock itself always shows the city's time |
-| Dev overlay | ` (backtick) |
-
-Cities are saved in the browser (Menu, M): three slots plus an autosave every two minutes.
-With accounts switched on (below), a signed-in player also has two cloud slots and a cloud
-autosave, and is offered "continue your city" when they come back on any browser.
-
-## Accounts and cloud saves (optional)
-
-Sign-in is passwordless (an emailed link, or Google) on [Supabase](https://supabase.com),
-whose free tier covers 50,000 monthly players and 500 MB of saves (a grown city is about
-350 KB). To switch it on:
-
-1. Create a Supabase project. In SQL Editor, run `supabase/schema.sql` (the table and the
-   row-level security that lets each player see only their own cities).
-2. In Authentication > URL Configuration, add the game's address (and
-   `http://localhost:5173`) to the redirect URLs. For Google, enable the Google provider.
-3. Set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` (Project Settings > API; the anon
-   key is public by design) in `.env` and in the host's environment, then rebuild. Add
-   `VITE_SUPABASE_GOOGLE=1` to show the Google button.
-
-Without those variables the Account section is hidden and saves stay in the browser.
-Free Supabase projects pause after a week without any requests; a game with players keeps
-it awake.
-
-## Your own AI key (optional)
-
-Menu > AI lets a player use their own key (Groq, Gemini, OpenRouter, OpenAI, DeepSeek,
-Mistral, Together). It is kept in that browser, sent with each AI request, used for that
-call and never stored or logged by the server, which forwards keys only to those
-providers' hosts over https. A player on their own key skips the site's daily cap.
-
-## Transit and the airport
-
-Place bus stops beside roads (Transit): two or more on connected roads start a bus line,
-and buses run between them on the real roads, waiting at each stop. Residents near a served
-stop leave the car at home and pay fares. The metro works the same way on a viaduct. An
-airport, on a long flat site, earns from exports, travellers and tourists, lifts demand for
-shops and industry, and is noisy around the runway. People walk the pavements and wait at
-the stops.
-
-## Seasons
-
-The calendar is the ordinary one (a new city starts in March 2030); the weather follows
-India's climate. Summer heat in May and June raises power and water demand, the monsoon in
-July and August brings rain that slows traffic, and January and February mornings are
-foggy. Days are long in summer and short in winter, and grass and leaves change colour.
-The weather chip in the top bar says what the season is doing to the city.
-
-## Time
-
-The city has one clock. A game hour takes a real minute at normal speed; the budget settles
-on the hour, so every income and upkeep figure is per hour. Twenty-four hours make a day,
-with rush hours at about 9:00 and 18:00, and the sun follows the same clock. Each day stands
-for a month, so a year passes in twelve game days.
-
-## AI city council
-
-Problems in the city (rush-hour jams, shortages, pollution, missing services, deficits)
-bring the responsible minister to you. Call the council and nine AI ministers debate the
-options the game has worked out, in English or Hindi; you approve the result.
-
-To use real AI, copy `.env.example` to `.env`, add one or more OpenAI-compatible providers
-(Gemini, Groq, OpenRouter and similar), and restart `npm run dev`. Without keys, or when a
-free tier is rate-limited, the meeting runs offline with rule-based ministers at no cost.
-Keys stay on your machine and are never sent to the browser.
-
-### How the council works
-
-The council is a multi-agent decision-support pipeline with the game as the source of
-truth. The model argues; code decides what is possible, checks what was said, and carries
-out what the mayor approves.
+A rush-hour jam, a power shortage or a deficit brings the responsible minister to you.
+Call the council and the ministers debate the options the game has worked out, in English
+or Hindi. **The model argues; code decides** what is possible, checks what was said, and
+carries out what the mayor approves.
 
 ```mermaid
 flowchart LR
@@ -133,61 +36,119 @@ flowchart LR
   Mem -.-> R1
 ```
 
-![The council in session: the division board along the bottom shows which minister backs which option](screenshots/council/06-next-speaker.png)
-
-![The AI inspector: pipeline state, tokens, latency, triage scores and each agent's turn](screenshots/inspector/04-inspector-verdict.png)
-
 | Stage | What happens |
 |---|---|
 | Detect | Detectors in the simulation raise an issue with a severity and measured facts. |
-| Triage | All nine ministries score how urgent it is for them; the lead and top three are seated. |
+| Triage | All nine ministries score how urgent it is for them; the lead and the top three are seated. |
 | Options | The game drafts valid options and runs each on a copy of the city to measure its effect. |
-| Debate | Each minister sees only its own department and its slice of each option. Round 2 runs only if they disagree. |
+| Debate | Each minister sees only its own department's slice of each option. Round 2 runs only if they disagree. |
 | Chair | The Chief Secretary recommends one option, as schema-checked JSON. |
-| Guardrails | Code checks the recommendation: it exists, the game accepts it, the city can pay, the figures quoted were in the facts shown. |
-| Mayor | You approve, overrule or defer. An instruction you type first ("under $5,000, no demolition") is parsed into rules the council cannot break. |
-| Execute | The option runs as one transaction and the city is compared with what the option card promised. |
+| Guardrails | Code checks the recommendation: it exists, the game accepts it, the city can pay, every figure quoted was in the facts shown. |
+| Mayor | You approve, overrule or defer. An instruction typed first ("under $5,000, no demolition") becomes rules the council cannot break. |
+| Execute | The option runs as one transaction, and the city is compared with what the option card promised. |
 
-A meeting is capped at 8 model calls (typically 4 or 5). Press **I** (anywhere), or open
-Council > AI inspector, to watch it: the pipeline state, each agent's prompt and JSON,
-latency, token counts, schema results and guardrail findings. Past decisions are
-remembered per city, together with whether they fixed the problem, and shown to the
-ministers they concern. The "Ask" assistant runs on the same instruments, and sends the
-model only the parts of the manual a question touches.
+![The AI inspector: the pipeline as a state machine, calls, tokens, latency, schema results, guardrails and each agent's turn](docs/media/council-inspector.jpg)
 
-`docs/GENAI_GUIDE.md` explains the design, the trade-offs and the numbers in full.
-`npm test` covers all of it without calling a model; `REAL_COUNCIL=1 npx vitest run
-tests/game/zz-real.test.ts` holds one real meeting and prints its telemetry.
+- **Cheap by design.** A meeting is capped at 8 model calls; the one above used 8 calls,
+  7,078 tokens in and 932 out. An uncontested meeting skips round 2.
+- **Never stuck.** Without keys, or when a free tier is rate-limited, each seat falls back
+  to a rule-based minister at no cost, and the meeting carries on.
+- **Observable.** Press **I** for the AI inspector: pipeline state, each agent's prompt and
+  JSON, latency, token counts, schema results and guardrail findings.
+- **Memory.** Past decisions are remembered per city, with whether they fixed the problem,
+  and shown to the ministers they concern.
+- **The Ask assistant** answers questions about your city from its live data, and sends
+  the model only the parts of the manual a question touches.
 
-### Evaluation at zero tokens
+### Evaluated without spending tokens
 
-`npm run eval:offline` evaluates the AI layer in about ten seconds with the network
-switched off: towns built with one known fault each (is it detected and given to the right
-ministry?), every option executed on a fork and compared field by field with the payload
-the agents were shown, whole meetings with no model, thirteen planted faults (invented
-figures, prompt injection in the mayor's note, unaffordable or forbidden recommendations,
-broken JSON), the instruction parser in English, Hindi and Hinglish, and a calibration of
-the code checks against an LLM judge on 92 real statements from an earlier paid run. The
-report is [docs/EVALUATION.md](docs/EVALUATION.md); the headline scores also appear in the
-AI inspector.
+`npm run eval:offline` evaluates the AI layer in about ten seconds with the network switched
+off ([full report](docs/EVALUATION.md)):
 
-## Hosting
+| What is measured | Result |
+|---|---|
+| Built-in problems detected and handed to the right ministry | 6 / 6 |
+| Option payloads that match a real execution on a fork, field by field | 15 / 15 |
+| Offline meetings that reach a checked recommendation | 6 / 6 |
+| Planted faults caught by code (invented figures, prompt injection, broken JSON, forbidden or unaffordable picks) | 13 / 13 |
+| Mayor's instructions parsed exactly (English / Hindi and Hinglish) | 20 / 20, 8 / 8 |
+| Assistant questions routed to the right manual section | 24 / 24 |
+| Code grounding check agreeing with an LLM judge on 92 recorded statements | 85% |
 
-`npm run build` produces a static site in `dist/` (about 75 MB, mostly textures and skies).
-On any static host the game is complete and the council runs with its offline ministers.
+## The city
 
-For live AI, deploy to Vercel (`vercel.json` and the functions in `api/` are ready) and set
-the provider variables from `.env.example` in the project's environment settings. The
-hosted endpoint is always guarded: per-visitor and per-day call limits
-(`LLM_CALLS_PER_VISITOR`, default 30 per ten minutes; `LLM_CALLS_PER_DAY`, default 500),
-a prompt-size limit and an output-token cap, so a public page cannot drain a free tier.
-The counters live in memory per warm instance, so the true ceiling is a small multiple of
-those numbers; a shared store would make it exact. Visitors over a limit get the offline
-council, not an error.
+![A grown city from golden hour into night](docs/media/city-night.jpg)
 
-## Project docs
+[▶ City at dusk (MP4, 10 seconds)](docs/media/city.mp4)
 
-- `PLAN.md`: architecture, data model, phases and acceptance criteria.
-- `PROGRESS.md`: what is done, what is next, known issues and decisions.
-- `docs/GENAI_GUIDE.md`: the AI council explained end to end, with interview questions.
-- `ASSETS.md`: every third-party asset and its licence (all CC0).
+- **Build:** streets and avenues (straight or curved), homes, shops and industry at three
+  densities, power, water, services, transit, an airport. Everything costs money: roads by
+  the metre, buildings by the building, zoning by the cell.
+- **Grow up:** services come small and big. A police station and, from 3,000 residents, a
+  police headquarters; a fire station and a central fire station; a clinic and a hospital;
+  a cricket ground and a domed indoor stadium. Sixteen goals lead from the first street to
+  a metropolis of 10,000.
+- **Money:** a City Bank with a treasury chart, a credit rating and loans that the bank
+  grants by city size and income. Taxes move demand; an empty treasury makes people unhappy.
+- **A living city:** traffic on every road with rush hours, buses and a metro on its
+  viaduct, people on the pavements, Indian seasons (summer heat, monsoon rain, winter fog)
+  on a day and night cycle, and an AI that reads all of it.
+- **Accounts:** play first, sign in later (passwordless email or Google) to keep cities in
+  the cloud and carry on from any device.
+
+| | |
+|---|---|
+| ![A domed indoor stadium at night](docs/media/indoor-stadium.jpg) | ![The City Bank: treasury chart, money in and out, credit rating](docs/media/city-bank.png) |
+| ![Central fire station with its drill tower and engines](docs/media/fire-station.jpg) | ![Police headquarters with patrol cars and a helipad](docs/media/police-hq.jpg) |
+
+## Controls
+
+| Action | Input |
+|---|---|
+| Move | Drag the map, two-finger swipe on a trackpad, W A S D or arrow keys |
+| Rotate / tilt | Q E / R F, right-drag, or twist two fingers on a touch screen |
+| Zoom | Mouse wheel or pinch |
+| Use a tool | Left click (drag to zone). Right click or Esc steps back |
+| Inspect a building | Click it with no tool selected |
+| Speed | Space to pause, 1 2 3 |
+| City Bank / data views / menu / AI inspector | B / V / M / I |
+
+## Run it locally
+
+```
+npm install
+npm run dev        # http://localhost:5173
+```
+
+The game is complete without any keys: the council then runs on its rule-based ministers.
+For live AI, copy `.env.example` to `.env` and add one or more OpenAI-compatible providers
+(Gemini, Groq, OpenRouter and similar). Keys stay on the server and never reach the browser;
+players can also use their own key (Menu > AI).
+
+| Command | What it does |
+|---|---|
+| `npm test` | Simulation, AI and render tests (no model calls) |
+| `npm run check` | Type check |
+| `npm run eval:offline` | The zero-token AI evaluation; writes `docs/EVALUATION.md` |
+| `npm run build` | Static build in `dist/` |
+
+**Accounts (optional):** create a [Supabase](https://supabase.com) project, run
+`supabase/schema.sql` in its SQL editor (the table and the row-level security that lets
+each player see only their own cities), add the game's address to the redirect URLs, and
+set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`. Without them, saves stay in the
+browser.
+
+**Hosting:** deploys to Vercel as it is (`vercel.json`, functions in `api/`). The hosted AI
+endpoint is always guarded: per-visitor and per-day call limits, a prompt-size limit and an
+output-token cap, so a public page cannot drain a free tier; visitors over a limit get the
+offline council, not an error.
+
+## Built with
+
+TypeScript (strict) · Three.js · Preact · Vite · zod · Supabase · Vercel serverless ·
+Playwright and Vitest. Textures and skies are CC0 ([ASSETS.md](ASSETS.md)).
+
+## Authors
+
+Built by **Mohit** ([@Mohitoo6](https://github.com/Mohitoo6)) and **Rohit**
+([@Rohit-0612](https://github.com/Rohit-0612)).

@@ -1,0 +1,66 @@
+   >> goal 1: Lay your first street
+   >> goal 2: Zone homes beside it
+   >> goal 3: Switch on the power
+   >> goal 4: Turn on the water
+   >> goal 5: Welcome 100 residents (+$3000)
+   >> goal 6: Create 60 jobs (+$3000)
+h 1 pop   619  funds   27420  net   568/h  dem R17 C6 I12  happy 44%  jobs 295/340  pw 5/45  goal 7  stalled -  issues fire,health,education
+   >> goal 7: Build a clinic (+$2500)
+   >> goal 8: Grow into a town: 500 residents (+$6000)
+h 2 pop   973  funds     257  net  1097/h  dem R22 C6 I2  happy 48%  jobs 509/535  pw 8/45  goal 9  stalled -  issues fire,education,water
+   >> goal 9: Open a school (+$3000)
+h 3 pop  1315  funds    4443  net  1186/h  dem R11 C-2 I13  happy 50%  jobs 628/723  pw 10/45  goal 10  stalled 2  issues fire,pollution
+   >> goal 10: Take a problem to the council (+$4000)
+h 4 pop  1550  funds   10168  net  1725/h  dem R10 C-2 I21  happy 50%  jobs 731/853  pw 11/45  goal 11  stalled 2  issues fire,pollution
+     land R {"ready":6,"unserved":0,"noRoad":37} C {"ready":78,"unserved":0,"noRoad":123} I {"ready":0,"unserved":0,"noRoad":4}  water 2540/3200  unpowered 0 unwatered 0  buildings 322 constructing 2
+     budget: income 3740 (R 2182 C 768 I 790) roads 210 utilities 840 services 800 loans 0 transit 0
+h 5 pop  1616  funds   12058  net  1890/h  dem R11 C0 I20  happy 49%  jobs 767/889  pw 12/45  goal 11  stalled 2  issues fire,pollution
+h 6 pop  1641  funds   13990  net  1932/h  dem R9 C1 I22  happy 49%  jobs 772/903  pw 12/45  goal 11  stalled 2  issues fire,pollution
+h 7 pop  1645  funds     913  net  1987/h  dem R12 C-9 I22  happy 49%  jobs 793/905  pw 12/45  goal 11  stalled 2  issues fire,pollution
+h 8 pop  1947  funds    3309  net  2396/h  dem R-2 C0 I33  happy 45%  jobs 807/1071  pw 13/45  goal 11  stalled 12  issues fire,jobs,pollution
+h 9 pop  1947  funds   17973  net  2464/h  dem R-1 C-2 I33  happy 46%  jobs 836/1071  pw 13/45  goal 11  stalled 12  issues fire,jobs,pollution
+     land R {"ready":55,"unserved":0,"noRoad":127} C {"ready":53,"unserved":80,"noRoad":339} I {"ready":0,"unserved":80,"noRoad":244}  water 2927/4800  unpowered 0 unwatered 0  buildings 341 constructing 0
+     budget: income 4344 (R 2628 C 917 I 799) roads 240 utilities 950 services 800 loans 529 transit 0
+h10 pop  1947  funds   19798  net  1825/h  dem R-1 C1 I33  happy 47%  jobs 836/1071  pw 13/45  goal 11  stalled 12  issues fire,jobs,pollution
+h11 pop  1947  funds   21623  net  1825/h  dem R-1 C-3 I33  happy 46%  jobs 836/1071  pw 13/45  goal 11  stalled 12  issues fire,jobs,pollution
+h12 pop  1947  funds   18448  net  1825/h  dem R0 C-1 I33  happy 47%  jobs 836/1071  pw 13/45  goal 11  stalled 12  issues fire,jobs,pollution
+h13 pop  1947  funds   19979  net  1531/h  dem R0 C0 I33  happy 50%  jobs 847/1071  pw 14/45  goal 11  stalled 12  issues fire,jobs,pollution
+h14 pop  1947  funds   16010  net  1531/h  dem R0 C-2 I33  happy 50%  jobs 847/1071  pw 14/45  goal 11  stalled 12  issues fire,jobs,pollution
+     land R {"ready":55,"unserved":0,"noRoad":127} C {"ready":48,"unserved":80,"noRoad":332} I {"ready":0,"unserved":80,"noRoad":244}  water 2935/4800  unpowered 0 unwatered 0  buildings 342 constructing 0
+     budget: income 4370 (R 2628 C 943 I 799) roads 240 utilities 950 services 1460 loans 529 transit 0
+h15 pop  1947  funds   17201  net  1191/h  dem R0 C-8 I33  happy 51%  jobs 847/1071  pw 14/45  goal 11  stalled 12  issues jobs,pollution,fire
+h16 pop  1947  funds   18392  net  1191/h  dem R0 C-4 I33  happy 51%  jobs 847/1071  pw 14/45  goal 11  stalled 12  issues jobs,pollution,fire
+h17 pop  1947  funds   19583  net  1191/h  dem R0 C-4 I33  happy 51%  jobs 847/1071  pw 14/45  goal 11  stalled 12  issues jobs,pollution,fire
+h18 pop  1947  funds   20774  net  1191/h  dem R0 C-1 I33  happy 51%  jobs 847/1071  pw 14/45  goal 11  stalled 12  issues jobs,pollution,fire
+h19 pop  1947  funds   21965  net  1191/h  dem R0 C-2 I33  happy 51%  jobs 847/1071  pw 14/45  goal 11  stalled 12  issues jobs,pollution,fire
+     land R {"ready":55,"unserved":0,"noRoad":127} C {"ready":48,"unserved":80,"noRoad":332} I {"ready":0,"unserved":80,"noRoad":244}  water 2935/4800  unpowered 0 unwatered 0  buildings 342 constructing 0
+     budget: income 4370 (R 2628 C 943 I 799) roads 240 utilities 950 services 1460 loans 529 transit 0
+h20 pop  1947  funds   23156  net  1191/h  dem R0 C-1 I33  happy 52%  jobs 847/1071  pw 14/45  goal 11  stalled 12  issues jobs,pollution,fire
+h21 pop  1947  funds   24347  net  1191/h  dem R0 C-2 I33  happy 51%  jobs 847/1071  pw 14/45  goal 11  stalled 12  issues jobs,pollution,fire
+h22 pop  1947  funds   25538  net  1191/h  dem R0 C-2 I33  happy 51%  jobs 847/1071  pw 14/45  goal 11  stalled 12  issues jobs,pollution,fire
+h23 pop  1947  funds   26729  net  1191/h  dem R0 C-4 I33  happy 51%  jobs 847/1071  pw 14/45  goal 11  stalled 12  issues jobs,pollution,fire
+h24 pop  1947  funds   27920  net  1191/h  dem R0 C-4 I33  happy 51%  jobs 847/1071  pw 14/45  goal 11  stalled 12  issues jobs,pollution,fire
+     land R {"ready":55,"unserved":0,"noRoad":127} C {"ready":48,"unserved":80,"noRoad":332} I {"ready":0,"unserved":80,"noRoad":244}  water 2935/4800  unpowered 0 unwatered 0  buildings 342 constructing 0
+     budget: income 4370 (R 2628 C 943 I 799) roads 240 utilities 950 services 1460 loans 529 transit 0
+h25 pop  1947  funds   29111  net  1191/h  dem R0 C-2 I33  happy 51%  jobs 847/1071  pw 14/45  goal 11  stalled 12  issues jobs,pollution,fire
+h26 pop  1947  funds   30302  net  1191/h  dem R0 C0 I33  happy 52%  jobs 847/1071  pw 14/45  goal 11  stalled 12  issues jobs,pollution,fire
+h27 pop  1947  funds   31493  net  1191/h  dem R0 C-3 I33  happy 51%  jobs 847/1071  pw 14/45  goal 11  stalled 12  issues jobs,pollution,fire
+h28 pop  1947  funds   32684  net  1191/h  dem R0 C-2 I33  happy 51%  jobs 847/1071  pw 14/45  goal 11  stalled 12  issues jobs,pollution,fire
+h29 pop  1947  funds   33875  net  1191/h  dem R0 C-5 I33  happy 51%  jobs 847/1071  pw 14/45  goal 11  stalled 12  issues jobs,pollution,fire
+     land R {"ready":55,"unserved":0,"noRoad":127} C {"ready":48,"unserved":80,"noRoad":332} I {"ready":0,"unserved":80,"noRoad":244}  water 2935/4800  unpowered 0 unwatered 0  buildings 342 constructing 0
+     budget: income 4370 (R 2628 C 943 I 799) roads 240 utilities 950 services 1460 loans 529 transit 0
+h30 pop  1947  funds   35066  net  1191/h  dem R0 C-2 I33  happy 51%  jobs 847/1071  pw 14/45  goal 11  stalled 12  issues jobs,pollution,fire
+h31 pop  1947  funds   36257  net  1191/h  dem R0 C-4 I33  happy 51%  jobs 847/1071  pw 14/45  goal 11  stalled 12  issues jobs,pollution,fire
+h32 pop  1947  funds   37448  net  1191/h  dem R0 C-4 I33  happy 51%  jobs 847/1071  pw 14/45  goal 11  stalled 12  issues jobs,pollution,fire
+h33 pop  1947  funds   38639  net  1191/h  dem R0 C-3 I33  happy 51%  jobs 847/1071  pw 14/45  goal 11  stalled 12  issues jobs,pollution,fire
+h34 pop  1947  funds   39830  net  1191/h  dem R0 C-7 I33  happy 50%  jobs 847/1071  pw 14/45  goal 11  stalled 12  issues jobs,pollution,fire
+     land R {"ready":55,"unserved":0,"noRoad":127} C {"ready":48,"unserved":80,"noRoad":332} I {"ready":0,"unserved":80,"noRoad":244}  water 2935/4800  unpowered 0 unwatered 0  buildings 342 constructing 0
+     budget: income 4370 (R 2628 C 943 I 799) roads 240 utilities 950 services 1460 loans 529 transit 0
+h35 pop  1947  funds   41021  net  1191/h  dem R0 C-3 I33  happy 51%  jobs 847/1071  pw 14/45  goal 11  stalled 12  issues jobs,pollution,fire
+h36 pop  1947  funds   42212  net  1191/h  dem R0 C-4 I33  happy 51%  jobs 847/1071  pw 14/45  goal 11  stalled 12  issues jobs,pollution,fire
+h37 pop  1947  funds   43403  net  1191/h  dem R0 C-5 I33  happy 51%  jobs 847/1071  pw 14/45  goal 11  stalled 12  issues jobs,pollution,fire
+h38 pop  1947  funds   44594  net  1191/h  dem R0 C-1 I33  happy 52%  jobs 847/1071  pw 14/45  goal 11  stalled 12  issues jobs,pollution,fire
+h39 pop  1947  funds   45785  net  1191/h  dem R0 C0 I33  happy 51%  jobs 847/1071  pw 14/45  goal 11  stalled 12  issues jobs,pollution,fire
+     land R {"ready":55,"unserved":0,"noRoad":127} C {"ready":48,"unserved":80,"noRoad":332} I {"ready":0,"unserved":80,"noRoad":244}  water 3522/4800  unpowered 0 unwatered 0  buildings 342 constructing 0
+     budget: income 4370 (R 2628 C 943 I 799) roads 240 utilities 950 services 1460 loans 529 transit 0
+h40 pop  1947  funds   46976  net  1191/h  dem R0 C-5 I33  happy 49%  jobs 847/1071  pw 17/45  goal 11  stalled 12  issues jobs,pollution,fire

@@ -6,17 +6,28 @@
  */
 const SALT = 'lumenport-cheat:';
 
-const CODES: ReadonlyArray<{ hash: string; amount: number }> = [
+export interface CheatCode {
+  /** SHA-256 of the salt and the code, in lowercase hex. */
+  hash: string;
+  amount: number;
+}
+
+export const CHEAT_CODES: readonly CheatCode[] = [
   { hash: '899b5964249f1c2470eba75c8b946b404861ee0a4407b1d21a36a7e1939d070b', amount: 50_000 },
   { hash: 'f97c7c27a3fec10bf9a92ef93301a4e94091bb3761fcc788abfe295fb43b8fa1', amount: 100_000 },
   { hash: 'ee8dbb1a624bddfa5bafb86c57e39c975e5fde43e2b205fc0ecd6407c9f38ff2', amount: 150_000 },
 ];
 
-/** The money a test code grants, or 0 when the text is not one (or hashing is unavailable). */
-export async function cheatAmount(text: string): Promise<number> {
+/** The hash a typed text is compared by, or null when it cannot be a code. */
+export async function codeHash(text: string): Promise<string | null> {
   const t = text.trim().toLowerCase();
-  if (t.length < 6 || t.length > 40 || /\s/.test(t) || !globalThis.crypto?.subtle) return 0;
+  if (t.length < 6 || t.length > 40 || /\s/.test(t) || !globalThis.crypto?.subtle) return null;
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(SALT + t));
-  const hex = Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, '0')).join('');
-  return CODES.find((c) => c.hash === hex)?.amount ?? 0;
+  return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+/** The money a test code grants, or 0 when the text is not one. */
+export async function cheatAmount(text: string, codes: readonly CheatCode[] = CHEAT_CODES): Promise<number> {
+  const hash = await codeHash(text);
+  return hash ? (codes.find((c) => c.hash === hash)?.amount ?? 0) : 0;
 }

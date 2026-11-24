@@ -2,7 +2,7 @@ import { mkdirSync } from 'node:fs';
 import { test, type Page } from '@playwright/test';
 import { advance, buildTown, openGame, zoneTown } from './helpers';
 
-const DIR = process.env.SHOTS_DIR ?? 'screenshots/gemini-23';
+const DIR = process.env.SHOTS_DIR ?? 'screenshots/buildings';
 
 /** Places a facility on the nearest valid site to a cell, ring by ring; returns its id. */
 async function place(page: Page, kind: number, ci: number, cj: number): Promise<number> {
@@ -25,7 +25,7 @@ async function place(page: Page, kind: number, ci: number, cj: number): Promise<
   );
 }
 
-/** Shops, offices, the mall, multiplex, bazaar, upgraded civic buildings, and the new lighting. */
+/** Shops, offices, the mall, multiplex, bazaar, upgraded civic buildings, and the lighting. */
 test('commercial and civic buildings in the test town', async ({ page }) => {
   test.setTimeout(600_000);
   mkdirSync(DIR, { recursive: true });

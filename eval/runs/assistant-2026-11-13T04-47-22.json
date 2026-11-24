@@ -1,0 +1,257 @@
+{
+ "stamp": "2026-11-13T04-47-22",
+ "results": [
+  {
+   "name": "fresh city",
+   "truth": "Nothing is built yet; the first step is a street.",
+   "question": "I just started. What should I do first?",
+   "answer": "First lay a Street so you have a road network – everything needs a road to get power, water and customers. Then zone a few cells for Homes right next to that street. Place a Coal power plant next to the road to give you electricity. When power is on you can add Shops and Industry because demand is high. Keep an eye on the demand bars and the power overlay as you expand.",
+   "actions": [
+    {
+     "type": "tool",
+     "tool": "road",
+     "label": "Lay a Street"
+    },
+    {
+     "type": "tool",
+     "tool": "zone",
+     "zone": 1,
+     "label": "Zone Homes"
+    },
+    {
+     "type": "tool",
+     "tool": "place",
+     "facility": 1,
+     "label": "Place Coal Power Plant"
+    }
+   ],
+   "source": "Groq · openai/gpt-oss-120b",
+   "mentions": [
+    true
+   ],
+   "actionOk": true,
+   "scriptOk": true,
+   "ungrounded": [],
+   "judge": {
+    "correct": 5,
+    "useful": 5,
+    "grounded": 5,
+    "note": "The assistant correctly prioritizes laying a street as the very first step, exactly matching the true situation, and follows up with concrete, grounded next steps (zoning homes, adding power) appropriate to the current $90,000 budget and high housing demand.",
+    "provider": "Groq · qwen/qwen3.8-27b"
+   }
+  },
+  {
+   "name": "no power or water",
+   "truth": "Homes are zoned by a street but the city has no power plant and no water source.",
+   "question": "Why are my homes not being built?",
+   "answer": "Your homes are zoned but they can’t build because there’s no power or water, and many cells are too far from any road. Build a power plant and a water tower on roads, then extend roads to cover the far cells. Once power, water and road coverage are sufficient, homes will start appearing.",
+   "actions": [
+    {
+     "type": "tool",
+     "tool": "place",
+     "facility": 1,
+     "label": "Build coal power plant"
+    },
+    {
+     "type": "tool",
+     "tool": "place",
+     "facility": 4,
+     "label": "Build water tower"
+    },
+    {
+     "type": "tool",
+     "tool": "road",
+     "label": "Add road"
+    }
+   ],
+   "source": "Groq · openai/gpt-oss-120b",
+   "mentions": [
+    true,
+    true
+   ],
+   "actionOk": true,
+   "scriptOk": true,
+   "ungrounded": [],
+   "judge": {
+    "correct": 5,
+    "useful": 5,
+    "grounded": 5,
+    "note": "The assistant correctly identified the missing infrastructure (power and water) and road limitations as the cause, and offered the exact necessary actions available in the game.",
+    "provider": "Groq · qwen/qwen3.8-27b"
+   }
+  },
+  {
+   "name": "no power or water (Hinglish)",
+   "truth": "Same city as above.",
+   "question": "ghar kyu nahi ban rahe? kya karu?",
+   "answer": "घर नहीं बन रहे क्योंकि शहर में बिजली और पानी की आपूर्ति नहीं है, और कई ज़ोन सेल्स सड़कों से दूर हैं। पहले एक पावर प्लांट और एक वाटर टावर सड़क के सामने बनाइए। फिर ज़ोनिंग वाले क्षेत्रों को सड़क के 4 सेल (32 m) के भीतर रखें और फिर से ज़ोन लगाएँ।",
+   "actions": [
+    {
+     "type": "tool",
+     "tool": "place",
+     "facility": 1,
+     "label": "Coal Power Plant"
+    },
+    {
+     "type": "tool",
+     "tool": "place",
+     "facility": 4,
+     "label": "Water Tower"
+    },
+    {
+     "type": "tool",
+     "tool": "road",
+     "label": "Build Road"
+    }
+   ],
+   "source": "Groq · openai/gpt-oss-120b",
+   "mentions": [
+    false,
+    false
+   ],
+   "actionOk": null,
+   "scriptOk": false,
+   "ungrounded": [],
+   "judge": {
+    "correct": 5,
+    "useful": 5,
+    "grounded": 5,
+    "note": "The assistant correctly identifies the lack of power and water based on the game's warnings and zones status, and provides the exact required buildings to construct.",
+    "provider": "Groq · qwen/qwen3.8-27b"
+   }
+  },
+  {
+   "name": "zoned too far from the road",
+   "truth": "Power and water are fine; the homes zone is 15+ cells from any road, so it can never build.",
+   "question": "I zoned homes but nothing appears there. Why?",
+   "answer": "Homes aren’t building because none of the zoned cells are within 4 cells (32 m) of a road, so they can’t be served. In sandbox mode you don’t need power or water, but road proximity is still required. Build a street near the zoned area (or extend the existing road) and keep the zones within 32 m of it. Then the homes will appear automatically because demand is high.",
+   "actions": [
+    {
+     "type": "tool",
+     "tool": "road",
+     "label": "Build a Street"
+    },
+    {
+     "type": "tool",
+     "tool": "zone",
+     "zone": 1,
+     "label": "Zone Homes"
+    },
+    {
+     "type": "view",
+     "overlay": "power",
+     "label": "Power overlay"
+    }
+   ],
+   "source": "Groq · openai/gpt-oss-120b",
+   "mentions": [
+    true,
+    true
+   ],
+   "actionOk": null,
+   "scriptOk": true,
+   "ungrounded": [],
+   "judge": {
+    "correct": 5,
+    "useful": 5,
+    "grounded": 4,
+    "note": "The diagnosis and solution are perfectly correct for the stated cause and general game mechanics, though the specific numeric threshold (32m) is a concrete detail that may vary between game versions.",
+    "provider": "Groq · qwen/qwen3.8-27b"
+   }
+  },
+  {
+   "name": "refused placement",
+   "truth": "The player tried to place a clinic away from any road; facilities need a road in front.",
+   "question": "Why can't I place the clinic?",
+   "answer": "The clinic was refused because it isn’t next to a road. Clinics must be placed on a cell that touches a road, and you need power and water later too. Build a road first, then put the clinic beside it (and add a power plant and water tower later).",
+   "actions": [
+    {
+     "type": "tool",
+     "tool": "road",
+     "label": "Build Road"
+    },
+    {
+     "type": "tool",
+     "tool": "place",
+     "facility": 8,
+     "label": "Place Clinic"
+    },
+    {
+     "type": "tool",
+     "tool": "place",
+     "facility": 1,
+     "label": "Add Coal Power Plant"
+    }
+   ],
+   "source": "Groq · openai/gpt-oss-120b",
+   "mentions": [
+    true
+   ],
+   "actionOk": null,
+   "scriptOk": true,
+   "ungrounded": [],
+   "judge": {
+    "correct": 5,
+    "useful": 4,
+    "grounded": 5,
+    "note": "Correctly identifies the true cause from the game's refusal message and provides clear first steps to fix it.",
+    "provider": "Groq · qwen/qwen3.8-27b"
+   }
+  },
+  {
+   "name": "losing money",
+   "truth": "A grown town with every tax set to 0%: income collapsed, so the monthly budget is in deficit.",
+   "question": "Why is my money going down every month?",
+   "answer": "The AI is not available right now, but here is what the city data shows: 1. Water shortage. Biggest problem: Water shortage. You can call the council about it.",
+   "actions": [
+    {
+     "type": "council",
+     "issue": "water:0",
+     "label": "Call the council"
+    }
+   ],
+   "source": "offline",
+   "mentions": [
+    false
+   ],
+   "actionOk": false,
+   "scriptOk": true,
+   "ungrounded": [],
+   "judge": {
+    "correct": 1,
+    "useful": 1,
+    "grounded": 1,
+    "note": "The response completely fails to address the question about the financial deficit, ignores the zero tax rates which are the direct cause, and offers an irrelevant action regarding water.",
+    "provider": "Groq · qwen/qwen3.8-27b"
+   }
+  },
+  {
+   "name": "traffic (Hindi)",
+   "truth": "Evening rush hour gridlock on a street; the council has a traffic problem listed.",
+   "question": "ट्रैफिक बहुत ज़्यादा है, मुझे क्या करना चाहिए?",
+   "answer": "AI अभी उपलब्ध नहीं है, लेकिन शहर के आंकड़ों से यह दिख रहा है: 1. Water shortage. सबसे बड़ी समस्या: Gridlock on Canal Street. आप Council बुला सकते हैं।",
+   "actions": [
+    {
+     "type": "council",
+     "issue": "traffic:Canal Street",
+     "label": "Council बुलाएँ"
+    }
+   ],
+   "source": "offline",
+   "mentions": [
+    true,
+    true
+   ],
+   "actionOk": true,
+   "scriptOk": true,
+   "ungrounded": [],
+   "judge": {
+    "correct": 1,
+    "useful": 1,
+    "grounded": 4,
+    "note": "The assistant fails to address the traffic issue directly and incorrectly claims it is unavailable while misidentifying a warning as the 'biggest problem'.",
+    "provider": "Groq · qwen/qwen3.8-27b"
+   }
+  }
+ ]
+}
