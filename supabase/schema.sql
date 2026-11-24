@@ -22,7 +22,12 @@ drop policy if exists "add own saves" on public.city_saves;
 drop policy if exists "change own saves" on public.city_saves;
 drop policy if exists "delete own saves" on public.city_saves;
 
-create policy "read own saves"   on public.city_saves for select using (auth.uid() = user_id);
-create policy "add own saves"    on public.city_saves for insert with check (auth.uid() = user_id);
-create policy "change own saves" on public.city_saves for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
-create policy "delete own saves" on public.city_saves for delete using (auth.uid() = user_id);
+create policy "read own saves"   on public.city_saves for select using ((select auth.uid()) = user_id);
+create policy "add own saves"    on public.city_saves for insert with check ((select auth.uid()) = user_id);
+create policy "change own saves" on public.city_saves for update using ((select auth.uid()) = user_id) with check ((select auth.uid()) = user_id);
+create policy "delete own saves" on public.city_saves for delete using ((select auth.uid()) = user_id);
+
+-- Newer Supabase projects grant nothing on new tables by default. Signed-in players get
+-- row access (RLS above still limits them to their own rows); the anon key gets none.
+grant select, insert, update, delete on public.city_saves to authenticated;
+revoke truncate, references, trigger on public.city_saves from anon, authenticated;
