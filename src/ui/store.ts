@@ -151,6 +151,8 @@ export function saveScrollMode(mode: import('../game/input').ScrollMode): void {
 
 export const ui = {
   loading: signal<string | null>('Starting'),
+  /** True while the opening fly-in runs: cards that would cover the view wait for it. */
+  intro: signal(false),
   cityName: signal('New Haven'),
   dateLabel: signal(''),
   speed: signal<Speed>(1),

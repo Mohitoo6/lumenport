@@ -1,6 +1,8 @@
-# Metropolis
+# Mahanagar (महानगर)
 
-A 3D city-builder that runs in the browser, built with TypeScript, Vite and Three.js.
+A 3D city-builder with an AI council, running in the browser. Built with TypeScript, Vite
+and Three.js. Play it at https://mahanagar.vercel.app (the game was called Metropolis until
+November 2026; saves and settings carry over).
 
 ```
 npm install
@@ -20,7 +22,14 @@ road for homes, shops and industry. Watch the demand bars, keep the budget in th
 going on: power, water, traffic, pollution, crime, land value, happiness and coverage.
 
 The goal card at the top left leads the way: sixteen goals from the first street to a
-Metropolis of 10,000, each paying a city grant (none in sandbox). Services include a hospital and a cricket ground (stands, pavilion, floodlights); the Business menu has the IT park, university, a shopping mall, a multiplex and a bazaar street. An empty treasury is not
+mahanagar of 10,000, each paying a city grant (none in sandbox). Building costs money:
+roads by the metre, facilities by the building, and zoning by the cell (the city lays the
+hook-ups). Services come small and big: a police station and, from 3,000 residents, a
+police headquarters; a fire station and a central fire station; a clinic and, from 2,000,
+a hospital. There is also a cricket ground and, from 5,000 residents, a domed indoor
+stadium; the Business menu has the IT park, university, a shopping mall, a multiplex and
+a bazaar street. The bank lends by city size and lets repayments take at most 35% of
+hourly income. An empty treasury is not
 a free pass: while the funds are below zero, services are underfunded and residents are
 unhappier until the books are fixed.
 

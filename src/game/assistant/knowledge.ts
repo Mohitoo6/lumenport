@@ -29,7 +29,7 @@ export interface ManualSection {
 
 const usd = (n: number): string => `$${n.toLocaleString('en-US')}`;
 
-const INTRO = `HOW THE GAME WORKS (Metropolis, a city builder; the player is the mayor)
+const INTRO = `HOW THE GAME WORKS (Mahanagar, a city builder; the player is the mayor)
 Toolbar at the bottom: Street, Avenue, Homes, Shops, Industry, De-zone, Power, Water, Services, Business (IT park, university, mall, multiplex, bazaar), Transit, Bulldoze. Top bar: date, speed, funds, population, happiness, demand bars, clock, Council button, Views (data overlays), Menu (M).
 Time: one game hour takes a real minute at normal speed (speeds 2 and 3 are twice and four times as quick). The budget settles every hour, so every income and upkeep figure is per hour. A day is 24 hours with a rush at about 9:00 and 18:00. The calendar is the ordinary one (January to December, starting in March 2030); each day stands for a month. The weather follows India's seasons: summer heat in May and June, the monsoon in July and August, winter fog in January and February.
 Goals: the card at the top left gives the next goal (first street, homes, power, water, then population milestones, services, the council, transit, an airport). Each one reached pays a city grant, except in sandbox.`;

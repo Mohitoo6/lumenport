@@ -309,7 +309,7 @@ export function llmHandler(env: Record<string, string | undefined>, opts: { publ
 export function llmProxy(env: Record<string, string | undefined>): Plugin {
   const handler = llmHandler(env);
   return {
-    name: 'metropolis-llm-proxy',
+    name: 'mahanagar-llm-proxy',
     configureServer(server) {
       server.middlewares.use((req, res, next) => void handler(req, res, next));
     },

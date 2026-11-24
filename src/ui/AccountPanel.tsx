@@ -74,7 +74,7 @@ export function AccountPanel(): JSX.Element | null {
 /** On sign-in: offer the latest city in the account, to carry on where the player left off. */
 export function ResumeCard(): JSX.Element | null {
   const r = ui.resume.value;
-  if (!r || ui.loading.value !== null) return null;
+  if (!r || ui.loading.value !== null || ui.intro.value) return null;
   return (
     <div class="panel resume-card" role="dialog" aria-label="Continue your city">
       <div class="goal-banner-kicker">Welcome back</div>

@@ -3,6 +3,7 @@ import { useEffect, useState } from 'preact/hooks';
 import { aiStatus } from '../game/council/llm';
 import { AiKeyPanel } from './AiKeyPanel';
 import { AccountPanel, ResumeCard } from './AccountPanel';
+import { GAME_NAME, GAME_NAME_HI, Loading } from './Intro';
 import { DEBT_SERVICE_LIMIT, LOAN_TIERS } from '../sim/economy/budget';
 import { OVERLAYS } from '../render/overlays/dataOverlay';
 import { CitizenFeed, CouncilChamber, IssuesMenu, MinisterRequestCard } from './council/Council';
@@ -780,7 +781,7 @@ function Welcome(): JSX.Element | null {
   useEffect(() => {
     if (open) void aiStatus().then((s) => setAi(s.ready));
   }, [open]);
-  if (!open || ui.loading.value !== null) return null;
+  if (!open || ui.loading.value !== null || ui.intro.value) return null;
   const close = (): void => {
     try {
       localStorage.setItem(WELCOME_KEY, '1');
@@ -793,7 +794,9 @@ function Welcome(): JSX.Element | null {
     <div class="welcome-backdrop" role="dialog" aria-modal="true" aria-labelledby="welcome-title">
       <div class="panel welcome">
         <div class="welcome-kicker">A city builder with an AI council</div>
-        <h1 id="welcome-title">Metropolis</h1>
+        <h1 id="welcome-title">
+          {GAME_NAME} <span class="welcome-hi" lang="hi">{GAME_NAME_HI}</span>
+        </h1>
         <ul class="welcome-points">
           <li>
             <strong>Build.</strong> Lay a street, zone homes, shops and industry, and keep power, water and services ahead of the people moving in. The goal card at the top left shows the next step.
@@ -820,21 +823,6 @@ function Welcome(): JSX.Element | null {
             Start building
           </button>
         </div>
-      </div>
-    </div>
-  );
-}
-
-function Loading(): JSX.Element {
-  const msg = ui.loading.value;
-  return (
-    <div class={`loading${msg === null ? ' is-done' : ''}`} aria-hidden={msg === null}>
-      <div class="loading-inner">
-        <div class="loading-title">Metropolis</div>
-        <div class="loading-bar">
-          <span />
-        </div>
-        <div class="loading-msg">{msg ?? 'Ready'}</div>
       </div>
     </div>
   );

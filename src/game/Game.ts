@@ -126,6 +126,8 @@ export class Game {
   private carShadows = true;
   private lastInput = 0;
   private lastMove = 0;
+  /** The opening fly-in, while it runs: from high over the map down to the starting view. */
+  private intro: { t: number; from: CameraPose; to: CameraPose; set: CameraPose } | null = null;
   private lastFrame = 0;
   /** Frame rate the loop is pacing itself to right now. */
   targetFps = 60;
@@ -431,6 +433,10 @@ export class Game {
     this.step(performance.now());
     await nextFrame();
     if (loadWarnings.length) console.warn('[assets]', loadWarnings.join('; '));
+    // Let the opening screen finish drawing its skyline, even when everything was cached.
+    const cinematic = !this.options.shots && !matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (cinematic) await new Promise((done) => setTimeout(done, Math.max(0, INTRO_MIN_MS - performance.now())));
+    if (cinematic) this.startIntro();
     ui.loading.value = null;
     this.ready = true;
     requestAnimationFrame(this.loop);
@@ -438,6 +444,45 @@ export class Game {
 
   exec(cmd: Command): CommandResult {
     return this.sim.apply(cmd);
+  }
+
+  /** Puts the camera high over the map, turned away, ready to swoop down to the start view. */
+  private startIntro(): void {
+    const to = { ...this.rig.goal };
+    const from: CameraPose = { x: to.x - 260, z: to.z + 420, yaw: to.yaw - 1.25, pitch: 1.3, dist: 2300 };
+    this.rig.setPose(from, true);
+    this.intro = { t: 0, from, to, set: { ...this.rig.goal } };
+    ui.intro.value = true;
+  }
+
+  /** One frame of the fly-in. Any camera input by the player ends it where it is. */
+  private flyIntro(dt: number): void {
+    const f = this.intro;
+    if (!f) return;
+    const g = this.rig.goal;
+    const s = f.set;
+    if (Math.abs(g.x - s.x) + Math.abs(g.z - s.z) > 0.01 || Math.abs(g.dist - s.dist) > 0.01 || Math.abs(g.yaw - s.yaw) + Math.abs(g.pitch - s.pitch) > 1e-5) {
+      this.intro = null;
+      ui.intro.value = false;
+      return;
+    }
+    f.t = Math.min(1, f.t + dt / INTRO_SECONDS);
+    // Ease in and out; the distance shrinks evenly in proportion, so the descent feels steady.
+    const e = f.t < 0.5 ? 4 * f.t ** 3 : 1 - (-2 * f.t + 2) ** 3 / 2;
+    const lerp = (a: number, b: number): number => a + (b - a) * e;
+    const pose: CameraPose = {
+      x: lerp(f.from.x, f.to.x),
+      z: lerp(f.from.z, f.to.z),
+      yaw: lerp(f.from.yaw, f.to.yaw),
+      pitch: lerp(f.from.pitch, f.to.pitch),
+      dist: Math.exp(lerp(Math.log(f.from.dist), Math.log(f.to.dist))),
+    };
+    this.rig.setPose(pose, true);
+    f.set = { ...this.rig.goal };
+    if (f.t >= 1) {
+      this.intro = null;
+      ui.intro.value = false;
+    }
   }
 
   setCamera(pose: Partial<CameraPose>, instant = true): void {
@@ -613,6 +658,7 @@ export class Game {
     const before = this.rig.pose;
     if (!cine) {
       this.input?.update(dt);
+      this.flyIntro(dt);
       const bx = before.x;
       const bz = before.z;
       const byaw = before.yaw;
@@ -1058,6 +1104,10 @@ export class Game {
     };
   }
 }
+
+/** The opening: the loading screen stays up at least this long, then the camera flies in. */
+const INTRO_MIN_MS = 2600;
+const INTRO_SECONDS = 4.2;
 
 function nextFrame(): Promise<void> {
   return new Promise((resolve) => requestAnimationFrame(() => resolve()));

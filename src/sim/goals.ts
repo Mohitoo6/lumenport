@@ -71,7 +71,7 @@ export const GOALS: readonly Goal[] = [
   },
   { id: 'city5000', title: 'A big city: 5,000 residents', hint: 'High-density towers, offices and an IT park.', reward: 20000, progress: pop(5000) },
   { id: 'airport', title: 'Open an airport', hint: 'Transit → Airport: exports, tourists and trips for residents.', reward: 15000, progress: (s) => flag(has(s, (k) => k === FacilityKind.Airport)) },
-  { id: 'metropolis', title: 'Metropolis: 10,000 residents', hint: 'You have built a metropolis. Keep it running.', reward: 40000, progress: pop(10000) },
+  { id: 'metropolis', title: 'Mahanagar: 10,000 residents', hint: 'You have built a mahanagar, a great city. Keep it running.', reward: 40000, progress: pop(10000) },
 ];
 
 /** The goal being worked on, or null when all are done. */
